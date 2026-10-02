@@ -2,68 +2,33 @@
 
 ![Frameyn — An eye for every frame.](assets/frameyn-cover.svg)
 
-**人与 Agent 都能使用的摄影精修工作室。**
+**照片精修，支持 Web UI 和 Agent Skill。**
 
-Frameyn · 帧映包含 **Web UI、摄影 Agent Skill 和本地像素工具**。你可以独立在浏览器中调光色、选风格、裁剪、查看细节并导出；也可以让已有的视觉 Agent 审片、解释取舍、生成候选，再回到同一间暗房继续精调。
+在浏览器中手动调整，或让视觉 Agent 审片并提供可预览的修片方案。两种方式共用本地照片项目，保留原片、批注和版本。
 
-照片、意图、批注和版本保存在本地项目中。人的手动选择和 Agent 的工具调用围绕同一份项目协作。
+[English](README.en.md) · [开始使用](#开始使用) · [功能与范围](#功能与范围) · [界面](#界面) · [摄影知识](#摄影知识)
 
-[English](README.en.md) · [Web UI 使用](#web-ui-使用) · [Agent Skill 使用](#agent-skill-使用) · [界面预览](#界面预览) · [工具参考](skills/guangjian-retouch/references/tools.md)
+## 使用方式
 
-## 两种使用方式
-
-| 入口 | 适合怎样使用 | 开始 |
+| 方式 | 用途 | 入口 |
 | --- | --- | --- |
-| **Web UI · 自己修片** | 在本地暗房查看照片、手动调参、试风格、裁剪和导出。可以独立使用，无需先安装 Agent。 | [启动本地暗房](#web-ui-使用) |
-| **Agent Skill · 一起修片** | 让自己的视觉 Agent 看图、提出建议并调用工具；你在 Web UI 中比较候选、圈选评论、继续精调。 | [安装摄影 Skill](#agent-skill-使用) |
+| **Web UI** | 手动调光色、试风格、裁剪和导出，无需 Agent。 | [启动本地暗房](#web-ui) |
+| **Agent Skill** | 让自己的 Agent 审片、生成试片，再在 Web UI 中比较和精调。 | [安装 Skill](#agent-skill) |
 
-两种方式共用本地像素引擎与项目记录。已有 Agent 时可以交替使用：手动调整后，让它重新读取当前效果；保存批注后，让它围绕具体位置继续建议。
+## 开始使用
 
-## 从看懂照片，到留下满意版本
-
-| 环节 | 你能做什么 |
-| --- | --- |
-| **审片** | 看主体、背景、光线、构图、视觉秩序与情绪；先说明值得保留的关系。已经合适的照片可以得到“建议保留”。 |
-| **试片** | 围绕“肤色真实”“保留清晨的安静”等意图创建候选，查看实际处理效果和主要取舍。 |
-| **精调** | 在本地暗房对照原片、100% 查看、缩放和平移，手动调参或圈选评论；让 Agent 读取最新批注继续调整。 |
-| **定稿** | 接受或取消候选，保存“自然版”“胶片版”等命名版本，随时恢复，再导出成片。 |
-
-每个候选都从当前版本出发。光色、风格与局部调整有独立的处理层，原片字节保存在项目中；预览和取消不会覆盖已接受的版本。
-
-## 界面预览
-
-### 在 Web UI 中手动精调
-
-照片是工作区中心，右侧提供创作意图、参数、风格和裁剪；底部保留查看与导出操作。
-
-![本地 Web UI：查看完整照片，在右侧手动调整光线与色彩。](assets/screenshots/darkroom-edit.png)
-
-<details>
-<summary>查看批注、候选对照与导出界面</summary>
-
-**圈选并说明。** 每处标记保存自己的范围与评论；Agent 读取项目时获得全部最新批注。讨论标记与已接受的像素调整分别保存。
-
-![两处画面批注：人物轮廓和晨光分别标记，并有独立评论。](assets/screenshots/darkroom-annotations.png)
-
-**先比较，再接受。** 当前版本与试片共享位置、构图和倍率，可以检查整体或放大细节。候选未接受前，已有版本会保留。
-
-![候选对照：左侧是当前版本，右侧是尚未接受的试片。](assets/screenshots/darkroom-compare.png)
-
-**按用途导出。** 分享、打印与原尺寸预设，配合格式、尺寸和画质设置；导出的是已保存版本。
-
-![成片导出：选择分享用途，实际生成 1448 × 1086 的 JPEG 成片。](assets/screenshots/darkroom-export.png)
-
-</details>
-
-截图来自实际运行的本地 Web UI，使用产品内置演示图展示交互；候选是一次轻调示例。[截图说明与复现方式](docs/SCREENSHOTS.md)
-
-## Web UI 使用
-
-需要 **Node.js 20.9+** 和现代浏览器。首次用命令选择照片并创建项目，之后在浏览器中操作，不要求 Agent 或模型 API Key。
+需要 **Node.js 20.9+**。以下命令使用 macOS / Linux shell；克隆私有仓库需要 GitHub 访问权限。
 
 ```sh
 git clone https://github.com/GeminiLight/frameyn.git
 cd frameyn
+```
+
+### Web UI
+
+准备依赖，选择照片并创建项目：
+
+```sh
 npm run setup
 mkdir -p projects
 
@@ -76,116 +41,130 @@ node skills/guangjian-retouch/scripts/cli.mjs serve \
   --project "./projects/my-photo"
 ```
 
-打开终端返回的本地地址，即可手动精调。调整参数、风格或裁剪后点击 **生成试片**，查看对照，再选择 **接受这版** 或 **取消试片**；接受后可以导出。
+打开终端返回的地址，在浏览器中调整。点击 **生成试片** 查看对照，再 **接受这版** 或 **取消试片**；接受后导出。
 
-项目目录须是新目录，原片会单独保留。按 `Ctrl+C` 停止服务；再次运行 `serve` 打开同一项目即可恢复照片、批注和已保存版本，无需重新 `init`。命令示例使用 macOS / Linux shell。
+项目目录须是新目录。按 `Ctrl+C` 停止服务，重新运行 `serve` 即可继续已保存的项目。
 
-### 在线工作室预览
+<details>
+<summary>在线工作室预览</summary>
 
-另有独立部署的 [Web 工作室预览](https://ai-photography-preview-geminilights-projects.vercel.app/)，提供浏览器上传、多张照片、诊断与内置顾问等体验。该预览目前启用 Vercel 访问保护，需要有访问权限；视觉模型的启用状态以页面显示为准。
+[在线预览](https://ai-photography-preview-geminilights-projects.vercel.app/) 提供多图上传、诊断与内置顾问，目前需要 Vercel 访问权限。视觉模型状态以页面显示为准。
 
-本仓库分发本地 Web UI、Skill 与 CLI，独立在线应用的部署源码暂未收录。在线工作室的浏览器草稿与本地照片项目不会自动同步。
+它是独立部署的应用，源码暂未包含在本仓库中；浏览器草稿与本地项目不会自动同步。
 
-## Agent Skill 使用
+</details>
 
-需要 **Node.js 20.9+**，以及能读取图片、运行本地工具并加载 Skill 的 Agent，例如 Codex。
+### Agent Skill
 
-### 1. 安装
+需要能看图、运行本地工具并加载 Skill 的 Agent，例如 Codex。
 
 ```sh
-git clone https://github.com/GeminiLight/frameyn.git
-cd frameyn
 npm run install:skill
 ```
 
-首次安装会准备固定版本的 Sharp 与原生 Canvas 图片依赖。默认安装到 `~/.codex/skills/guangjian-retouch`。如果宿主尚未显示新 Skill，重新加载 Skill 列表或打开新任务。
+默认安装到 `~/.codex/skills/guangjian-retouch`，首次安装自动准备图片处理依赖。Skill 标识保留 `guangjian-retouch`，兼容已有调用；未显示时重新加载 Skill 列表或打开新任务。
 
-> **安装标识**：品牌与仓库名已改为 Frameyn；Skill 暂时保留 `guangjian-retouch`，兼容已有安装和调用。下方示例使用这个实际可用的名称。
-
-### 2. 给一张照片，说清想保留什么
-
-在 Agent 中发送，把路径换成你的照片：
+在 Agent 中发送：
 
 ```text
-用 $guangjian-retouch 帮我修这张照片：/照片/清晨.jpg。
-保留清晨的安静和自然色彩。先审片，说明哪些地方值得保留；
-只有在有明确收益时才调整，先给我看候选预览。
+用 $guangjian-retouch 审阅 /照片/清晨.jpg。
+保留清晨的安静和自然色彩。先说明值得保留的部分，再给可预览的调整方案。
 ```
 
-Agent 会读取原片与摄影知识，创建本地照片项目，再提供审片观察或候选。请它打开本地暗房，就可以查看、批注和继续精调。
-
-### 3. 用批注继续对话
-
-圈选画面后保存评论，再回到 Agent：
+让 Agent 打开本地暗房，比较候选或保存批注。继续时可以说：
 
 ```text
-读取我刚保存的全部批注。
-人物稍微清楚一点，背景仍然保持安静；保留我标记的暖光。
-基于当前版本试片，解释变化和代价，先让我对比。
+读取当前版本和全部最新批注，轻抬人物阴影，保留背景与暖光。
+先给我看试片，说明主要变化和代价。
 ```
 
-对话在宿主 Agent 中进行，本地暗房负责查看、批注和精调。Agent 会在继续处理时重新读取批注；页面本身没有独立聊天模型。
+审片可以得出保留原片的结论。AI 使用宿主 Agent 的视觉模型、额度和数据规则，无需另配模型 Key。对话在原 Agent 中继续；Web UI 的「在 Agent 中继续」会复制项目提示。
 
 <details>
-<summary>更新已有 Skill，或安装到其他宿主</summary>
+<summary>更新或安装到其他宿主</summary>
 
-更新会先备份旧版本：
+更新前会备份旧 Skill：
 
 ```sh
 npm run install:skill -- --update
 ```
 
-指定其他兼容宿主的 Skill 目录：
+指定兼容宿主的 Skill 目录：
 
 ```sh
 node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
 ```
 
-Skill 配有可独立运行的本地 Web UI 和工具，无需部署另一套模型服务。私有仓库的克隆需要有访问权限的 GitHub 账号。
+</details>
+
+## 功能与范围
+
+| 功能 | 支持内容 |
+| --- | --- |
+| 光色与风格 | 31 项全局控制、14 款预设、独立风格层与强度调整。 |
+| 裁剪与局部 | 裁剪、拉直，矩形 / 径向 / 渐变几何蒙版与羽化。 |
+| 查看与比较 | 原片和版本对照、相同位置与倍率、100% 查看、缩放和平移。 |
+| 批注与协作 | 圈选范围、评论；Agent 继续前读取当前版本、意图和全部最新批注。 |
+| 项目与版本 | 候选预览、接受 / 取消、命名版本、恢复与导出记录。 |
+
+- **输入**：静态 JPEG、PNG、WebP、AVIF；8 位 sRGB。最多 30 MB、5000 万像素、最长边 16384 px。
+- **输出**：PNG / JPEG，支持分享、打印与原尺寸预设。最多 8192 px / 1600 万像素，不放大；原尺寸预设也受此限制。
+- **需先转换**：HEIC、RAW、TIFF。当前不支持 RAW 显影、16 位工作流、自动主体分割或生成式增删物体。
+
+本地工具不请求模型 API，预览只监听 `127.0.0.1`。已接受的选择仅在当前照片项目中记录为偏好。
+
+## 界面
+
+**手动精调**
+
+![本地 Web UI：完整照片与光色控制。](assets/screenshots/darkroom-edit.png)
+
+<details>
+<summary>批注、对照与导出</summary>
+
+**画面批注**：每处标记有独立范围与评论。
+
+![人物和晨光分别标记，右侧显示两条评论。](assets/screenshots/darkroom-annotations.png)
+
+**候选对照**：左侧为当前版本，右侧为未接受的试片。
+
+![当前版本与候选共享位置和倍率。](assets/screenshots/darkroom-compare.png)
+
+**导出成片**：按用途选择格式、尺寸与画质。
+
+![分享预设实际生成 1448 × 1086 JPEG。](assets/screenshots/darkroom-export.png)
 
 </details>
 
+真实本地界面截图，使用内置演示图。[截图说明](docs/SCREENSHOTS.md)
+
 ## 摄影知识
 
-Frameyn 按当前题材和问题读取相关知识：**79 个章节、10 类题材与场景、14 款风格预设，以及 10 位摄影师的学习线索**。
-
-知识关注处理的条件与取舍。例如，逆光人像要检查人物可读性，也要保留逆光关系；风格选择要看原有光线、题材和意图。滨田英明、Saul Leiter、川内伦子等摄影师的作品用于学习观看方式，大师名称不代表官方滤镜、授权配方或精确复刻。
+79 个章节，覆盖 10 类题材与场景，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
 
 <details>
-<summary>打开知识地图</summary>
+<summary>知识目录与检索</summary>
 
-| 想解决的问题 | 参考 |
+| 内容 | 文档 |
 | --- | --- |
-| 什么值得修改，什么值得保留 | [审美判断](skills/guangjian-retouch/references/aesthetic-judgment.md) |
-| 人像、风景、夜景、街头等场景 | [题材策略](skills/guangjian-retouch/references/subject-playbooks.md) |
-| 主次、留白、空间与拍摄练习 | [构图与拍摄](skills/guangjian-retouch/references/composition-craft.md) |
-| 曝光、肤色、白平衡、曲线与 HSL | [光线与色彩](skills/guangjian-retouch/references/light-color.md) |
-| 锐化、降噪、局部、裁剪与输出 | [处理工艺](skills/guangjian-retouch/references/detail-local-crop.md) |
-| 风格选择、适用条件与摄影师参考 | [风格图谱](skills/guangjian-retouch/references/style-atlas.md) |
-| 视频色彩、镜头匹配、剪辑与声音 | [视频工艺](skills/guangjian-retouch/references/video-craft.md) |
-| 已接受选择与反馈如何留下记录 | [学习与记忆](skills/guangjian-retouch/references/learning-memory.md) |
-| 实际案例、推理练习与过度处理反例 | [案例手册](skills/guangjian-retouch/references/casebook.md) |
-| 作者、厂商与真实引擎依据 | [来源](skills/guangjian-retouch/references/sources.md) |
-
-本地关键词检索示例，在仓库目录运行：
+| 判断与构图 | [审美判断](skills/guangjian-retouch/references/aesthetic-judgment.md) · [构图与拍摄](skills/guangjian-retouch/references/composition-craft.md) |
+| 题材与场景 | [题材策略](skills/guangjian-retouch/references/subject-playbooks.md) |
+| 光色与细节 | [光线与色彩](skills/guangjian-retouch/references/light-color.md) · [局部与输出](skills/guangjian-retouch/references/detail-local-crop.md) |
+| 风格与来源 | [风格图谱](skills/guangjian-retouch/references/style-atlas.md) · [来源](skills/guangjian-retouch/references/sources.md) |
+| 案例与反馈 | [案例手册](skills/guangjian-retouch/references/casebook.md) · [学习记录](skills/guangjian-retouch/references/learning-memory.md) |
+| 视频 | [调色与剪辑知识](skills/guangjian-retouch/references/video-craft.md) |
 
 ```sh
 node skills/guangjian-retouch/scripts/knowledge.mjs search --query '滨田英明 柔光人像 肤色'
 node skills/guangjian-retouch/scripts/knowledge.mjs read --id style-daily-soft
 ```
 
-检索不调用模型；实际审片仍需要 Agent 读取画面。
+本地关键词检索不调用模型，审片仍需 Agent 实际看图。视频知识用于方案判断；执行需要宿主另有媒体工具，本照片 CLI 不支持视频导入或导出。
 
 </details>
 
-## Web UI、Skill 与 CLI 如何配合
-
-| 部分 | 负责什么 |
-| --- | --- |
-| **你的视觉 Agent** | 看图、理解意图、说明依据、制定候选、读取最新批注并继续对话。 |
-| **Frameyn Skill** | 提供摄影知识、审片流程、工具用法和处理检查点。 |
-| **Web UI** | 人查看照片、手动精调、比较候选、保存批注、选择版本和导出。 |
-| **CLI 与本地像素引擎** | Agent 或命令行创建项目、读写方案、处理原片像素，保存版本并导出。 |
+<details>
+<summary>工作原理</summary>
 
 ```mermaid
 flowchart LR
@@ -197,32 +176,11 @@ flowchart LR
     cli <--> project
 ```
 
-本地工具不请求模型 API，无需额外模型 Key。图片提供给宿主视觉模型时，遵循宿主的数据处理规则与额度。预览服务只监听 `127.0.0.1`，项目保存照片、参数、裁剪、批注和版本，重新启动同一项目即可继续。
+Web UI 与 CLI 读写同一份项目。原片单独保存，候选接受后才成为当前版本；版本或批注变化时，旧候选会失效。讨论标记与已接受的局部调整分别保存。
 
-偏好记录来自实际接受的选择，当前仅限同一个照片项目。试片、浏览或取消不会被记录为认可；当前创作意图优先。
+</details>
 
-## 常见问题
-
-**没有 Agent，能用吗？** 可以。本地 Web UI 支持独立手动修片；初次选择照片使用上面的 `init` 命令，之后在浏览器操作。视觉审片与 AI 对话需要一个具有看图能力的 Agent。
-
-**Web UI 内能直接和 Agent 聊天吗？** 本地暗房中的「在 Agent 中继续」会复制当前项目提示，你在原 Agent 对话中继续。它没有独立聊天模型。在线工作室的内置顾问属于另一套部署入口。
-
-**Agent 能看到我刚改的参数和评论吗？** 重新读取项目后可以。Skill 要求继续建议前核对当前版本、意图和全部最新批注；基础版本或批注变化时，旧候选会失效。
-
-## 当前能力范围
-
-| 项目 | 支持范围 |
-| --- | --- |
-| 光色与风格 | 31 项全局控制、独立风格层与强度调整。 |
-| 构图与局部 | 裁剪、拉直，矩形 / 径向 / 渐变范围与羽化。局部范围是几何蒙版。 |
-| 输入 | 静态 JPEG、PNG、WebP、AVIF；8 位 sRGB。最大 30 MB、5000 万像素、最长边 16384 px。 |
-| 输出 | PNG / JPEG；分享、打印与原尺寸用途预设。最长边不超过 8192 px，总量不超过 1600 万像素，不放大。 |
-
-HEIC、RAW、TIFF 需要先转换。当前没有 RAW 显影、16 位工作流、语义主体分割或生成式增删物体；“原尺寸”预设也受上述输出上限约束。
-
-视频部分提供调色与剪辑判断知识；实际视频执行需要宿主另有媒体工具，本照片 CLI 没有视频时间线或视频导出。
-
-## 开发与验证
+## 开发
 
 ```sh
 npm run setup
@@ -230,6 +188,6 @@ npm run knowledge:check
 npm test
 ```
 
-现有 **15 项测试**覆盖原片保护、方向、候选冲突、参数与局部快照、命名版本、PNG 预览与导出的像素一致性、本地会话及知识检索。技术测试使用生成图；实际照片案例另有观察记录，摄影质量仍需按题材和输出尺寸逐一检查。
+15 项测试覆盖项目、像素处理、本地会话与知识检索。技术测试使用生成图，实际照片观察另有记录，见 [验证范围](docs/VALIDATION.md)。
 
-[验证范围](docs/VALIDATION.md) · [截图说明](docs/SCREENSHOTS.md) · [参与维护](CONTRIBUTING.md) · [Skill 入口](skills/guangjian-retouch/SKILL.md) · [工具命令与 JSON](skills/guangjian-retouch/references/tools.md)
+[维护指南](CONTRIBUTING.md) · [Skill 入口](skills/guangjian-retouch/SKILL.md) · [CLI 与 JSON 参考](skills/guangjian-retouch/references/tools.md)
