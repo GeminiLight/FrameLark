@@ -5,7 +5,7 @@ import {pathToFileURL} from 'node:url';
 import {initProject,loadProject,publicProject,currentVersion,createCandidate,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,recordExport,fail} from './project.mjs';
 import {previewPhoto,exportPhoto} from './render.mjs';
 import {editorControlReference} from './engine/control-reference.js';
-const help={name:'光间 · 本地修片',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
+const help={name:'帧映 · 本地修片',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
   init:'--image <photo> --project <new-folder> [--intent <表达目标>]',
   inspect:'读取当前版本、最新批注、意图、候选和真实预览路径；不调用视觉模型',
   controls:'实际参数范围、灰卡响应与风格目录',

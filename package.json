@@ -1,9 +1,9 @@
 {
-  "name": "guangjian",
+  "name": "frameyn",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "A photography taste skill and local retouching toolkit for visual agents.",
+  "description": "Frameyn: photography review and local retouching for your visual agent.",
   "engines": {
     "node": ">=20.9.0"
   },
