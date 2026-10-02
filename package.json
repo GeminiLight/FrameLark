@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Frameyn: photography review and local retouching for your visual agent.",
+  "description": "Frameyn: a photography workspace with a Web UI, an agent skill, and local retouching tools.",
   "engines": {
     "node": ">=20.9.0"
   },

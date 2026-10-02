@@ -2,11 +2,22 @@
 
 ![Frameyn — An eye for every frame.](assets/frameyn-cover.svg)
 
-**给你的 Agent，一双懂摄影的眼睛。**
+**人与 Agent 都能使用的摄影精修工作室。**
 
-Frameyn 是一个摄影审美与精修 Skill。安装到已有的视觉 Agent 中，让它围绕你的创作意图审片，解释画面的光色与构图，再用本地工具做出可预览、可继续精调的候选。你可以圈出不满意的地方、留下评论，和 Agent 一起修到满意。
+Frameyn · 帧映包含 **Web UI、摄影 Agent Skill 和本地像素工具**。你可以独立在浏览器中调光色、选风格、裁剪、查看细节并导出；也可以让已有的视觉 Agent 审片、解释取舍、生成候选，再回到同一间暗房继续精调。
 
-[English](README.en.md) · [快速开始](#快速开始) · [摄影知识](#摄影知识) · [工具参考](skills/guangjian-retouch/references/tools.md)
+照片、意图、批注和版本保存在本地项目中。人的手动选择和 Agent 的工具调用围绕同一份项目协作。
+
+[English](README.en.md) · [Web UI 使用](#web-ui-使用) · [Agent Skill 使用](#agent-skill-使用) · [界面预览](#界面预览) · [工具参考](skills/guangjian-retouch/references/tools.md)
+
+## 两种使用方式
+
+| 入口 | 适合怎样使用 | 开始 |
+| --- | --- | --- |
+| **Web UI · 自己修片** | 在本地暗房查看照片、手动调参、试风格、裁剪和导出。可以独立使用，无需先安装 Agent。 | [启动本地暗房](#web-ui-使用) |
+| **Agent Skill · 一起修片** | 让自己的视觉 Agent 看图、提出建议并调用工具；你在 Web UI 中比较候选、圈选评论、继续精调。 | [安装摄影 Skill](#agent-skill-使用) |
+
+两种方式共用本地像素引擎与项目记录。已有 Agent 时可以交替使用：手动调整后，让它重新读取当前效果；保存批注后，让它围绕具体位置继续建议。
 
 ## 从看懂照片，到留下满意版本
 
@@ -19,7 +30,63 @@ Frameyn 是一个摄影审美与精修 Skill。安装到已有的视觉 Agent �
 
 每个候选都从当前版本出发。光色、风格与局部调整有独立的处理层，原片字节保存在项目中；预览和取消不会覆盖已接受的版本。
 
-## 快速开始
+## 界面预览
+
+### 在 Web UI 中手动精调
+
+照片是工作区中心，右侧提供创作意图、参数、风格和裁剪；底部保留查看与导出操作。
+
+![本地 Web UI：查看完整照片，在右侧手动调整光线与色彩。](assets/screenshots/darkroom-edit.png)
+
+<details>
+<summary>查看批注、候选对照与导出界面</summary>
+
+**圈选并说明。** 每处标记保存自己的范围与评论；Agent 读取项目时获得全部最新批注。讨论标记与已接受的像素调整分别保存。
+
+![两处画面批注：人物轮廓和晨光分别标记，并有独立评论。](assets/screenshots/darkroom-annotations.png)
+
+**先比较，再接受。** 当前版本与试片共享位置、构图和倍率，可以检查整体或放大细节。候选未接受前，已有版本会保留。
+
+![候选对照：左侧是当前版本，右侧是尚未接受的试片。](assets/screenshots/darkroom-compare.png)
+
+**按用途导出。** 分享、打印与原尺寸预设，配合格式、尺寸和画质设置；导出的是已保存版本。
+
+![成片导出：选择分享用途，实际生成 1448 × 1086 的 JPEG 成片。](assets/screenshots/darkroom-export.png)
+
+</details>
+
+截图来自实际运行的本地 Web UI，使用产品内置演示图展示交互；候选是一次轻调示例。[截图说明与复现方式](docs/SCREENSHOTS.md)
+
+## Web UI 使用
+
+需要 **Node.js 20.9+** 和现代浏览器。首次用命令选择照片并创建项目，之后在浏览器中操作，不要求 Agent 或模型 API Key。
+
+```sh
+git clone https://github.com/GeminiLight/frameyn.git
+cd frameyn
+npm run setup
+mkdir -p projects
+
+node skills/guangjian-retouch/scripts/cli.mjs init \
+  --image "/你的/照片.jpg" \
+  --project "./projects/my-photo" \
+  --intent "保留自然色彩与原有光线"
+
+node skills/guangjian-retouch/scripts/cli.mjs serve \
+  --project "./projects/my-photo"
+```
+
+打开终端返回的本地地址，即可手动精调。调整参数、风格或裁剪后点击 **生成试片**，查看对照，再选择 **接受这版** 或 **取消试片**；接受后可以导出。
+
+项目目录须是新目录，原片会单独保留。按 `Ctrl+C` 停止服务；再次运行 `serve` 打开同一项目即可恢复照片、批注和已保存版本，无需重新 `init`。命令示例使用 macOS / Linux shell。
+
+### 在线工作室预览
+
+另有独立部署的 [Web 工作室预览](https://ai-photography-preview-geminilights-projects.vercel.app/)，提供浏览器上传、多张照片、诊断与内置顾问等体验。该预览目前启用 Vercel 访问保护，需要有访问权限；视觉模型的启用状态以页面显示为准。
+
+本仓库分发本地 Web UI、Skill 与 CLI，独立在线应用的部署源码暂未收录。在线工作室的浏览器草稿与本地照片项目不会自动同步。
+
+## Agent Skill 使用
 
 需要 **Node.js 20.9+**，以及能读取图片、运行本地工具并加载 Skill 的 Agent，例如 Codex。
 
@@ -74,7 +141,7 @@ npm run install:skill -- --update
 node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
 ```
 
-仓库包含可独立安装的 Skill 和本地工具，无需部署 Web 应用或配置另一套模型服务。私有仓库的克隆需要有访问权限的 GitHub 账号。
+Skill 配有可独立运行的本地 Web UI 和工具，无需部署另一套模型服务。私有仓库的克隆需要有访问权限的 GitHub 账号。
 
 </details>
 
@@ -111,17 +178,36 @@ node skills/guangjian-retouch/scripts/knowledge.mjs read --id style-daily-soft
 
 </details>
 
-## Agent 与本地工具如何配合
+## Web UI、Skill 与 CLI 如何配合
 
 | 部分 | 负责什么 |
 | --- | --- |
 | **你的视觉 Agent** | 看图、理解意图、说明依据、制定候选、读取最新批注并继续对话。 |
 | **Frameyn Skill** | 提供摄影知识、审片流程、工具用法和处理检查点。 |
-| **本地像素工具与暗房** | 调整已有像素，保存项目与版本，提供对照、批注、手动精调和导出。 |
+| **Web UI** | 人查看照片、手动精调、比较候选、保存批注、选择版本和导出。 |
+| **CLI 与本地像素引擎** | Agent 或命令行创建项目、读写方案、处理原片像素，保存版本并导出。 |
+
+```mermaid
+flowchart LR
+    person[你] <--> ui[Web UI]
+    person <--> agent[自己的视觉 Agent]
+    skill[摄影 Skill] --> agent
+    agent -->|Tool Use| cli[本地 CLI]
+    ui <--> project[照片项目与版本]
+    cli <--> project
+```
 
 本地工具不请求模型 API，无需额外模型 Key。图片提供给宿主视觉模型时，遵循宿主的数据处理规则与额度。预览服务只监听 `127.0.0.1`，项目保存照片、参数、裁剪、批注和版本，重新启动同一项目即可继续。
 
 偏好记录来自实际接受的选择，当前仅限同一个照片项目。试片、浏览或取消不会被记录为认可；当前创作意图优先。
+
+## 常见问题
+
+**没有 Agent，能用吗？** 可以。本地 Web UI 支持独立手动修片；初次选择照片使用上面的 `init` 命令，之后在浏览器操作。视觉审片与 AI 对话需要一个具有看图能力的 Agent。
+
+**Web UI 内能直接和 Agent 聊天吗？** 本地暗房中的「在 Agent 中继续」会复制当前项目提示，你在原 Agent 对话中继续。它没有独立聊天模型。在线工作室的内置顾问属于另一套部署入口。
+
+**Agent 能看到我刚改的参数和评论吗？** 重新读取项目后可以。Skill 要求继续建议前核对当前版本、意图和全部最新批注；基础版本或批注变化时，旧候选会失效。
 
 ## 当前能力范围
 
@@ -146,4 +232,4 @@ npm test
 
 现有 **15 项测试**覆盖原片保护、方向、候选冲突、参数与局部快照、命名版本、PNG 预览与导出的像素一致性、本地会话及知识检索。技术测试使用生成图；实际照片案例另有观察记录，摄影质量仍需按题材和输出尺寸逐一检查。
 
-[验证范围](docs/VALIDATION.md) · [参与维护](CONTRIBUTING.md) · [Skill 入口](skills/guangjian-retouch/SKILL.md) · [工具命令与 JSON](skills/guangjian-retouch/references/tools.md)
+[验证范围](docs/VALIDATION.md) · [截图说明](docs/SCREENSHOTS.md) · [参与维护](CONTRIBUTING.md) · [Skill 入口](skills/guangjian-retouch/SKILL.md) · [工具命令与 JSON](skills/guangjian-retouch/references/tools.md)
