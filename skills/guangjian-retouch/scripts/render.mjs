@@ -10,6 +10,7 @@ import {presetById} from './engine/presets.js';
 import {outputGeometry,safeFilename} from './engine/export-settings.js';
 import {photoMetering} from './engine/photo-metering.js';
 import {writeImageMetadata} from './engine/export-files.js';
+import {drawTextOverlays,letteringVersion} from './text-overlays.mjs';
 let cached=null;
 async function sourceImage(folder,p) {
   const file=path.join(folder,'source','normalized.png');const bytes=await readFile(file);
@@ -34,8 +35,10 @@ export async function renderFrame(folder,key='current',options={}) {
   const settings=options.original?neutralSettings():combineSettings({settings:state.settings},{settings:presetById(state.style?.id)?.adjustments,amount:(state.style?.amount||0)/100});
   const pixels=renderPhotoPixels({pixels:source,width,height,settings,annotations:options.original?[]:state.locals,crop:frameCrop,frame:{fullWidth:W,fullHeight:H,sourceRect:rect,angle:crop?.angle||0}});
   context.putImageData(new ImageData(pixels,width,height),0,0);
+  const textLayout=drawTextOverlays(context,options.original||options.withoutText?[]:state.textOverlays,{width,height,compositionRect:outputGeometry(crop,W,H,8192).rect,sourceRect:rect});
+  const composedPixels=textLayout.length?context.getImageData(0,0,width,height).data:pixels;
   if(options.showNotes){for(const n of p.notes){const r=transformRect(n.rect,x=>originalToViewPoint(x,frameCrop,W,H));if(!r)continue;context.strokeStyle='#ffe5b8';context.lineWidth=2;context.strokeRect(r.x*width,r.y*height,r.width*width,r.height*height);context.fillStyle='#dfcfb5';context.fillRect(r.x*width,r.y*height,24,23);context.fillStyle='#242829';context.font='14px sans-serif';context.fillText(String(n.number),r.x*width+7,r.y*height+17);}}
-  return {png:canvas.toBuffer('image/png'),pixels,width,height,sourceRect:rect,limited:geometry.limited,versionId:version.id,stats:photoMetering(pixels,width,height),pipeline:renderingVersion,pixelHash:hash(Buffer.from(pixels))};
+  return {png:canvas.toBuffer('image/png'),pixels:composedPixels,width,height,sourceRect:rect,limited:geometry.limited,versionId:version.id,stats:photoMetering(pixels,width,height),textLayout,withoutText:Boolean(options.withoutText),pipeline:renderingVersion+(textLayout.length?'+'+letteringVersion:''),pixelHash:hash(Buffer.from(composedPixels))};
 }
 export async function previewPhoto(folder,key='current',options={}) {
   const frame=await renderFrame(folder,key,options);const name=`${frame.versionId}-${hash(options).slice(0,12)}.png`,file=path.join(path.resolve(folder),'previews',name);
@@ -48,11 +51,11 @@ export async function exportPhoto(folder,key='current',options={}) {
   const maxSide=options.maxSide??({share:2048,print:6000,original:8192}[preset]);if(!Number.isFinite(maxSide)||maxSide<512||maxSide>8192)fail('EXPORT_SIZE','最长边应为 512～8192；总像素最多 1600 万。');
   const quality=options.quality??(preset==='print'?98:90);if(!Number.isFinite(quality)||quality<60||quality>100)fail('EXPORT_QUALITY','JPEG 画质应为 60～100。');
   const dpi=options.dpi??(preset==='share'?96:300);if(!Number.isInteger(dpi)||dpi<72||dpi>1200)fail('EXPORT_DPI','像素密度应为 72～1200 ppi。');
-  const frame=await renderFrame(folder,v.id,{maxSide});let bytes=frame.png;
+  const frame=await renderFrame(folder,v.id,{maxSide,withoutText:Boolean(options.withoutText)});let bytes=frame.png;
   if(format==='jpeg')bytes=await sharp(bytes).flatten({background:'#ffffff'}).jpeg({quality,chromaSubsampling:'4:4:4'}).toBuffer();
   bytes=Buffer.from(writeImageMetadata(bytes,format,{dpi,includeArtwork:Boolean(options.includeArtwork),title:options.title||'',author:options.author||'',copyright:options.copyright||''}));
-  const output=options.output?path.resolve(options.output):path.join(path.resolve(folder),'exports',safeFilename(p.source.name,format==='jpeg'?'jpg':'png',`${v.name}-${Date.now()}`));
+  const output=options.output?path.resolve(options.output):path.join(path.resolve(folder),'exports',safeFilename(p.source.name,format==='jpeg'?'jpg':'png',`${v.name}${options.withoutText?'-无字':''}-${Date.now()}`));
   const rel=path.relative(path.resolve(folder),output);if(rel==='project.json'||rel.startsWith('source'+path.sep)||rel.startsWith('previews'+path.sep))fail('OUTPUT_PROTECTED','成片不能写到源图或项目记录目录，请换一个输出位置。');
   try{await writeFile(output,bytes,{flag:'wx',mode:0o600});}catch(error){if(error.code==='EEXIST')fail('OUTPUT_EXISTS','输出文件已存在。请换一个名称，保留已有成片。');throw error;}
-  return {path:output,versionId:v.id,width:frame.width,height:frame.height,limited:frame.limited,format,dpi,quality,bytes:bytes.length,pipeline:frame.pipeline,pixelHash:frame.pixelHash};
+  return {path:output,versionId:v.id,width:frame.width,height:frame.height,limited:frame.limited,format,dpi,quality,bytes:bytes.length,pipeline:frame.pipeline,pixelHash:frame.pixelHash,withoutText:frame.withoutText};
 }

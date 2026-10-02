@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-02",
+  "reviewedAt": "2026-10-03",
   "retrieval": "keyword-only; relevance is not aesthetic quality",
   "adjustmentKeys": [
     "exposure",
@@ -1121,6 +1121,82 @@
         "discard",
         "restore",
         "export"
+      ]
+    },
+    {
+      "id": "lettering-opt-in",
+      "kind": "lettering",
+      "file": "lettering.md",
+      "section": "何时进入文字模式",
+      "tags": [
+        "加字",
+        "文字",
+        "短句",
+        "可爱",
+        "lettering",
+        "text"
+      ]
+    },
+    {
+      "id": "lettering-layout",
+      "kind": "lettering",
+      "file": "lettering.md",
+      "section": "看画面再排版",
+      "tags": [
+        "排版",
+        "留白",
+        "遮挡",
+        "字号",
+        "手机",
+        "文字"
+      ]
+    },
+    {
+      "id": "lettering-style",
+      "kind": "lettering",
+      "file": "lettering.md",
+      "section": "风格与取舍",
+      "tags": [
+        "贴纸",
+        "奶油",
+        "小标题",
+        "字体",
+        "文字风格"
+      ]
+    },
+    {
+      "id": "lettering-tools",
+      "kind": "lettering",
+      "file": "lettering.md",
+      "section": "候选与精调",
+      "tags": [
+        "文字候选",
+        "文字精调",
+        "文字层"
+      ]
+    },
+    {
+      "id": "lettering-export",
+      "kind": "lettering",
+      "file": "lettering.md",
+      "section": "成片与偏好",
+      "tags": [
+        "无字",
+        "有字",
+        "文字导出",
+        "装饰偏好"
+      ]
+    },
+    {
+      "id": "lettering-schema",
+      "kind": "lettering",
+      "file": "tools.md",
+      "section": "文字点缀",
+      "tags": [
+        "textOverlays",
+        "lettering",
+        "文字JSON",
+        "文字参数"
       ]
     }
   ]

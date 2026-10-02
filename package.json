@@ -11,6 +11,6 @@
     "install:skill": "node scripts/install-photo-skill.mjs",
     "setup": "node skills/guangjian-retouch/scripts/setup.mjs",
     "knowledge:check": "node skills/guangjian-retouch/scripts/knowledge.mjs check",
-    "test": "node test/prepare-fixtures.mjs && node --test test/skill-knowledge.test.mjs test/local-runtime.test.mjs"
+    "test": "node test/prepare-fixtures.mjs && node --test test/skill-knowledge.test.mjs test/local-runtime.test.mjs test/local-lettering.test.mjs"
   }
 }

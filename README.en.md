@@ -121,6 +121,18 @@ node scripts/install-photo-skill.mjs /your/skills/guangjian-retouch
 
 Local tools make no model API requests. The preview listens only on `127.0.0.1`. Accepted choices are recorded as preferences within the current photo project only.
 
+## Optional lettering
+
+Lettering is a separate mode, enabled only when requested. Keep the retouched photograph and preview short captions, cream-colored stickers, or small editorial titles before accepting. The local Web UI supports text, placement, size, color, and small heart or sparkle accents. Export with or without lettering; ordinary photo edits never add text automatically.
+
+```text
+Use $guangjian-retouch to add “A little joy” to this retouched photo.
+Try a small cream-colored sticker in the negative space, away from the subject.
+Show me the trial and keep a clean edition.
+```
+
+Fonts are supplied by the host computer; Chinese text requires an installed CJK font. See the [lettering guide](skills/guangjian-retouch/references/lettering.md).
+
 ## Interface
 
 **Manual retouching**

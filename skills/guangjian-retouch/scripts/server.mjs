@@ -24,7 +24,7 @@ export async function serveProject(folder,{port=0,sessionFile,quiet=false}={}) {
         if(req.headers.origin&&req.headers.origin!==origin)return json(res,403,{error:{message:'请求来源不匹配。'}});
         if(req.method==='GET'&&url.pathname==='/api/project')return json(res,200,{...publicProject(await loadProject(folder)),folder});
         if(req.method==='GET'&&url.pathname==='/api/image'){
-          const options={maxSide:Number(url.searchParams.get('size'))||1400};if(url.searchParams.has('reference')){const p=await loadProject(folder),{findVersion}=await import('./project.mjs');options.referenceCrop=findVersion(p,url.searchParams.get('reference')).state.crop;}
+          const options={maxSide:Number(url.searchParams.get('size'))||1400,withoutText:url.searchParams.get('withoutText')==='true'};if(url.searchParams.has('reference')){const p=await loadProject(folder),{findVersion}=await import('./project.mjs');options.referenceCrop=findVersion(p,url.searchParams.get('reference')).state.crop;}
           const result=await render('preview',url.searchParams.get('version')||'current',options);res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'no-store','X-Photo-Width':result.width,'X-Photo-Height':result.height,'X-Photo-Limited':String(result.limited)});return res.end(await readFile(result.path));
         }
         if(req.method==='GET'&&url.pathname==='/api/download'){
@@ -35,13 +35,13 @@ export async function serveProject(folder,{port=0,sessionFile,quiet=false}={}) {
           const value=await body(req);let result;
           const methods={'/api/candidate':createCandidate,'/api/note':saveNote,'/api/delete-note':deleteNote,'/api/intent':setIntent,'/api/accept':acceptCandidate,'/api/discard':discardCandidate,'/api/restore':restoreVersion,'/api/review':saveReview};
           if(methods[url.pathname])result=await methods[url.pathname](folder,value);
-          else if(url.pathname==='/api/export'){result=await render('export',value.version||'current',{preset:value.preset||'share',format:value.format,maxSide:value.maxSide,quality:value.quality});await recordExport(folder,result);}
+          else if(url.pathname==='/api/export'){result=await render('export',value.version||'current',{preset:value.preset||'share',format:value.format,maxSide:value.maxSide,quality:value.quality,withoutText:value.withoutText===true});await recordExport(folder,result);}
           else return json(res,404,{error:{message:'找不到这个操作。'}});return json(res,200,result);
         }
         return json(res,404,{error:{message:'找不到这个操作。'}});
       }
       if(req.method!=='GET')return json(res,405,{error:{message:'不支持这个请求。'}});
-      const files={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/style.css':['style.css','text/css'],'/mark.svg':['mark.svg','image/svg+xml']};
+      const files={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/lettering.js':['lettering.js','text/javascript'],'/style.css':['style.css','text/css'],'/mark.svg':['mark.svg','image/svg+xml']};
       let file=files[url.pathname];
       if(['/engine/photo-geometry.js','/engine/crop-utils.js','/engine/editor-engine.js','/engine/render-frame.js','/engine/tone-processing.js','/engine/detail-processing.js'].includes(url.pathname))file=[new URL('.'+url.pathname,import.meta.url),'text/javascript'];
       if(!file)return json(res,404,{error:{message:'页面不存在。'}});

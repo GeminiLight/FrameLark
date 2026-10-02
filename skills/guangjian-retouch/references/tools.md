@@ -66,3 +66,52 @@ node <skill>/scripts/cli.mjs serve --project <project> --port 0 --session-file <
 ```
 
 服务仅绑定本机；新启动会生成新预览会话。页面刷新保留项目，服务关闭后重新启动恢复项目。单张输入最多 30 MB / 5000 万像素 / 最长边 16384；支持静态 JPEG/PNG/WebP/AVIF。HEIC、RAW、TIFF 转换后加入。
+
+
+## 文字点缀
+
+先运行 `node <skill>/scripts/cli.mjs lettering` 查看真实样式、字体与范围。文字模式独立于 `controls` 的修片参数，不需要额外模型服务。
+
+`lettering --project <project> --input <plan.json>`：创建文字候选，命令只接受文字变更，保留当前光色、风格、局部和裁剪。`candidate` 中若包含 `textOverlays`，也必须明确 `mode: lettering`。
+
+```json
+{
+  "revision": 8,
+  "baseVersion": "inspect 返回的 currentId",
+  "mode": "lettering",
+  "name": "小确幸 · 文字版",
+  "goal": "把一句短句放在左下留白，保留已修好的照片",
+  "tradeoff": "检查贴纸是否遮挡主体，以及手机上的可读性",
+  "textOverlays": [
+    {
+      "id": "little-note",
+      "text": "把今天，慢慢收藏",
+      "style": "sticker",
+      "x": 0.07,
+      "y": 0.78,
+      "width": 0.6,
+      "size": 0.045,
+      "color": "#594539",
+      "background": "#FFF1DD",
+      "decoration": "heart",
+      "rotation": -2
+    }
+  ]
+}
+```
+
+`revision` 和 `baseVersion` 用最新真实值替换。`textOverlays` 为整个文字数组的绝对目标，最多 4 处；`[]` 移除文字，省略保留当前文字。每处最多 120 字、6 个显式换行行数；过长或超出最终画幅会明确报错，当前已接受版本不变。
+
+| 字段 | 含义 |
+| --- | --- |
+| `x` / `y` / `width` | 最终裁剪画幅的归一化位置和宽度；位置 0.02～0.94，宽度 0.08～0.96，右边保留 2%；贴纸底色按实际文字收拢 |
+| `size` | 字号占最终画幅短边比例，0.018～0.12 |
+| `style` | `airy` 留白短句、`sticker` 奶油贴纸、`editorial` 小标题 |
+| `font` / `weight` | 可选 `sans`、`rounded`、`serif`，字重 400 或 600；样式已有默认值 |
+| `color` / `background` | `#RRGGBB`；底色仅用于贴纸 |
+| `align` / `rotation` | 可选 left / center / right，倾斜 -12°～12° |
+| `opacity` / `decoration` | 不透明度 0.2～1，装饰 none / heart / sparkle |
+
+预览和 PNG/JPEG 导出通过同一排版流程。`preview --without-text true` 临时看无字版；`export --without-text true` 导出仅保留修片的成片，不改变项目。`serve` 的「文字点缀」入口可手动改文字、样式、位置与大小，再试片、接受或取消。导出窗口也可取消「包含文字点缀」。
+
+字体来自本机；中文字体缺失会要求安装后重试。工具不自动下载字体；本机不同字体可能改变字形和换行。最后应在用户使用的本机复看实际成片。

@@ -6,6 +6,8 @@ import {adjustmentKeys,limits,neutralSettings} from './engine/editor-engine.js';
 import {presets,presetById} from './engine/presets.js';
 import {validCrop} from './engine/crop-utils.js';
 import {originalToViewPoint,transformRect} from './engine/photo-geometry.js';
+import {cleanTextOverlays,validateTextComposition,letteringCapabilities} from './text-overlays.mjs';
+import {outputGeometry} from './engine/export-settings.js';
 export class PhotoError extends Error {constructor(code,message){super(message);this.code=code;}}
 export const fail=(code,message)=>{throw new PhotoError(code,message);};
 export const hash=value=>createHash('sha256').update(typeof value==='string' || Buffer.isBuffer(value)?value:JSON.stringify(value)).digest('hex');
@@ -36,7 +38,7 @@ export async function loadProject(folder) {
   try{const info=await stat(file);if(info.size>4*1024*1024)fail('PROJECT_TOO_LARGE','项目记录过大，无法安全读取。');p=JSON.parse(await readFile(file,'utf8'));}
   catch(error){if(error instanceof PhotoError)throw error;fail('PROJECT_UNAVAILABLE','项目无法读取。请使用含 project.json 的工作目录；已有源图与记录未改动。');}
   if(p.schema!==1 || !Number.isInteger(p.revision)||!Array.isArray(p.versions)||!p.versions.length || !Array.isArray(p.notes)||!Array.isArray(p.candidates)||!currentVersion(p)||!Number.isInteger(p.source?.width)||!Number.isInteger(p.source?.height)||p.source.width<1||p.source.height<1||p.source.width*p.source.height>50_000_000)fail('INVALID_PROJECT','项目记录不完整。请保留目录，使用备份恢复。');
-  for(const v of [...p.versions,...p.candidates]){cleanSettings(v.state?.settings);if(v.state?.crop && !validCrop(v.state.crop))fail('INVALID_PROJECT','版本裁剪记录无效。');if(!Array.isArray(v.state?.locals))fail('INVALID_PROJECT','版本局部记录无效。');for(const l of v.state.locals){cleanRect(l.rect);cleanSettings(l.localSettings);}}
+  for(const v of [...p.versions,...p.candidates]){cleanSettings(v.state?.settings);cleanTextOverlays(v.state?.textOverlays);if(v.state?.crop && !validCrop(v.state.crop))fail('INVALID_PROJECT','版本裁剪记录无效。');if(!Array.isArray(v.state?.locals))fail('INVALID_PROJECT','版本局部记录无效。');for(const l of v.state.locals){cleanRect(l.rect);cleanSettings(l.localSettings);}}
   return p;
 }
 async function atomicWrite(folder,p) {
@@ -73,13 +75,14 @@ export async function initProject(image,folder,{intent=''}={}) {
   try{await mkdir(folder,{recursive:false,mode:0o700});}catch(error){if(error.code==='EEXIST')fail('PROJECT_EXISTS','这个目录已经存在。请选择新的项目目录，避免覆盖已有工作。');throw error;}
   try{await mkdir(path.join(folder,'source'),{mode:0o700});await mkdir(path.join(folder,'previews'));await mkdir(path.join(folder,'exports'));
     await writeFile(path.join(folder,'source','original.bin'),bytes,{mode:0o600});await writeFile(path.join(folder,'source','normalized.png'),normalized,{mode:0o600});
-    const original={id:id(),name:'原片',parentId:null,createdAt:now(),state:{settings:neutralSettings(),style:null,crop:null,locals:[]}};
+    const original={id:id(),name:'原片',parentId:null,createdAt:now(),state:{settings:neutralSettings(),style:null,crop:null,locals:[],textOverlays:[]}};
     const p={schema:1,id:id(),revision:1,createdAt:now(),updatedAt:now(),source:{name:path.basename(image),checksum:hash(bytes),normalizedChecksum:hash(normalized),width:info.width,height:info.height,format:metadata.format,bytes:bytes.length},intent:text(intent),notes:[],versions:[original],currentId:original.id,acceptedId:null,candidates:[],reviews:[],exports:[],choices:[]};
     await atomicWrite(folder,p);return {folder,project:p};
   }catch(error){throw error;}
 }
 function stateFromPlan(p,plan) {
   const next=structuredClone(currentVersion(p).state);next.settings={...next.settings,...cleanSettings(plan.settings)};
+  if(plan.textOverlays!==undefined){if(plan.mode!=='lettering')fail('LETTERING_MODE_REQUIRED','添加、修改或移除文字需明确使用 mode: lettering；普通修片不自动加字。');next.textOverlays=cleanTextOverlays(plan.textOverlays);}
   if(plan.style!==undefined){if(plan.style===null)next.style=null;else {const preset=presetById(plan.style.id);if(!preset)fail('UNKNOWN_STYLE','风格不存在，请先读取风格目录。');if(!Number.isFinite(plan.style.amount)||plan.style.amount<0||plan.style.amount>100)fail('STYLE_AMOUNT','风格强度应为 0～100。');next.style={id:preset.id,amount:plan.style.amount};}}
   if(plan.crop!==undefined){if(plan.crop===null)next.crop=null;else {next.crop=validCrop(plan.crop);if(!next.crop||plan.crop.angle!==undefined&&(!Number.isFinite(plan.crop.angle)||Math.abs(plan.crop.angle)>15))fail('INVALID_CROP','裁剪越界、过小或拉直超过 ±15°。请保留至少 5% 的长宽。');}}
   if(plan.locals!==undefined){if(!Array.isArray(plan.locals)||plan.locals.length>8)fail('INVALID_LOCAL','局部调整最多 8 处。');for(const patch of plan.locals){
@@ -92,6 +95,7 @@ function stateFromPlan(p,plan) {
     if(target.maskType==='linear'){for(const k of ['start','end']){const point=patch[k]||target[k]||{x:note.rect.x,y:note.rect.y+(k==='end'?note.rect.height:0)};if(!['x','y'].every(a=>Number.isFinite(point[a])&&point[a]>=0&&point[a]<=1))fail('INVALID_MASK','渐变端点必须在原片内。');target[k]={x:point.x,y:point.y};}}
     if(patch.enabled!==undefined)target.localEnabled=Boolean(patch.enabled);
   }}
+  if(next.textOverlays?.length)validateTextComposition(next.textOverlays,outputGeometry(next.crop,p.source.width,p.source.height,8192).rect);
   const warnings=[];
   if(next.crop){for(const note of p.notes.filter(n=>n.protect)){const n=note.rect,c=next.crop,full={x:0,y:0,width:1,height:1,angle:c.angle};
     const points=[{x:n.x,y:n.y},{x:n.x+n.width,y:n.y},{x:n.x,y:n.y+n.height},{x:n.x+n.width,y:n.y+n.height}].map(point=>originalToViewPoint(point,full,p.source.width,p.source.height));
@@ -105,7 +109,7 @@ export async function createCandidate(folder,plan) {
     if(!Number.isInteger(plan.revision)||plan.baseVersion!==p.currentId)fail('STALE_REVISION','方案需填写 inspect 返回的 revision 和 currentId；请基于最新版本精调。');expect(p,plan.revision);
     if(p.candidates.length>=8)fail('CANDIDATE_LIMIT','最多保留 8 个候选。请接受或取消一个后继续。');
     const {state,warnings}=stateFromPlan(p,plan);if(hash(state)===hash(currentVersion(p).state))fail('NO_CHANGE','这份方案与当前效果一致，可以保留当前版本。');
-    const candidate={id:id(),name:text(plan.name,40)||'精调候选',parentId:p.currentId,createdAt:now(),baseFingerprint:fingerprint(p),state,goal:text(plan.goal),tradeoff:text(plan.tradeoff),warnings,requestId:text(plan.requestId,80),planHash};
+    const candidate={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:p.currentId,createdAt:now(),baseFingerprint:fingerprint(p),state,goal:text(plan.goal),tradeoff:text(plan.tradeoff),warnings,requestId:text(plan.requestId,80),planHash};
     p.candidates.push(candidate);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,candidate};
   });
 }
@@ -120,7 +124,7 @@ export const setIntent=(folder,value)=>mutate(folder,value.revision,p=>{p.intent
 export async function acceptCandidate(folder,value) {
   return mutate(folder,value.revision,p=>{const c=p.candidates.find(n=>n.id===value.id);if(!c)fail('CANDIDATE_NOT_FOUND','候选已接受或取消，请读取最新版本。');if(c.baseFingerprint!==fingerprint(p))fail('STALE_CANDIDATE','候选生成后照片、意图或批注已改变。请让 Agent 读取最新状态并重新试片。');
     p.versions.push({...c,baseFingerprint:undefined,planHash:undefined,acceptedAt:now()});p.currentId=c.id;p.acceptedId=c.id;p.candidates=p.candidates.filter(x=>x.id!==c.id);
-    p.choices.push({versionId:c.id,name:c.name,intent:p.intent,acceptedAt:now(),state:structuredClone(c.state)});return {version:c};
+    p.choices.push({versionId:c.id,name:c.name,mode:c.mode||'retouch',intent:p.intent,acceptedAt:now(),state:structuredClone(c.state)});return {version:c};
   });
 }
 export const discardCandidate=(folder,value)=>mutate(folder,value.revision,p=>{if(!p.candidates.some(n=>n.id===value.id))fail('CANDIDATE_NOT_FOUND','候选已经取消。');p.candidates=p.candidates.filter(x=>x.id!==value.id);return {};});
@@ -129,5 +133,5 @@ export const saveReview=(folder,value)=>mutate(folder,value.revision,p=>{const s
   const review={id:id(),versionId:p.currentId,intent:p.intent,createdAt:now(),source:'host-agent',summary,preserve:Array.isArray(value.preserve)?value.preserve.slice(0,6).map(x=>text(x)):[],model:text(value.model,80)};p.reviews.push(review);p.reviews=p.reviews.slice(-30);return {review};});
 export const recordExport=(folder,value)=>mutate(folder,undefined,p=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...value,createdAt:now()});return {};});
 export function publicProject(p) {
-  return {...p,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
+  return {...p,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
 }
