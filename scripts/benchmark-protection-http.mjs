@@ -1,0 +1,17 @@
+import {performance,monitorEventLoopDelay} from 'node:perf_hooks';
+import path from 'node:path';
+import {writeFile} from 'node:fs/promises';
+if(!process.env.PERF_REPO||!process.env.PERF_DATA)throw Error('Set PERF_REPO and PERF_DATA from a completed pipeline benchmark.');
+const root=process.env.PERF_REPO+'/skills/guangjian-retouch';
+const {serveProject}=await import(path.join(root,'scripts/server.mjs'));
+const {loadProject}=await import(path.join(root,'scripts/project.mjs'));
+const folder=path.join(process.env.PERF_DATA,'project'),p=await loadProject(folder);
+const app=await serveProject(folder,{quiet:true}),base=app.session.url.split('/#')[0],token=new URL(app.session.url).hash.slice(7),hist=monitorEventLoopDelay({resolution:10});
+await fetch(base+'/api/image?size=512',{headers:{'x-guangjian-token':token}}).then(r=>r.arrayBuffer());
+hist.enable();await new Promise(r=>setTimeout(r,100));
+const started=performance.now(),response=await fetch(base+'/api/guards',{method:'POST',headers:{'x-guangjian-token':token,'Content-Type':'application/json'},body:JSON.stringify({revision:p.revision,operation:'protect',rect:{x:.7,y:.7,width:.1,height:.1},feather:.05})});
+const result=await response.json(),elapsedMs=performance.now()-started;
+await new Promise(r=>setTimeout(r,100));hist.disable();await app.close();
+if(!response.ok)throw Error(JSON.stringify(result));
+const metrics={elapsedMs,eventLoopDelayMaxMs:hist.max/1e6,eventLoopDelayP99Ms:hist.percentile(99)/1e6,processMaxRssMiB:process.resourceUsage().maxRSS/1024};
+console.log(JSON.stringify(metrics));await writeFile(path.join(process.env.PERF_DATA,'http-guard.json'),JSON.stringify(metrics,null,2));

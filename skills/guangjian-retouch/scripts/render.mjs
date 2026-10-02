@@ -27,18 +27,20 @@ import {equal} from './engine/edit-values.js';
 import {compositeProtectedRegions} from './engine/protected-regions.js';
 import {readReferenceSnapshot,validateReferences} from './reference-store.mjs';
 
-export async function renderFrame(folder,key='current',options={}) {
-  const p=await loadProject(folder),version=findVersion(p,key),image=await sourceImage(folder,p);
-  if(options.revision!==undefined&&options.revision!==p.revision)fail('STALE_REVISION','预览请求的项目已更新，请重新读取。');
-  if(options.selectionHash!==undefined&&options.selectionHash!==version.selectionHash)fail('STALE_SELECTION','预览请求与当前勾选组合不一致。');
-  const W=p.source.width,H=p.source.height,crop=options.referenceCrop!==undefined?options.referenceCrop:version.state.crop;
-  if(guardsOf(version.state).regions.length&&!equal(crop,version.state.crop))fail('PROTECTED_GEOMETRY','已保护版本不能换用另一裁剪网格对照。');
-  const maxSide=Math.max(512,Math.min(8192,Number(options.maxSide)||1400));
-  const geometry=outputGeometry(crop,W,H,maxSide),cache=new Map(),snapshots=new Map(),proofs=new Set();
-  const frameSpec={sourceRect:geometry.rect,width:geometry.width,height:geometry.height,angle:crop?.angle||0,pixelCenters:'half',pipeline:pipelineVersion};
-  const withoutText=Boolean(options.withoutText),source={width:W,height:H};
+function freezeSnapshot(value) {
+  if(value&&typeof value==='object'){Object.freeze(value);for(const child of Object.values(value))freezeSnapshot(child);}
+  return value;
+}
+// An operation pins one immutable project and verified source. Reuse final RGBA
+// across note crops; never re-render a crop with different grain/filter geometry.
+export async function createRenderSession(folder, project) {
+  const p=freezeSnapshot(structuredClone(project??await loadProject(folder)));
+  const W=p.source.width,H=p.source.height,source={width:W,height:H};
+  const cache=new Map(),snapshots=new Map(),proofs=new Set();
+  let imagePromise;
   async function snapshotPixels(snapshot){if(!snapshots.has(snapshot.path))snapshots.set(snapshot.path,await readReferenceSnapshot(folder,snapshot));return snapshots.get(snapshot.path);}
-  async function renderVersion(v,g,renderCrop,stack=[]){
+  async function renderVersion(v,g,renderCrop,options,stack=[]){
+    const withoutText=Boolean(options.withoutText),image=await imagePromise;
     const owner=p.versions.indexOf(v);validateReferences(p,v.state,owner<0?p.versions.length:owner);
     if(stack.includes(v.id))fail('REFERENCE_CYCLE','保护参考形成循环，无法安全生成图片。');
     const cacheKey=hash({state:v.state,geometry:g,crop:renderCrop,withoutText,original:options.original});
@@ -65,17 +67,29 @@ export async function renderFrame(folder,key='current',options={}) {
         const proofKey=reference.id+':'+withoutText;
         if(!proofs.has(proofKey)){
           const savedGeometry=outputGeometry(reference.state.crop,W,H,snapshot.maxSide||1400);
-          const proof=await renderVersion(reference,savedGeometry,reference.state.crop,[...stack,v.id]);
+          const proof=await renderVersion(reference,savedGeometry,reference.state.crop,options,[...stack,v.id]);
           if(hash(Buffer.from(proof.pixels))!==snapshot.pixelHash)fail('REFERENCE_REPLAY_CHANGED','当前渲染器或字体不能复现无损参考。请使用保存的参考图重新确认保护。');
           proofs.add(proofKey);
         }
-        const replay=await renderVersion(reference,g,renderCrop,[...stack,v.id]);references.set(reference.id,replay.pixels);
+        const replay=await renderVersion(reference,g,renderCrop,options,[...stack,v.id]);references.set(reference.id,replay.pixels);
       }
     }
     pixels=compositeProtectedRegions(pixels,width,height,regions,references,actualCrop,source);
     const result={pixels,textLayout};cache.set(cacheKey,result);return result;
   }
-  const rendered=await renderVersion(version,geometry,crop);
+  async function renderFrame(key='current',options={}) {
+    const version=findVersion(p,key);
+    imagePromise??=sourceImage(folder,p);
+    await imagePromise;
+  if(options.revision!==undefined&&options.revision!==p.revision)fail('STALE_REVISION','预览请求的项目已更新，请重新读取。');
+  if(options.selectionHash!==undefined&&options.selectionHash!==version.selectionHash)fail('STALE_SELECTION','预览请求与当前勾选组合不一致。');
+  const crop=options.referenceCrop!==undefined?options.referenceCrop:version.state.crop;
+  if(guardsOf(version.state).regions.length&&!equal(crop,version.state.crop))fail('PROTECTED_GEOMETRY','已保护版本不能换用另一裁剪网格对照。');
+  const maxSide=Math.max(512,Math.min(8192,Number(options.maxSide)||1400));
+  const geometry=outputGeometry(crop,W,H,maxSide);
+  const frameSpec={sourceRect:geometry.rect,width:geometry.width,height:geometry.height,angle:crop?.angle||0,pixelCenters:'half',pipeline:pipelineVersion};
+  const withoutText=Boolean(options.withoutText);
+  const rendered=await renderVersion(version,geometry,crop,options);
   let pixels=rendered.pixels,width=geometry.width,height=geometry.height,sourceRect=geometry.rect,regionPixels;
   if(options.region){
     const r=cleanRect(options.region),actualCrop={x:geometry.rect.x/W,y:geometry.rect.y/H,width:geometry.rect.width/W,height:geometry.rect.height/H,angle:crop?.angle||0};
@@ -100,10 +114,18 @@ export async function renderFrame(folder,key='current',options={}) {
   const pixelHash=hash(Buffer.from(pixels));
   return {png,pixels,width,height,sourceRect,limited:geometry.limited,versionId:version.id,revision:p.revision,selectionHash:version.selectionHash||null,stateHash:hash(version.state),frameSpec,frameSpecHash:hash(frameSpec),regionPixels,regionMode:options.region?'crop-final-frame':undefined,stats:photoMetering(pixels,width,height),textLayout:rendered.textLayout,withoutText,pipeline:pipelineVersion,pixelHash,renderPixelHash:pixelHash};
 }
-export async function previewPhoto(folder,key='current',options={}) {
-  const frame=await renderFrame(folder,key,options);const name=`${frame.versionId}-${hash({options,stateHash:frame.stateHash,selectionHash:frame.selectionHash,frameSpec:frame.frameSpec}).slice(0,20)}.png`,file=path.join(path.resolve(folder),'previews',name);
+  async function previewPhoto(key='current',options={}) {
+  const frame=await renderFrame(key,options);const name=`${frame.versionId}-${hash({options,stateHash:frame.stateHash,selectionHash:frame.selectionHash,frameSpec:frame.frameSpec}).slice(0,20)}.png`,file=path.join(path.resolve(folder),'previews',name);
   await mkdir(path.dirname(file),{recursive:true});await writeFile(file,frame.png,{mode:0o600});
   const {png,pixels,...metadata}=frame;return {path:file,...metadata};
+}
+  return {project:p,renderFrame,previewPhoto};
+}
+export async function renderFrame(folder,key='current',options={}) {
+  return (await createRenderSession(folder)).renderFrame(key,options);
+}
+export async function previewPhoto(folder,key='current',options={}) {
+  return (await createRenderSession(folder)).previewPhoto(key,options);
 }
 export async function exportPhoto(folder,key='current',options={}) {
   const p=await loadProject(folder),v=findVersion(p,key);if(!p.versions.some(x=>x.id===v.id))fail('UNACCEPTED_EXPORT','请先接受候选，再导出成片。');

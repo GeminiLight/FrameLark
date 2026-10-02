@@ -1,4 +1,4 @@
-import {viewToOriginalPoint} from './photo-geometry.js';
+import {viewToOriginalPoint,originalToViewPoint,straightenTransform} from './photo-geometry.js';
 import {srgbToLinear, linearToSrgb} from './tone-processing.js';
 import {cleanRect, bounded, object, fail} from './edit-values.js';
 
@@ -57,23 +57,50 @@ export function assertNonOverlappingReferences(regions) {
   }
 }
 
+// Project conservative feather bounds once. Padding includes boundary pixels
+// despite floating-point projection rounding; the exact weight remains authoritative.
+function compileMask(mask, width, height, crop, source) {
+  const b=protectionBounds(mask),points=[{x:b.left,y:b.top},{x:b.right,y:b.top},{x:b.left,y:b.bottom},{x:b.right,y:b.bottom}].map(p=>originalToViewPoint(p,crop,source.width,source.height));
+  const left=Math.max(0,Math.floor(Math.min(...points.map(p=>p.x))*width)-1),right=Math.min(width,Math.ceil(Math.max(...points.map(p=>p.x))*width)+1);
+  const top=Math.max(0,Math.floor(Math.min(...points.map(p=>p.y))*height)-1),bottom=Math.min(height,Math.ceil(Math.max(...points.map(p=>p.y))*height)+1);
+  return {...mask,determinant:mask.axisX.x*mask.axisY.y-mask.axisX.y*mask.axisY.x,left,right,top,bottom};
+}
+function compiledWeight(mask, px, py) {
+  const {origin:o,axisX:a,axisY:b,feather,determinant}=mask;
+  // Keep the baseline arithmetic order for byte-identical feather quantization.
+  const x=px-o.x,y=py-o.y,u=(x*b.y-y*b.x)/determinant,v=(a.x*y-a.y*x)/determinant;
+  const distance=mask.type==='radial'?Math.hypot(u-.5,v-.5)-.5:Math.max(-u,u-1,-v,v-1);
+  if(distance<=1e-12)return 1;
+  if(!feather||distance>=feather)return 0;
+  return 1-smooth(distance/feather);
+}
+
 const linear = Float64Array.from({length:256},(_,i)=>srgbToLinear(i/255));
 export function compositeProtectedRegions(pixels, width, height, regions, references, crop, source) {
   if (!regions.length) return pixels;
   const output = new Uint8ClampedArray(pixels), groups = new Map();
   for (const r of regions) {
     if (!groups.has(r.referenceVersionId)) groups.set(r.referenceVersionId, []);
-    groups.get(r.referenceVersionId).push(r.mask);
+    groups.get(r.referenceVersionId).push(compileMask(r.mask,width,height,crop,source));
   }
+  const area=crop||{x:0,y:0,width:1,height:1},{c,s,scale}=straightenTransform(source.width,source.height,crop?.angle);
+  const W=source.width,H=source.height;
   for (const [id,masks] of groups) {
     const reference = references.get(id);
     if (!reference || reference.length !== output.length) fail('REFERENCE_FRAME_MISMATCH', '保护参考图与当前输出尺寸不一致。');
-    for (let y=0;y<height;y++) for (let x=0;x<width;x++) {
-      const point=viewToOriginalPoint({x:(x+.5)/width,y:(y+.5)/height},crop,source.width,source.height);
-      const weight=Math.max(...masks.map(mask=>protectionWeight(mask,point)));
+    const left=Math.min(...masks.map(m=>m.left)),right=Math.max(...masks.map(m=>m.right)),top=Math.min(...masks.map(m=>m.top)),bottom=Math.max(...masks.map(m=>m.bottom));
+    for (let y=top;y<bottom;y++) for (let x=left;x<right;x++) {
+      const tx=(area.x+(x+.5)/width*area.width-.5)*W/scale,ty=(area.y+(y+.5)/height*area.height-.5)*H/scale;
+      const px=.5+(c*tx+s*ty)/W,py=.5+(-s*tx+c*ty)/H;
+      let weight=0;
+      for(const mask of masks){
+        if(x<mask.left||x>=mask.right||y<mask.top||y>=mask.bottom)continue;
+        weight=Math.max(weight,compiledWeight(mask,px,py));
+        if(weight===1)break;
+      }
       if (!weight) continue;
       const at=(y*width+x)*4;
-      if (weight === 1) { output.set(reference.subarray(at,at+4),at); continue; }
+      if (weight === 1) { output[at]=reference[at];output[at+1]=reference[at+1];output[at+2]=reference[at+2];output[at+3]=reference[at+3];continue; }
       // Premultiplied alpha in linear light. Endpoint bytes never pass through
       // conversion/quantization, so the protected core is byte-exact.
       const ra=reference[at+3]/255,na=output[at+3]/255,alpha=ra*weight+na*(1-weight);
