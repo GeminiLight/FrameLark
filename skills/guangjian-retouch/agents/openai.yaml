@@ -1,0 +1,4 @@
+interface:
+  display_name: "光间修片"
+  short_description: "懂题材、光色与风格取舍，用原片试片、对照批注精调，保存版本并导出"
+  default_prompt: "使用 $guangjian-retouch 审阅这张照片：围绕我的意图，说明值得保留的关系，再给可预览、可继续精调的方案。"

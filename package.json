@@ -1,0 +1,16 @@
+{
+  "name": "guangjian",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A photography taste skill and local retouching toolkit for visual agents.",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "install:skill": "node scripts/install-photo-skill.mjs",
+    "setup": "node skills/guangjian-retouch/scripts/setup.mjs",
+    "knowledge:check": "node skills/guangjian-retouch/scripts/knowledge.mjs check",
+    "test": "node test/prepare-fixtures.mjs && node --test test/skill-knowledge.test.mjs test/local-runtime.test.mjs"
+  }
+}

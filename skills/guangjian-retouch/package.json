@@ -1,0 +1,13 @@
+{
+  "name": "guangjian-retouch-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "dependencies": {
+    "sharp": "0.35.4",
+    "@napi-rs/canvas": "0.1.100"
+  }
+}

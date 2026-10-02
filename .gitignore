@@ -1,0 +1,13 @@
+node_modules/
+.env
+.env.*
+.guangjian/
+.vercel/
+.DS_Store
+*.log
+photos/
+projects/
+exports/
+drafts/
+test/fixtures/
+artifacts/
