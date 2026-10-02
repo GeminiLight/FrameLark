@@ -2,6 +2,12 @@
 
 ![Frameyn — An eye for every frame.](assets/frameyn-cover.svg)
 
+[![Install the agent skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=flat-square&labelColor=2B2C34)](#agent-skill)
+[![Start the local Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=flat-square&labelColor=2B2C34)](#web-ui)
+[![Online studio preview](https://img.shields.io/badge/Online_Studio-Preview-896D4C?style=flat-square&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "Online preview · Vercel access required")
+[![Node.js 20.9 or later](https://img.shields.io/badge/Node.js-20.9%2B-607383?style=flat-square&logo=nodedotjs&logoColor=white&labelColor=2B2C34)](#get-started)
+[![Browse photography knowledge](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=flat-square&labelColor=2B2C34)](#photography-knowledge)
+
 **Photo retouching with a Web UI and an agent skill.**
 
 Edit in your browser or ask a visual agent to review the photograph and suggest edits you can preview. Both work with the same local photo project, preserving originals, annotations, and versions.

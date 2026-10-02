@@ -2,6 +2,12 @@
 
 ![Frameyn — An eye for every frame.](assets/frameyn-cover.svg)
 
+[![安装 Agent Skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=flat-square&labelColor=2B2C34)](#agent-skill)
+[![启动本地 Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=flat-square&labelColor=2B2C34)](#web-ui)
+[![在线工作室预览](https://img.shields.io/badge/Online_Studio-Preview-896D4C?style=flat-square&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "在线预览 · 需要 Vercel 访问权限")
+[![Node.js 20.9 及以上](https://img.shields.io/badge/Node.js-20.9%2B-607383?style=flat-square&logo=nodedotjs&logoColor=white&labelColor=2B2C34)](#开始使用)
+[![浏览摄影知识](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=flat-square&labelColor=2B2C34)](#摄影知识)
+
 **照片精修，支持 Web UI 和 Agent Skill。**
 
 在浏览器中手动调整，或让视觉 Agent 审片并提供可预览的修片方案。两种方式共用本地照片项目，保留原片、批注和版本。
