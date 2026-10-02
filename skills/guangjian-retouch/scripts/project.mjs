@@ -1,38 +1,28 @@
 import {readFile,writeFile,mkdir,rename,rm,stat,open} from 'node:fs/promises';
 import path from 'node:path';
-import {randomUUID,createHash} from 'node:crypto';
+import {randomUUID} from 'node:crypto';
 import sharp from 'sharp';
-import {adjustmentKeys,limits,neutralSettings} from './engine/editor-engine.js';
+import {adjustmentKeys,neutralSettings} from './engine/editor-engine.js';
 import {presets,presetById} from './engine/presets.js';
 import {validCrop} from './engine/crop-utils.js';
-import {originalToViewPoint,transformRect} from './engine/photo-geometry.js';
 import {cleanTextOverlays,validateTextComposition,letteringCapabilities} from './text-overlays.mjs';
 import {outputGeometry} from './engine/export-settings.js';
-export class PhotoError extends Error {constructor(code,message){super(message);this.code=code;}}
-export const fail=(code,message)=>{throw new PhotoError(code,message);};
-export const hash=value=>createHash('sha256').update(typeof value==='string' || Buffer.isBuffer(value)?value:JSON.stringify(value)).digest('hex');
+import {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,object,equal} from './engine/edit-values.js';
+import {hash,legacyHash,pipelineVersion,selectionIdentity} from './engine/edit-identity.js';
+import {normalizePlan,compileSelection,checkProtectedCrop,snapshotItem} from './engine/edit-plan.js';
+import {emptyGuards,guardsOf,assertGuards,lockState,unlockState,validateGuards,geometryOf,mergeRestoreGuards} from './engine/edit-guards.js';
+import {protectionMask,assertNonOverlappingReferences} from './engine/protected-regions.js';
+import {validateReferences,verifyReferences,writeReferenceSnapshot,assertReferenceComplexity,protectionLimits} from './reference-store.mjs';
+export {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,hash};
 const text=(v,max=300)=>String(v??'').trim().slice(0,max),id=()=>randomUUID(),now=()=>new Date().toISOString();
-export const settingsBounds=key=>limits[key] || (['sharpen','denoise'].includes(key)?[0,75]:[-75,75]);
-export function cleanSettings(value={}) {
-  if(!value || typeof value!=='object' || Array.isArray(value))fail('INVALID_SETTINGS','调整必须是参数对象。');
-  const result={};for(const [key,n] of Object.entries(value)) {
-    if(!adjustmentKeys.includes(key))fail('UNKNOWN_PARAMETER',`不支持参数 ${key}。请先查看工具参数说明。`);
-    const [a,b]=settingsBounds(key);if(typeof n!=='number'||!Number.isFinite(n)||n<a||n>b)fail('PARAMETER_RANGE',`${key} 应在 ${a}～${b} 之间。`);
-    result[key]=n;
-  }return result;
-}
-export function cleanRect(value) {
-  if(!value || !['x','y','width','height'].every(k=>Number.isFinite(value[k])) || value.x<0 || value.y<0 || value.width<.005 || value.height<.005 || value.x+value.width>1.00001 || value.y+value.height>1.00001)fail('INVALID_REGION','标记范围应在原片内，且不能为空。');
-  return Object.fromEntries(['x','y','width','height'].map(k=>[k,value[k]]));
-}
-const fingerprint=p=>hash({current:p.currentId,intent:p.intent,notes:p.notes});
+const fingerprint=p=>hash({current:p.currentId,state:currentVersion(p)?.state,source:p.source,intent:p.intent,notes:p.notes,pipeline:pipelineVersion});
 export const currentVersion=p=>p.versions.find(v=>v.id===p.currentId);
 export function localFailure(error){
   const messages={ENOENT:'文件未找到。请检查照片或项目路径，恢复文件后重试；已有编辑保留。',EACCES:'无法读取或保存这个位置。请选择有读写权限的目录，已有编辑保留。',EPERM:'这个位置没有读写权限。请选择可用目录后重试，已有编辑保留。',ENOSPC:'磁盘空间不足。腾出空间后重试；已保存的版本仍保留。',EIO:'文件读取或保存暂时失败。请检查磁盘后重试，已有编辑保留。'};
   const message=messages[error?.code];
   if(message)return {code:error.code,message};
   if(!error?.code||/^E[A-Z0-9]+$/.test(error.code))return {code:'LOCAL_OPERATION_FAILED',message:'操作未完成。请检查文件与保存位置后重试，已有编辑保留。'};
-  return {code:error.code,message:error.message};
+  return {code:error.code,message:error.message,...(error.details?{details:error.details}:{})};
 }
 export function findVersion(p,key='current') {
   if(key==='current')return currentVersion(p);
@@ -44,12 +34,38 @@ export async function loadProject(folder) {
   const file=path.join(path.resolve(folder),'project.json');let p;
   try{const info=await stat(file);if(info.size>4*1024*1024)fail('PROJECT_TOO_LARGE','项目记录过大，无法安全读取。');p=JSON.parse(await readFile(file,'utf8'));}
   catch(error){if(error instanceof PhotoError)throw error;fail('PROJECT_UNAVAILABLE','项目无法读取。请使用含 project.json 的工作目录；已有源图与记录未改动。');}
-  if(p.schema!==1 || !Number.isInteger(p.revision)||!Array.isArray(p.versions)||!p.versions.length || !Array.isArray(p.notes)||!Array.isArray(p.candidates)||!currentVersion(p)||!Number.isInteger(p.source?.width)||!Number.isInteger(p.source?.height)||p.source.width<1||p.source.height<1||p.source.width*p.source.height>50_000_000)fail('INVALID_PROJECT','项目记录不完整。请保留目录，使用备份恢复。');
-  for(const v of [...p.versions,...p.candidates]){cleanSettings(v.state?.settings);cleanTextOverlays(v.state?.textOverlays);if(v.state?.crop && !validCrop(v.state.crop))fail('INVALID_PROJECT','版本裁剪记录无效。');if(!Array.isArray(v.state?.locals))fail('INVALID_PROJECT','版本局部记录无效。');for(const l of v.state.locals){cleanRect(l.rect);cleanSettings(l.localSettings);}}
+  if(![1,2].includes(p.schema) || !Number.isInteger(p.revision)||!Array.isArray(p.versions)||!p.versions.length || !Array.isArray(p.notes)||!Array.isArray(p.candidates)||!currentVersion(p)||!Number.isInteger(p.source?.width)||!Number.isInteger(p.source?.height)||p.source.width<1||p.source.height<1||p.source.width*p.source.height>50_000_000)fail('INVALID_PROJECT','项目记录不完整。请保留目录，使用备份恢复。');
+  if(p.schema===1) migrateLegacy(p);
+  if(new Set([...p.versions,...p.candidates].map(v=>v.id)).size!==p.versions.length+p.candidates.length)fail('INVALID_PROJECT','版本编号重复。');
+  for(const v of [...p.versions,...p.candidates]){
+    cleanSettings(v.state?.settings);cleanTextOverlays(v.state?.textOverlays);
+    if(v.state?.style && (!presetById(v.state.style.id)||!Number.isFinite(v.state.style.amount)||v.state.style.amount<0||v.state.style.amount>100))fail('INVALID_PROJECT','版本风格记录无效。');
+    if(v.state?.crop && (!validCrop(v.state.crop)||v.state.crop.angle!==undefined&&(!Number.isFinite(v.state.crop.angle)||Math.abs(v.state.crop.angle)>15)))fail('INVALID_PROJECT','版本裁剪记录无效。');
+    if(!Array.isArray(v.state?.locals)||v.state.locals.length>8)fail('INVALID_PROJECT','版本局部记录无效。');
+    for(const l of v.state.locals){cleanRect(l.rect);cleanSettings(l.localSettings);}
+    validateGuards(v.state.guards);
+    // References are also checked on candidate creation, acceptance and rendering.
+    const owner=p.versions.indexOf(v);validateReferences(p,v.state,owner<0?p.versions.length:owner,{checkPipeline:false});
+  }
   return p;
+}
+function migrateLegacy(p) {
+  const oldFingerprint=legacyHash({current:p.currentId,intent:p.intent,notes:p.notes});
+  for(const v of [...p.versions,...p.candidates]){v.state.guards=emptyGuards();v.state.textOverlays??=[];}
+  for(const c of p.candidates){
+    const base=p.versions.find(v=>v.id===c.parentId);
+    if(!base)fail('INVALID_PROJECT','候选基础版本丢失。');
+    c.items=[snapshotItem(base.state,c.state,c.name||'整组调整')];
+    c.selectedItemIds=['whole-plan'];c.legacy=true;c.baseRevision=p.revision;
+    c.baseFingerprint=c.baseFingerprint===oldFingerprint?fingerprint(p):'legacy-stale';
+    c.selectionHash=selectionIdentity(base,c);c.noChange=equal(c.state,base.state);
+  }
+  p.schema=2;
 }
 async function atomicWrite(folder,p) {
   const temp=path.join(folder,`.project-${id()}.tmp`),file=path.join(folder,'project.json');
+  const previous=await readFile(file).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+  if(previous&&JSON.parse(previous).schema===1)await writeFile(path.join(folder,'project.schema-1.backup.json'),previous,{flag:'wx',mode:0o600}).catch(error=>{if(error.code!=='EEXIST')throw error;});
   const handle=await open(temp,'wx',0o600);try{await handle.writeFile(JSON.stringify(p,null,2));await handle.sync();}finally{await handle.close();}
   try{await rename(temp,file);}catch(error){await rm(temp,{force:true});throw error;}
 }
@@ -67,7 +83,7 @@ async function locked(folder,fn) {
 }
 const expect=(p,revision)=>{if(revision!==undefined && revision!==p.revision)fail('STALE_REVISION','照片或批注已更新。请重新读取上下文，再基于最新版本操作。');};
 async function mutate(folder,revision,fn) {
-  return locked(folder,async root=>{const p=await loadProject(root);expect(p,revision);const result=fn(p);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,...result};});
+  return locked(folder,async root=>{const p=await loadProject(root);expect(p,revision);const result=await fn(p,root);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,...result};});
 }
 export async function initProject(image,folder,{intent=''}={}) {
   folder=path.resolve(folder);const bytes=await readFile(path.resolve(image));
@@ -82,47 +98,104 @@ export async function initProject(image,folder,{intent=''}={}) {
   try{await mkdir(folder,{recursive:false,mode:0o700});}catch(error){if(error.code==='EEXIST')fail('PROJECT_EXISTS','这个目录已经存在。请选择新的项目目录，避免覆盖已有工作。');throw error;}
   try{await mkdir(path.join(folder,'source'),{mode:0o700});await mkdir(path.join(folder,'previews'));await mkdir(path.join(folder,'exports'));
     await writeFile(path.join(folder,'source','original.bin'),bytes,{mode:0o600});await writeFile(path.join(folder,'source','normalized.png'),normalized,{mode:0o600});
-    const original={id:id(),name:'原片',parentId:null,createdAt:now(),state:{settings:neutralSettings(),style:null,crop:null,locals:[],textOverlays:[]}};
-    const p={schema:1,id:id(),revision:1,createdAt:now(),updatedAt:now(),source:{name:path.basename(image),checksum:hash(bytes),normalizedChecksum:hash(normalized),width:info.width,height:info.height,format:metadata.format,bytes:bytes.length},intent:text(intent),notes:[],versions:[original],currentId:original.id,acceptedId:null,candidates:[],reviews:[],exports:[],choices:[]};
+    const original={id:id(),name:'原片',parentId:null,createdAt:now(),state:{settings:neutralSettings(),style:null,crop:null,locals:[],textOverlays:[],guards:emptyGuards()}};
+    const p={schema:2,id:id(),revision:1,createdAt:now(),updatedAt:now(),source:{name:path.basename(image),checksum:hash(bytes),normalizedChecksum:hash(normalized),width:info.width,height:info.height,format:metadata.format,bytes:bytes.length},intent:text(intent),notes:[],versions:[original],currentId:original.id,acceptedId:null,candidates:[],reviews:[],exports:[],choices:[]};
     await atomicWrite(folder,p);return {folder,project:p};
   }catch(error){throw error;}
 }
-function stateFromPlan(p,plan) {
-  const source=plan.fromCandidate?p.candidates.find(c=>c.id===plan.fromCandidate):currentVersion(p);
-  if(!source)fail('CANDIDATE_NOT_FOUND','精调所依据的试片已接受或取消，请读取最新版本。');
-  if(plan.fromCandidate && source.baseFingerprint!==fingerprint(p))fail('STALE_CANDIDATE','这份试片的意图、批注或基础版本已更新，请重新读取项目并试片。');
-  const next=structuredClone(source.state);next.settings={...next.settings,...cleanSettings(plan.settings)};
-  if(plan.textOverlays!==undefined){if(plan.mode!=='lettering')fail('LETTERING_MODE_REQUIRED','添加、修改或移除文字需明确使用 mode: lettering；普通修片不自动加字。');next.textOverlays=cleanTextOverlays(plan.textOverlays);}
-  if(plan.style!==undefined){if(plan.style===null)next.style=null;else {const preset=presetById(plan.style.id);if(!preset)fail('UNKNOWN_STYLE','风格不存在，请先读取风格目录。');if(!Number.isFinite(plan.style.amount)||plan.style.amount<0||plan.style.amount>100)fail('STYLE_AMOUNT','风格强度应为 0～100。');next.style={id:preset.id,amount:plan.style.amount};}}
-  if(plan.crop!==undefined){if(plan.crop===null)next.crop=null;else {next.crop=validCrop(plan.crop);if(!next.crop||plan.crop.angle!==undefined&&(!Number.isFinite(plan.crop.angle)||Math.abs(plan.crop.angle)>15))fail('INVALID_CROP','裁剪越界、过小或拉直超过 ±15°。请保留至少 5% 的长宽。');}}
-  if(plan.locals!==undefined){if(!Array.isArray(plan.locals)||plan.locals.length>8)fail('INVALID_LOCAL','局部调整最多 8 处。');for(const patch of plan.locals){
-    const note=p.notes.find(n=>n.id===patch.annotationId);if(!note)fail('NOTE_NOT_FOUND','局部标记已更新或删除，请重新读取批注。');
-    let target=next.locals.find(l=>l.id===note.id);if(patch.remove){next.locals=next.locals.filter(l=>l.id!==note.id);continue;}
-    if(!target){target={id:note.id,rect:structuredClone(note.rect),note:note.note,maskType:'rectangle',feather:.36,localAmount:100,localEnabled:true,localSettings:{}};next.locals.push(target);}
-    target.rect=structuredClone(note.rect);target.note=note.note;target.localSettings={...target.localSettings,...cleanSettings(patch.settings)};
-    if(patch.feather!==undefined){if(!Number.isFinite(patch.feather)||patch.feather<0||patch.feather>1)fail('INVALID_FEATHER','羽化应为 0～1。');target.feather=patch.feather;}
-    if(patch.maskType!==undefined){if(!['rectangle','radial','linear'].includes(patch.maskType))fail('INVALID_MASK','本版局部支持矩形、径向、渐变。');target.maskType=patch.maskType;}
-    if(target.maskType==='linear'){for(const k of ['start','end']){const point=patch[k]||target[k]||{x:note.rect.x,y:note.rect.y+(k==='end'?note.rect.height:0)};if(!['x','y'].every(a=>Number.isFinite(point[a])&&point[a]>=0&&point[a]<=1))fail('INVALID_MASK','渐变端点必须在原片内。');target[k]={x:point.x,y:point.y};}}
-    if(patch.enabled!==undefined)target.localEnabled=Boolean(patch.enabled);
-  }}
-  if(next.textOverlays?.length)validateTextComposition(next.textOverlays,outputGeometry(next.crop,p.source.width,p.source.height,8192).rect);
-  const warnings=[];
-  if(next.crop){for(const note of p.notes.filter(n=>n.protect)){const n=note.rect,c=next.crop,full={x:0,y:0,width:1,height:1,angle:c.angle};
-    const points=[{x:n.x,y:n.y},{x:n.x+n.width,y:n.y},{x:n.x,y:n.y+n.height},{x:n.x+n.width,y:n.y+n.height}].map(point=>originalToViewPoint(point,full,p.source.width,p.source.height));
-    if(points.some(point=>point.x<c.x-1e-7||point.y<c.y-1e-7||point.x>c.x+c.width+1e-7||point.y>c.y+c.height+1e-7)){if(plan.allowProtectedCrop!==true)fail('PROTECTED_CROP','裁剪会切到用户要求保留的标记。请调整边界，或明确取得该处裁剪的同意。');warnings.push(`裁剪涉及保留标记 ${note.number}`);}}
-  }return {state:next,warnings};
+function validateCandidateState(p,state,allowProtectedCrop=false) {
+  assertGuards(currentVersion(p).state,state);
+  if(state.textOverlays?.length)validateTextComposition(state.textOverlays,outputGeometry(state.crop,p.source.width,p.source.height,8192).rect);
+  validateReferences(p,state);
+  return checkProtectedCrop(state,p.notes,p.source,allowProtectedCrop);
+}
+function compileCandidate(p,c,selected=c.selectedItemIds) {
+  const base=p.versions.find(v=>v.id===c.parentId);
+  if(!base||c.parentId!==p.currentId||c.baseFingerprint!==fingerprint(p))fail('STALE_CANDIDATE','候选生成后照片、意图或批注已改变。请重新读取并试片。');
+  if(c.guardOperation){
+    const state=unlockState(base.state,c.guardOperation);
+    return {...c,state,selectionHash:selectionIdentity(base,{...c,state})};
+  }
+  const compiled=compileSelection(base.state,c.items,selected),warnings=validateCandidateState(p,compiled.state,c.allowProtectedCrop);
+  return {...c,...compiled,warnings,selectionHash:selectionIdentity(base,{...c,...compiled})};
 }
 export async function createCandidate(folder,plan) {
-  if(!plan || typeof plan!=='object')fail('INVALID_PLAN','请提供候选方案 JSON。');
-  return locked(folder,async root=>{const p=await loadProject(root);const prior=p.candidates.find(c=>plan.requestId&&c.requestId===plan.requestId);
-    const planHash=hash(plan);if(prior){if(prior.planHash!==planHash)fail('REQUEST_CONFLICT','同一请求编号对应了不同方案，请使用新编号。');return {project:p,candidate:prior,reused:true};}
-    if(!Number.isInteger(plan.revision)||plan.baseVersion!==p.currentId)fail('STALE_REVISION','方案需填写 inspect 返回的 revision 和 currentId；请基于最新版本精调。');expect(p,plan.revision);
+  if(!plan || typeof plan!=='object' || Array.isArray(plan))fail('INVALID_PLAN','请提供候选方案 JSON。');
+  return locked(folder,async root=>{
+    const p=await loadProject(root),prior=p.candidates.find(c=>plan.requestId&&c.requestId===plan.requestId),planHash=hash(plan);
+    if(prior){if(prior.planHash!==planHash&&!(prior.legacy&&prior.planHash===legacyHash(plan)))fail('REQUEST_CONFLICT','同一请求编号对应不同方案，请使用新编号。');return {project:p,candidate:prior,reused:true};}
+    if(!Number.isInteger(plan.revision)||plan.baseVersion!==p.currentId)fail('STALE_REVISION','方案需填写 inspect 返回的 revision 和 currentId。');expect(p,plan.revision);
     if(p.candidates.length>=8)fail('CANDIDATE_LIMIT','最多保留 8 个候选。请接受或取消一个后继续。');
-    const {state,warnings}=stateFromPlan(p,plan);if(hash(state)===hash(currentVersion(p).state)||plan.fromCandidate&&hash(state)===hash(p.candidates.find(c=>c.id===plan.fromCandidate).state))fail('NO_CHANGE','这份方案与所选效果一致，可以保留这版，不必重复试片。');
-    const candidate={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:p.currentId,...(plan.fromCandidate?{refinedFrom:plan.fromCandidate}:{}),createdAt:now(),baseFingerprint:fingerprint(p),state,goal:text(plan.goal),tradeoff:text(plan.tradeoff),warnings,requestId:text(plan.requestId,80),planHash};
+    const base=currentVersion(p);let source=base;
+    if(plan.fromCandidate!==undefined){
+      if(typeof plan.fromCandidate!=='string'||!plan.fromCandidate)fail('INVALID_PLAN','fromCandidate 必须是候选编号。');
+      if(plan.items!==undefined)fail('AMBIGUOUS_PLAN','fromCandidate 用于整组精调；逐项计划请直接基于已保存版本提供完整 items。');
+      source=p.candidates.find(c=>c.id===plan.fromCandidate);
+      if(!source)fail('CANDIDATE_NOT_FOUND','精调所依据的试片已接受或取消，请读取最新版本。');
+      source=compileCandidate(p,source);
+      if(source.guardOperation)fail('GUARD_SELECTION','解除保护试片需单独预览并接受，不能继续叠加精调。');
+    }
+    const normalized=normalizePlan(plan,{base:source.state,notes:p.notes,cleanText:cleanTextOverlays});
+    if(plan.fromCandidate!==undefined){
+      const result=compileSelection(source.state,normalized.items,normalized.selectedItemIds);
+      if(result.noChange)fail('NO_CHANGE','这份方案与所选效果一致，可以保留这版，不必重复试片。');
+      normalized.items=[snapshotItem(base.state,result.state,plan.name||'整组精调')];
+      normalized.selectedItemIds=['whole-plan'];
+    }
+    const draft={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:base.id,...(plan.fromCandidate?{refinedFrom:plan.fromCandidate}:{}),baseRevision:plan.revision,createdAt:now(),baseFingerprint:fingerprint(p),goal:text(plan.goal),tradeoff:text(plan.tradeoff),requestId:text(plan.requestId,80),planHash,allowProtectedCrop:plan.allowProtectedCrop===true,...normalized};
+    const candidate=compileCandidate(p,draft);
+    if(candidate.legacy&&candidate.noChange)fail('NO_CHANGE','这份方案与当前效果一致，可以保留当前版本。');
+    await verifyReferences(root,p,candidate.state);
     p.candidates.push(candidate);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,candidate};
   });
 }
+export const selectCandidateItems=(folder,value)=>mutate(folder,value.revision,async(p,root)=>{
+  object(value,['id','revision','selectionHash','selectedItemIds']);
+  if(!Number.isInteger(value.revision))fail('STALE_REVISION','选择项目需填写最新 revision。');
+  const index=p.candidates.findIndex(c=>c.id===value.id),old=p.candidates[index];
+  if(!old)fail('CANDIDATE_NOT_FOUND','候选已接受或取消。');
+  if(value.selectionHash!==old.selectionHash)fail('STALE_SELECTION','勾选结果已改变。请重新读取候选。');
+  if(old.guardOperation)fail('GUARD_SELECTION','解除保护候选必须作为整组预览并接受。');
+  const candidate=compileCandidate(p,old,value.selectedItemIds);await verifyReferences(root,p,candidate.state);
+  p.candidates[index]=candidate;return {candidate};
+});
+
+// Lock/protect creates a no-pixel-change accepted version. Unlock is always a
+// candidate because removing a final composite can reveal previously hidden edits.
+export const changeGuards=(folder,value)=>mutate(folder,value.revision,async(p,root)=>{
+  const fields={lock:['parameters','localIds'],unlock:['parameterKeys','localIds','regionIds'],protect:['rect','coordinateSpace','maskType','feather']};
+  if(!value||!Object.hasOwn(fields,value.operation))fail('INVALID_GUARD_OPERATION','保护操作支持 lock、protect、unlock。');
+  object(value,['revision','operation','name',...fields[value.operation]]);
+  if(value.name!==undefined&&typeof value.name!=='string')fail('INVALID_PLAN','保护名称必须是字符串。');
+  if(!Number.isInteger(value.revision))fail('STALE_REVISION','保护操作需填写最新 revision。');
+  const base=currentVersion(p);let state;
+  if(value.operation==='lock') state=lockState(base.state,value);
+  else if(value.operation==='unlock'){
+    state=unlockState(base.state,value);
+    if(p.candidates.length>=8)fail('CANDIDATE_LIMIT','请先接受或取消一个候选。');
+    const candidate={id:id(),name:text(value.name,40)||'解除保护预览',mode:'guards',parentId:base.id,baseRevision:p.revision,createdAt:now(),baseFingerprint:fingerprint(p),state,items:[{id:'unlock',title:'解除所选保护',dependsOn:[],writePaths:['guards']}],selectedItemIds:['unlock'],guardOperation:{parameterKeys:value.parameterKeys||[],localIds:value.localIds||[],regionIds:value.regionIds||[]},legacy:false,noChange:false,warnings:['解除区域保护可能显露此前被覆盖的效果，请检查预览。']};
+    candidate.selectionHash=selectionIdentity(base,candidate);await verifyReferences(root,p,state);p.candidates.push(candidate);return {candidate};
+  }else if(value.operation==='protect'){
+    if(guardsOf(base.state).regions.length>=8)fail('PROTECTION_LIMIT','最多保留 8 个保护区域。');
+    state=structuredClone(base.state);state.guards=structuredClone(guardsOf(state));
+    const sourceRect=outputGeometry(base.state.crop,p.source.width,p.source.height,1400).rect;
+    const viewCrop={x:sourceRect.x/p.source.width,y:sourceRect.y/p.source.height,width:sourceRect.width/p.source.width,height:sourceRect.height/p.source.height,angle:base.state.crop?.angle||0};
+    const region={id:id(),name:text(value.name,60)||'保留画面',referenceVersionId:base.id,sourceChecksum:p.source.checksum,normalizedChecksum:p.source.normalizedChecksum,pipeline:pipelineVersion,geometry:geometryOf(base.state),referenceStateHash:hash(base.state),mask:protectionMask(value,viewCrop,p.source)};
+    assertNonOverlappingReferences([...state.guards.regions,region]);
+    assertReferenceComplexity(p,{...state,guards:{...state.guards,regions:[...state.guards.regions,region]}});
+    const {renderFrame}=await import('./render.mjs');
+    const frame=await renderFrame(root,base.id,{maxSide:1400});
+    const clean=(base.state.textOverlays?.length||guardsOf(base.state).regions.length)?await renderFrame(root,base.id,{maxSide:1400,withoutText:true}):frame;
+    region.snapshot=await writeReferenceSnapshot(root,region.id,frame);
+    region.cleanSnapshot=await writeReferenceSnapshot(root,region.id,clean,true);
+    state.guards.regions.push(region);
+  }else fail('INVALID_GUARD_OPERATION','保护操作支持 lock、protect、unlock。');
+  if(equal(state,base.state))fail('NO_CHANGE','所选保护已经生效。');
+  await verifyReferences(root,p,state);
+  const version={id:id(),name:text(value.name,40)||(value.operation==='protect'?'保留画面效果':'锁定参数'),mode:'guards',parentId:base.id,createdAt:now(),acceptedAt:now(),state};
+  p.versions.push(version);p.currentId=version.id;return {version};
+});
+
 export async function saveNote(folder,value) {
   return mutate(folder,value.revision,p=>{let note=p.notes.find(n=>n.id===value.id);if(value.id&&!note)fail('NOTE_NOT_FOUND','这处批注已经删除。请读取最新批注。');
     if(!note){if(p.notes.length>=8)fail('NOTE_LIMIT','最多标记 8 处。请先整理已有批注。');const number=Math.max(p.nextNoteNumber||1,p.notes.reduce((n,x)=>Math.max(n,x.number),0)+1);p.nextNoteNumber=number+1;note={id:id(),number,rect:cleanRect(value.rect),note:'',protect:false};p.notes.push(note);}
@@ -132,16 +205,32 @@ export async function saveNote(folder,value) {
 export const deleteNote=(folder,value)=>mutate(folder,value.revision,p=>{if(!p.notes.some(n=>n.id===value.id))fail('NOTE_NOT_FOUND','标记已删除。');p.notes=p.notes.filter(n=>n.id!==value.id);return {};});
 export const setIntent=(folder,value)=>mutate(folder,value.revision,p=>{p.intent=text(value.intent);return {};});
 export async function acceptCandidate(folder,value) {
-  return mutate(folder,value.revision,p=>{const c=p.candidates.find(n=>n.id===value.id);if(!c)fail('CANDIDATE_NOT_FOUND','候选已接受或取消，请读取最新版本。');if(c.baseFingerprint!==fingerprint(p))fail('STALE_CANDIDATE','候选生成后照片、意图或批注已改变。请让 Agent 读取最新状态并重新试片。');
+  return mutate(folder,value.revision,async(p,root)=>{
+    const existing=p.candidates.find(n=>n.id===value.id);
+    if(!existing)fail('CANDIDATE_NOT_FOUND','候选已接受或取消，请读取最新版本。');
+    if(!existing.legacy&&(!Number.isInteger(value.revision)||value.selectionHash!==existing.selectionHash))fail('STALE_SELECTION','请使用已查看组合预览的 revision 和 selectionHash。');
+    if(value.selectionHash!==undefined&&value.selectionHash!==existing.selectionHash)fail('STALE_SELECTION','预览与当前选择不一致。');
+    const c=compileCandidate(p,existing);
+    if(c.selectionHash!==existing.selectionHash||!equal(c.state,existing.state))fail('STALE_SELECTION','候选状态与所选项目不一致，请重新生成。');
+    if(c.noChange||!c.selectedItemIds.length)fail('NO_CHANGE','没有选中实际修改，当前版本保持不变。');
+    await verifyReferences(root,p,c.state);
     p.versions.push({...c,baseFingerprint:undefined,planHash:undefined,acceptedAt:now()});p.currentId=c.id;p.acceptedId=c.id;p.candidates=p.candidates.filter(x=>x.id!==c.id);
-    p.choices.push({versionId:c.id,name:c.name,mode:c.mode||'retouch',intent:p.intent,acceptedAt:now(),state:structuredClone(c.state)});return {version:c};
+    if(c.mode!=='guards')p.choices.push({versionId:c.id,name:c.name,mode:c.mode||'retouch',intent:p.intent,acceptedAt:now(),selectedItemIds:[...c.selectedItemIds],items:c.items.filter(i=>c.selectedItemIds.includes(i.id)),state:structuredClone(c.state)});
+    return {version:c};
   });
 }
 export const discardCandidate=(folder,value)=>mutate(folder,value.revision,p=>{if(!p.candidates.some(n=>n.id===value.id))fail('CANDIDATE_NOT_FOUND','候选已经取消。');p.candidates=p.candidates.filter(x=>x.id!==value.id);return {};});
-export const restoreVersion=(folder,value)=>mutate(folder,value.revision,p=>{const version=p.versions.find(v=>v.id===value.id);if(!version)fail('VERSION_NOT_FOUND','只能恢复已经保存的版本。');p.currentId=version.id;return {version};});
+export const restoreVersion=(folder,value)=>mutate(folder,value.revision,async(p,root)=>{
+  const target=p.versions.find(v=>v.id===value.id);if(!target)fail('VERSION_NOT_FOUND','只能恢复已经保存的版本。');
+  const base=currentVersion(p),state=structuredClone(target.state);state.guards=mergeRestoreGuards(base.state,target.state);
+  assertGuards(base.state,state,{allowGuardChange:true});await verifyReferences(root,p,state);
+  let version=target;
+  if(!equal(state,target.state)){version={id:id(),name:`恢复：${target.name}`,parentId:base.id,restoredFrom:target.id,createdAt:now(),acceptedAt:now(),state};p.versions.push(version);}
+  p.currentId=version.id;return {version};
+});
 export const saveReview=(folder,value)=>mutate(folder,value.revision,p=>{const summary=text(value.summary,1200);if(!summary)fail('EMPTY_REVIEW','请写明实际画面观察或保留原片的依据。');
   const review={id:id(),versionId:p.currentId,intent:p.intent,createdAt:now(),source:'host-agent',summary,preserve:Array.isArray(value.preserve)?value.preserve.slice(0,6).map(x=>text(x)):[],model:text(value.model,80)};p.reviews.push(review);p.reviews=p.reviews.slice(-30);return {review};});
 export const recordExport=(folder,value)=>mutate(folder,undefined,p=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...value,createdAt:now()});return {};});
 export function publicProject(p) {
-  return {...p,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
+  return {...p,protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
 }

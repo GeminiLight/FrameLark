@@ -5,12 +5,12 @@ import {createCanvas,loadImage,ImageData} from '@napi-rs/canvas';
 import {loadProject,findVersion,hash,fail,cleanRect} from './project.mjs';
 import {drawPhotoSource,originalToViewPoint,transformRect} from './engine/photo-geometry.js';
 import {renderPhotoPixels} from './engine/photo-rendering.js';
-import {combineSettings,neutralSettings,renderingVersion} from './engine/editor-engine.js';
+import {combineSettings,neutralSettings} from './engine/editor-engine.js';
 import {presetById} from './engine/presets.js';
 import {outputGeometry,safeFilename} from './engine/export-settings.js';
 import {photoMetering} from './engine/photo-metering.js';
 import {writeImageMetadata} from './engine/export-files.js';
-import {drawTextOverlays,letteringVersion} from './text-overlays.mjs';
+import {drawTextOverlays} from './text-overlays.mjs';
 let cached=null;
 async function sourceImage(folder,p) {
   const file=path.join(folder,'source','normalized.png');let bytes,original;
@@ -20,29 +20,88 @@ async function sourceImage(folder,p) {
   const image=await loadImage(bytes);
   cached={key:p.source.normalizedChecksum,image};return image;
 }
+// Rendering identities include the complete pinned state and matching output grid.
+import {pipelineVersion} from './engine/edit-identity.js';
+import {guardsOf} from './engine/edit-guards.js';
+import {equal} from './engine/edit-values.js';
+import {compositeProtectedRegions} from './engine/protected-regions.js';
+import {readReferenceSnapshot,validateReferences} from './reference-store.mjs';
+
 export async function renderFrame(folder,key='current',options={}) {
   const p=await loadProject(folder),version=findVersion(p,key),image=await sourceImage(folder,p);
-  const state=version.state,W=p.source.width,H=p.source.height,crop=options.referenceCrop!==undefined?options.referenceCrop:state.crop;
-  let geometry=outputGeometry(crop,W,H,Math.max(512,Math.min(8192,Number(options.maxSide)||1400)));
-  let frameCrop=crop;
-  if(options.region){const r=cleanRect(options.region),view=transformRect(r,x=>originalToViewPoint(x,{x:0,y:0,width:1,height:1,angle:crop?.angle},W,H));
-    if(!view)fail('REGION_OUTSIDE','这处范围不在照片内。');const rect={x:view.x*W,y:view.y*H,width:view.width*W,height:view.height*H};
-    const scale=Math.min(1,Math.max(512,Math.min(4096,Number(options.maxSide)||1600))/Math.max(rect.width,rect.height));
-    geometry={rect,width:Math.max(1,Math.round(rect.width*scale)),height:Math.max(1,Math.round(rect.height*scale)),limited:scale<1};frameCrop={...view,angle:crop?.angle||0};
+  if(options.revision!==undefined&&options.revision!==p.revision)fail('STALE_REVISION','预览请求的项目已更新，请重新读取。');
+  if(options.selectionHash!==undefined&&options.selectionHash!==version.selectionHash)fail('STALE_SELECTION','预览请求与当前勾选组合不一致。');
+  const W=p.source.width,H=p.source.height,crop=options.referenceCrop!==undefined?options.referenceCrop:version.state.crop;
+  if(guardsOf(version.state).regions.length&&!equal(crop,version.state.crop))fail('PROTECTED_GEOMETRY','已保护版本不能换用另一裁剪网格对照。');
+  const maxSide=Math.max(512,Math.min(8192,Number(options.maxSide)||1400));
+  const geometry=outputGeometry(crop,W,H,maxSide),cache=new Map(),snapshots=new Map(),proofs=new Set();
+  const frameSpec={sourceRect:geometry.rect,width:geometry.width,height:geometry.height,angle:crop?.angle||0,pixelCenters:'half',pipeline:pipelineVersion};
+  const withoutText=Boolean(options.withoutText),source={width:W,height:H};
+  async function snapshotPixels(snapshot){if(!snapshots.has(snapshot.path))snapshots.set(snapshot.path,await readReferenceSnapshot(folder,snapshot));return snapshots.get(snapshot.path);}
+  async function renderVersion(v,g,renderCrop,stack=[]){
+    const owner=p.versions.indexOf(v);validateReferences(p,v.state,owner<0?p.versions.length:owner);
+    if(stack.includes(v.id))fail('REFERENCE_CYCLE','保护参考形成循环，无法安全生成图片。');
+    const cacheKey=hash({state:v.state,geometry:g,crop:renderCrop,withoutText,original:options.original});
+    if(cache.has(cacheKey))return cache.get(cacheKey);
+    const {rect,width,height}=g,canvas=createCanvas(width,height),context=canvas.getContext('2d');
+    // Use the actual rounded source rectangle everywhere, including masks and grain.
+    const actualCrop={x:rect.x/W,y:rect.y/H,width:rect.width/W,height:rect.height/H,angle:renderCrop?.angle||0};
+    drawPhotoSource(context,image,actualCrop,width,height,rect);
+    const original=context.getImageData(0,0,width,height).data;
+    const settings=options.original?neutralSettings():combineSettings({settings:v.state.settings},{settings:presetById(v.state.style?.id)?.adjustments,amount:(v.state.style?.amount||0)/100});
+    let pixels=renderPhotoPixels({pixels:original,width,height,settings,annotations:options.original?[]:v.state.locals,crop:actualCrop,frame:{fullWidth:W,fullHeight:H,sourceRect:rect,angle:renderCrop?.angle||0}});
+    context.putImageData(new ImageData(pixels,width,height),0,0);
+    const textLayout=drawTextOverlays(context,options.original||withoutText?[]:v.state.textOverlays,{width,height,compositionRect:outputGeometry(renderCrop,W,H,8192).rect,sourceRect:rect});
+    if(textLayout.length)pixels=context.getImageData(0,0,width,height).data;
+    const regions=options.original?[]:guardsOf(v.state).regions,references=new Map();
+    for(const region of regions){
+      const reference=p.versions.find(r=>r.id===region.referenceVersionId),snapshot=withoutText?region.cleanSnapshot:region.snapshot;
+      const stored=await snapshotPixels(snapshot);
+      if(references.has(reference.id))continue;
+      if(width===snapshot.width&&height===snapshot.height)references.set(reference.id,stored);
+      else {
+        // Replays at other sizes are permitted only while the saved-size replay
+        // still proves that this renderer (including installed fonts) is compatible.
+        const proofKey=reference.id+':'+withoutText;
+        if(!proofs.has(proofKey)){
+          const savedGeometry=outputGeometry(reference.state.crop,W,H,snapshot.maxSide||1400);
+          const proof=await renderVersion(reference,savedGeometry,reference.state.crop,[...stack,v.id]);
+          if(hash(Buffer.from(proof.pixels))!==snapshot.pixelHash)fail('REFERENCE_REPLAY_CHANGED','当前渲染器或字体不能复现无损参考。请使用保存的参考图重新确认保护。');
+          proofs.add(proofKey);
+        }
+        const replay=await renderVersion(reference,g,renderCrop,[...stack,v.id]);references.set(reference.id,replay.pixels);
+      }
+    }
+    pixels=compositeProtectedRegions(pixels,width,height,regions,references,actualCrop,source);
+    const result={pixels,textLayout};cache.set(cacheKey,result);return result;
   }
-  const {rect,width,height}=geometry,canvas=createCanvas(width,height),context=canvas.getContext('2d');
-  drawPhotoSource(context,image,frameCrop,width,height,rect);
-  const source=context.getImageData(0,0,width,height).data;
-  const settings=options.original?neutralSettings():combineSettings({settings:state.settings},{settings:presetById(state.style?.id)?.adjustments,amount:(state.style?.amount||0)/100});
-  const pixels=renderPhotoPixels({pixels:source,width,height,settings,annotations:options.original?[]:state.locals,crop:frameCrop,frame:{fullWidth:W,fullHeight:H,sourceRect:rect,angle:crop?.angle||0}});
-  context.putImageData(new ImageData(pixels,width,height),0,0);
-  const textLayout=drawTextOverlays(context,options.original||options.withoutText?[]:state.textOverlays,{width,height,compositionRect:outputGeometry(crop,W,H,8192).rect,sourceRect:rect});
-  const composedPixels=textLayout.length?context.getImageData(0,0,width,height).data:pixels;
-  if(options.showNotes){for(const n of p.notes){const r=transformRect(n.rect,x=>originalToViewPoint(x,frameCrop,W,H));if(!r)continue;context.strokeStyle='#ffe5b8';context.lineWidth=2;context.strokeRect(r.x*width,r.y*height,r.width*width,r.height*height);context.fillStyle='#dfcfb5';context.fillRect(r.x*width,r.y*height,24,23);context.fillStyle='#242829';context.font='14px sans-serif';context.fillText(String(n.number),r.x*width+7,r.y*height+17);}}
-  return {png:canvas.toBuffer('image/png'),pixels:composedPixels,width,height,sourceRect:rect,limited:geometry.limited,versionId:version.id,stats:photoMetering(pixels,width,height),textLayout,withoutText:Boolean(options.withoutText),pipeline:renderingVersion+(textLayout.length?'+'+letteringVersion:''),pixelHash:hash(Buffer.from(composedPixels))};
+  const rendered=await renderVersion(version,geometry,crop);
+  let pixels=rendered.pixels,width=geometry.width,height=geometry.height,sourceRect=geometry.rect,regionPixels;
+  if(options.region){
+    const r=cleanRect(options.region),actualCrop={x:geometry.rect.x/W,y:geometry.rect.y/H,width:geometry.rect.width/W,height:geometry.rect.height/H,angle:crop?.angle||0};
+    const view=transformRect(r,point=>originalToViewPoint(point,actualCrop,W,H));
+    if(!view)fail('REGION_OUTSIDE','这处范围不在当前画幅内。');
+    const left=Math.max(0,Math.floor(view.x*width)),top=Math.max(0,Math.floor(view.y*height));
+    const right=Math.min(width,Math.ceil((view.x+view.width)*width)),bottom=Math.min(height,Math.ceil((view.y+view.height)*height));
+    regionPixels={left,top,width:right-left,height:bottom-top};
+    const extracted=new Uint8ClampedArray(regionPixels.width*regionPixels.height*4);
+    for(let y=0;y<regionPixels.height;y++)extracted.set(pixels.subarray(((top+y)*width+left)*4,((top+y)*width+right)*4),y*regionPixels.width*4);
+    sourceRect={x:geometry.rect.x+left/width*geometry.rect.width,y:geometry.rect.y+top/height*geometry.rect.height,width:regionPixels.width/width*geometry.rect.width,height:regionPixels.height/height*geometry.rect.height};
+    pixels=extracted;width=regionPixels.width;height=regionPixels.height;
+  }
+  // Encode raw final RGBA, avoiding a second canvas premultiplication round-trip.
+  let png=await sharp(Buffer.from(pixels),{raw:{width,height,channels:4}}).png().toBuffer();
+  if(options.showNotes){
+    const canvas=createCanvas(width,height),context=canvas.getContext('2d');context.putImageData(new ImageData(pixels,width,height),0,0);
+    const noteCrop={x:sourceRect.x/W,y:sourceRect.y/H,width:sourceRect.width/W,height:sourceRect.height/H,angle:crop?.angle||0};
+    for(const n of p.notes){const r=transformRect(n.rect,x=>originalToViewPoint(x,noteCrop,W,H));if(!r)continue;context.strokeStyle='#ffe5b8';context.lineWidth=2;context.strokeRect(r.x*width,r.y*height,r.width*width,r.height*height);context.fillStyle='#dfcfb5';context.fillRect(r.x*width,r.y*height,24,23);context.fillStyle='#242829';context.font='14px sans-serif';context.fillText(String(n.number),r.x*width+7,r.y*height+17);}
+    png=canvas.toBuffer('image/png');
+  }
+  const pixelHash=hash(Buffer.from(pixels));
+  return {png,pixels,width,height,sourceRect,limited:geometry.limited,versionId:version.id,revision:p.revision,selectionHash:version.selectionHash||null,stateHash:hash(version.state),frameSpec,frameSpecHash:hash(frameSpec),regionPixels,regionMode:options.region?'crop-final-frame':undefined,stats:photoMetering(pixels,width,height),textLayout:rendered.textLayout,withoutText,pipeline:pipelineVersion,pixelHash,renderPixelHash:pixelHash};
 }
 export async function previewPhoto(folder,key='current',options={}) {
-  const frame=await renderFrame(folder,key,options);const name=`${frame.versionId}-${hash(options).slice(0,12)}.png`,file=path.join(path.resolve(folder),'previews',name);
+  const frame=await renderFrame(folder,key,options);const name=`${frame.versionId}-${hash({options,stateHash:frame.stateHash,selectionHash:frame.selectionHash,frameSpec:frame.frameSpec}).slice(0,20)}.png`,file=path.join(path.resolve(folder),'previews',name);
   await mkdir(path.dirname(file),{recursive:true});await writeFile(file,frame.png,{mode:0o600});
   const {png,pixels,...metadata}=frame;return {path:file,...metadata};
 }
@@ -58,5 +117,5 @@ export async function exportPhoto(folder,key='current',options={}) {
   const output=options.output?path.resolve(options.output):path.join(path.resolve(folder),'exports',safeFilename(p.source.name,format==='jpeg'?'jpg':'png',`${v.name}${options.withoutText?'-无字':''}-${Date.now()}`));
   const rel=path.relative(path.resolve(folder),output);if(rel==='project.json'||rel.startsWith('source'+path.sep)||rel.startsWith('previews'+path.sep))fail('OUTPUT_PROTECTED','成片不能写到源图或项目记录目录，请换一个输出位置。');
   try{await writeFile(output,bytes,{flag:'wx',mode:0o600});}catch(error){if(error.code==='EEXIST')fail('OUTPUT_EXISTS','输出文件已存在。请换一个名称，保留已有成片。');throw error;}
-  return {path:output,versionId:v.id,width:frame.width,height:frame.height,limited:frame.limited,format,dpi,quality,bytes:bytes.length,pipeline:frame.pipeline,pixelHash:frame.pixelHash,withoutText:frame.withoutText};
+  return {path:output,versionId:v.id,width:frame.width,height:frame.height,limited:frame.limited,format,dpi,quality,bytes:bytes.length,pipeline:frame.pipeline,pixelHash:frame.pixelHash,renderPixelHash:frame.pixelHash,fileHash:hash(bytes),pixelGuarantee:format==='png'?'decoded-rgba':'before-lossy-encoding',frameSpec:frame.frameSpec,withoutText:frame.withoutText};
 }

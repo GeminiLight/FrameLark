@@ -1,6 +1,7 @@
+import {hasLetteringContent,refinementSource,refinementSourceMatches} from './controlled-edits-model.js';
 export function createLetteringEditor({getProject,getBase,json,perform,notice,onTrial,canStart=()=>true}) {
   const $=id=>document.getElementById(id),dialog=$('lettering-dialog');
-  let layers=[],selected=0,base=null,dirty=false;
+  let layers=[],selected=0,base=null,sourceIdentity=null,dirty=false;
   const layer=()=>layers[selected];
   const fields=['text','x','y','width','size','rotation','opacity','color','background'];
   const styles={airy:{color:'#FFF8EE',background:'#FFF1DD',font:'sans',weight:400},sticker:{color:'#594539',background:'#FFF1DD',font:'rounded',weight:600},editorial:{color:'#FFF8EE',background:'#FFF1DD',font:'serif',weight:400}};
@@ -15,7 +16,7 @@ export function createLetteringEditor({getProject,getBase,json,perform,notice,on
     for(const b of dialog.querySelectorAll('[data-lettering-style]'))b.setAttribute('aria-pressed',String(b.dataset.letteringStyle===l.style));
     for(const b of dialog.querySelectorAll('[data-lettering-decoration]'))b.setAttribute('aria-pressed',String(b.dataset.letteringDecoration===l.decoration));
   }
-  function reset(){const p=getProject();const source=getBase?.()||p.versions.find(v=>v.id===p.currentId);base={revision:p.revision,baseVersion:p.currentId,...(p.candidates.some(c=>c.id===source.id)?{fromCandidate:source.id}:{})};$('lettering-source').textContent=`保留「${source.name}」的光色与裁剪，仅调整文字`;layers=structuredClone(source.state.textOverlays||[]);selected=0;dirty=false;render();}
+  function reset(){const p=getProject();const source=getBase?.()||p.versions.find(v=>v.id===p.currentId);sourceIdentity=refinementSource(p,source);base={revision:p.revision,baseVersion:p.currentId,...(p.candidates.some(c=>c.id===source.id)?{fromCandidate:source.id}:{})};$('lettering-source').textContent=`保留「${source.name}」的光色与裁剪，仅调整文字`;layers=structuredClone(source.state.textOverlays||[]);selected=0;dirty=false;render();}
   function add(){layers.push({id:crypto.randomUUID(),text:'',style:'sticker',font:'rounded',weight:600,x:.07,y:.78,width:.6,size:.045,color:'#594539',background:'#FFF1DD',align:'left',rotation:0,opacity:1,decoration:'none'});selected=layers.length-1;dirty=true;render();$('lettering-text').focus();}
   $('lettering-open').addEventListener('click',()=>{if(!canStart())return;reset();if(!layers.length)add();dialog.showModal();if(layer())$('lettering-text').focus();});
   $('lettering-add').addEventListener('click',add);
@@ -27,10 +28,11 @@ export function createLetteringEditor({getProject,getBase,json,perform,notice,on
   for(const b of dialog.querySelectorAll('[data-lettering-decoration]'))b.addEventListener('click',()=>{if(!layer())return;layer().decoration=b.dataset.letteringDecoration;dirty=true;render();});
   for(const b of dialog.querySelectorAll('[data-lettering-position]'))b.addEventListener('click',()=>{if(!layer())return;Object.assign(layer(),({lower:{x:.07,y:.78,width:.6},upper:{x:.07,y:.08,width:.6},right:{x:.54,y:.08,width:.39}}[b.dataset.letteringPosition]));dirty=true;render();});
   $('lettering-trial').addEventListener('click',()=>perform(async()=>{
+    if(!refinementSourceMatches(sourceIdentity,getProject()))throw Error('所选版本或组合已更新，请重新读取所选文字后再试片。');
     if(layers.some(l=>!l.text.trim()))throw Error('写一句想放到照片上的文字，或移除空文字层。');
     const button=$('lettering-trial');button.disabled=true;button.textContent='正在排版…';
     try{const result=await json('candidate',{...base,mode:'lettering',textOverlays:layers,name:'文字点缀版',goal:'保留所选版本的修片效果，仅调整文字排版。',tradeoff:'文字会改变观看顺序。检查是否遮挡主体、小屏是否清楚；可单独导出无字版。'});dirty=false;dialog.close();await onTrial(result.candidate.id);notice('文字试片已准备好，检查位置与可读性后再接受。');}
     finally{button.disabled=false;button.textContent='生成文字试片';}
   }));
-  return {dirty:()=>dirty&&dialog.open,refresh(){const p=getProject(),count=p.versions.find(v=>v.id===p.currentId).state.textOverlays?.length||0;$('lettering-state').textContent=count?`${count} 处文字 · 可编辑或导出无字版`:'短句、贴纸、小标题 · 按需开启';}};
+  return {dirty:()=>dirty&&dialog.open,refresh(){const p=getProject(),state=p.versions.find(v=>v.id===p.currentId).state,count=state.textOverlays?.length||0;$('lettering-state').textContent=count?`${count} 处文字 · 可编辑或导出无字版`:hasLetteringContent(state)?'参考画面含受保护文字 · 可导出无字版':'短句、贴纸、小标题 · 按需开启';}};
 }
