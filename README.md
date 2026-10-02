@@ -2,15 +2,14 @@
 
 ![Frameyn — An eye for every frame.](assets/frameyn-cover.svg)
 
-[![安装 Agent Skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=flat-square&labelColor=2B2C34)](#agent-skill)
-[![启动本地 Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=flat-square&labelColor=2B2C34)](#web-ui)
-[![在线工作室预览](https://img.shields.io/badge/Online_Studio-Preview-896D4C?style=flat-square&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "在线预览 · 需要 Vercel 访问权限")
-[![Node.js 20.9 及以上](https://img.shields.io/badge/Node.js-20.9%2B-607383?style=flat-square&logo=nodedotjs&logoColor=white&labelColor=2B2C34)](#开始使用)
-[![浏览摄影知识](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=flat-square&labelColor=2B2C34)](#摄影知识)
+[![打开 Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "在线体验 · 需要 Vercel 访问权限")
+[![安装 Agent Skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
+[![启动本地 Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
+[![浏览摄影知识](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#摄影知识)
 
-**照片精修，支持 Web UI 和 Agent Skill。**
+**照片精修，提供 Online Demo、Web UI 和 Agent Skill。**
 
-在浏览器中手动调整，或让视觉 Agent 审片并提供可预览的修片方案。两种方式共用本地照片项目，保留原片、批注和版本。
+本地可在浏览器中手动调整，或让视觉 Agent 审片并提供可预览的修片方案。两种方式共用照片项目，保留原片、批注和版本。
 
 [English](README.en.md) · [开始使用](#开始使用) · [功能与范围](#功能与范围) · [界面](#界面) · [摄影知识](#摄影知识)
 
@@ -18,6 +17,7 @@
 
 | 方式 | 用途 | 入口 |
 | --- | --- | --- |
+| **Online Demo** | 多图上传、诊断与内置顾问；需 Vercel 访问权限。 | [打开在线工作室](https://ai-photography-preview-geminilights-projects.vercel.app/) |
 | **Web UI** | 手动调光色、试风格、裁剪和导出，无需 Agent。 | [启动本地暗房](#web-ui) |
 | **Agent Skill** | 让自己的 Agent 审片、生成试片，再在 Web UI 中比较和精调。 | [安装 Skill](#agent-skill) |
 
@@ -52,9 +52,9 @@ node skills/guangjian-retouch/scripts/cli.mjs serve \
 项目目录须是新目录。按 `Ctrl+C` 停止服务，重新运行 `serve` 即可继续已保存的项目。
 
 <details>
-<summary>在线工作室预览</summary>
+<summary>Online Demo · 在线工作室</summary>
 
-[在线预览](https://ai-photography-preview-geminilights-projects.vercel.app/) 提供多图上传、诊断与内置顾问，目前需要 Vercel 访问权限。视觉模型状态以页面显示为准。
+[打开 Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) 体验多图上传、诊断与内置顾问，目前需要 Vercel 访问权限。视觉模型状态以页面显示为准。
 
 它是独立部署的应用，源码暂未包含在本仓库中；浏览器草稿与本地项目不会自动同步。
 

@@ -2,15 +2,14 @@
 
 ![Frameyn — An eye for every frame.](assets/frameyn-cover.svg)
 
-[![Install the agent skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=flat-square&labelColor=2B2C34)](#agent-skill)
-[![Start the local Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=flat-square&labelColor=2B2C34)](#web-ui)
-[![Online studio preview](https://img.shields.io/badge/Online_Studio-Preview-896D4C?style=flat-square&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "Online preview · Vercel access required")
-[![Node.js 20.9 or later](https://img.shields.io/badge/Node.js-20.9%2B-607383?style=flat-square&logo=nodedotjs&logoColor=white&labelColor=2B2C34)](#get-started)
-[![Browse photography knowledge](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=flat-square&labelColor=2B2C34)](#photography-knowledge)
+[![Open the Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "Online demo · Vercel access required")
+[![Install the agent skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
+[![Start the local Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
+[![Browse photography knowledge](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#photography-knowledge)
 
-**Photo retouching with a Web UI and an agent skill.**
+**Photo retouching with an Online Demo, a Web UI, and an agent skill.**
 
-Edit in your browser or ask a visual agent to review the photograph and suggest edits you can preview. Both work with the same local photo project, preserving originals, annotations, and versions.
+Work locally in your browser or ask a visual agent to review the photograph and suggest edits you can preview. Both work with the same photo project, preserving originals, annotations, and versions.
 
 [简体中文](README.md) · [Get started](#get-started) · [Capabilities](#capabilities) · [Interface](#interface) · [Photography knowledge](#photography-knowledge)
 
@@ -18,6 +17,7 @@ Edit in your browser or ask a visual agent to review the photograph and suggest 
 
 | Mode | Use | Start |
 | --- | --- | --- |
+| **Online Demo** | Multiple uploads, diagnosis, and an integrated advisor. Vercel access required. | [Open the online studio](https://ai-photography-preview-geminilights-projects.vercel.app/) |
 | **Web UI** | Adjust light and color, try styles, crop, and export manually. No agent required. | [Start the darkroom](#web-ui) |
 | **Agent skill** | Your agent reviews the image and proposes candidates; compare and refine them in the Web UI. | [Install the skill](#agent-skill) |
 
@@ -52,9 +52,9 @@ Open the printed URL. Adjust controls, then select **生成试片** (Create tria
 Use a new project directory. Press `Ctrl+C` to stop the server; run `serve` again to continue the saved project.
 
 <details>
-<summary>Online studio preview</summary>
+<summary>Online Demo · Studio preview</summary>
 
-The [online preview](https://ai-photography-preview-geminilights-projects.vercel.app/) offers multiple uploads, diagnosis, and an integrated advisor. It currently requires Vercel access. Check the page for the visual-model connection status.
+The [Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) offers multiple uploads, diagnosis, and an integrated advisor. It currently requires Vercel access. Check the page for the visual-model connection status.
 
 It is a separate deployment whose source is not included in this repository. Browser drafts do not automatically synchronize with local projects.
 
