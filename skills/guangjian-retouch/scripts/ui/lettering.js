@@ -1,4 +1,4 @@
-export function createLetteringEditor({getProject,json,perform,notice,onTrial,canStart=()=>true}) {
+export function createLetteringEditor({getProject,getBase,json,perform,notice,onTrial,canStart=()=>true}) {
   const $=id=>document.getElementById(id),dialog=$('lettering-dialog');
   let layers=[],selected=0,base=null,dirty=false;
   const layer=()=>layers[selected];
@@ -15,11 +15,11 @@ export function createLetteringEditor({getProject,json,perform,notice,onTrial,ca
     for(const b of dialog.querySelectorAll('[data-lettering-style]'))b.setAttribute('aria-pressed',String(b.dataset.letteringStyle===l.style));
     for(const b of dialog.querySelectorAll('[data-lettering-decoration]'))b.setAttribute('aria-pressed',String(b.dataset.letteringDecoration===l.decoration));
   }
-  function reset(){const p=getProject();base={revision:p.revision,baseVersion:p.currentId};layers=structuredClone(p.versions.find(v=>v.id===p.currentId).state.textOverlays||[]);selected=0;dirty=false;render();}
+  function reset(){const p=getProject();const source=getBase?.()||p.versions.find(v=>v.id===p.currentId);base={revision:p.revision,baseVersion:p.currentId,...(p.candidates.some(c=>c.id===source.id)?{fromCandidate:source.id}:{})};$('lettering-source').textContent=`保留「${source.name}」的光色与裁剪，仅调整文字`;layers=structuredClone(source.state.textOverlays||[]);selected=0;dirty=false;render();}
   function add(){layers.push({id:crypto.randomUUID(),text:'',style:'sticker',font:'rounded',weight:600,x:.07,y:.78,width:.6,size:.045,color:'#594539',background:'#FFF1DD',align:'left',rotation:0,opacity:1,decoration:'none'});selected=layers.length-1;dirty=true;render();$('lettering-text').focus();}
   $('lettering-open').addEventListener('click',()=>{if(!canStart())return;reset();if(!layers.length)add();dialog.showModal();if(layer())$('lettering-text').focus();});
   $('lettering-add').addEventListener('click',add);
-  $('lettering-reset').addEventListener('click',()=>{reset();notice('已读取当前版本的文字层。');});
+  $('lettering-reset').addEventListener('click',()=>{reset();notice('已读取所选版本的文字层。');});
   $('lettering-remove').addEventListener('click',()=>{layers.splice(selected,1);selected=Math.max(0,Math.min(selected,layers.length-1));dirty=true;render();});
   dialog.addEventListener('close',()=>{dirty=false;});
   for(const key of fields)$('lettering-'+key).addEventListener('input',event=>{if(!layer())return;layer()[key]=['x','y','width','size','opacity'].includes(key)?Number(event.target.value)/100:key==='rotation'?Number(event.target.value):event.target.value;dirty=true;const out=$('lettering-'+key+'-value');if(out)out.textContent=event.target.value+(key==='rotation'?'°':'%');if(key==='text')tabs();});
@@ -29,7 +29,7 @@ export function createLetteringEditor({getProject,json,perform,notice,onTrial,ca
   $('lettering-trial').addEventListener('click',()=>perform(async()=>{
     if(layers.some(l=>!l.text.trim()))throw Error('写一句想放到照片上的文字，或移除空文字层。');
     const button=$('lettering-trial');button.disabled=true;button.textContent='正在排版…';
-    try{const result=await json('candidate',{...base,mode:'lettering',textOverlays:layers,name:'文字点缀版',goal:'保留已接受的修片效果，仅调整文字排版。',tradeoff:'文字会改变观看顺序。检查是否遮挡主体、小屏是否清楚；可单独导出无字版。'});dirty=false;dialog.close();await onTrial(result.candidate.id);notice('文字试片已准备好，检查位置与可读性后再接受。');}
+    try{const result=await json('candidate',{...base,mode:'lettering',textOverlays:layers,name:'文字点缀版',goal:'保留所选版本的修片效果，仅调整文字排版。',tradeoff:'文字会改变观看顺序。检查是否遮挡主体、小屏是否清楚；可单独导出无字版。'});dirty=false;dialog.close();await onTrial(result.candidate.id);notice('文字试片已准备好，检查位置与可读性后再接受。');}
     finally{button.disabled=false;button.textContent='生成文字试片';}
   }));
   return {dirty:()=>dirty&&dialog.open,refresh(){const p=getProject(),count=p.versions.find(v=>v.id===p.currentId).state.textOverlays?.length||0;$('lettering-state').textContent=count?`${count} 处文字 · 可编辑或导出无字版`:'短句、贴纸、小标题 · 按需开启';}};

@@ -2,16 +2,16 @@
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {initProject,loadProject,publicProject,currentVersion,createCandidate,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,recordExport,fail} from './project.mjs';
+import {initProject,loadProject,publicProject,currentVersion,createCandidate,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,recordExport,fail,localFailure} from './project.mjs';
 import {previewPhoto,exportPhoto} from './render.mjs';
 import {editorControlReference} from './engine/control-reference.js';
 import {letteringCapabilities} from './text-overlays.mjs';
-const help={name:'帧映 · 本地修片',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
+const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
   init:'--image <photo> --project <new-folder> [--intent <表达目标>]',
   inspect:'读取当前版本、最新批注、意图、候选和真实预览路径；不调用视觉模型',
   controls:'实际参数范围、灰卡响应与风格目录',
   preview:'[--version <id|current|original>] [--max-side 1400] [--region <JSON 原片范围>] [--without-text true]',
-  candidate:'--input <plan.json|->；需 revision、baseVersion；settings 为绝对目标，不重复累加',
+  candidate:'--input <plan.json|->；需 revision、baseVersion；settings 为绝对目标；可用 fromCandidate 继承未接受试片，不重复累加',
   lettering:'不带 --input 查看独立文字模式；--input <plan.json|-> 创建文字候选，需 mode: lettering；不修改修片参数',
   note:'--input <note.json|->；新增或修改圈选和评论',
   'delete-note':'--id <annotation-id> [--revision <n>]',
@@ -29,7 +29,7 @@ async function input(file){if(!file)fail('INPUT_REQUIRED','请用 --input 提供
 export async function runCLI(values=process.argv.slice(2)) {
   const [command='help',...rest]=values;if(['help','--help','-h'].includes(command))return help;
   const o=args(rest),folder=o.project&&path.resolve(o.project),revision=o.revision===undefined?undefined:Number(o.revision);
-  if(command==='controls')return {parameters:publicProject({candidates:[],source:{},versions:[]}).parameters,styles:publicProject({candidates:[],source:{},versions:[]}).styles,grayCardReference:editorControlReference(),semantics:'曝光为 EV；其余数值是本编辑器相对控制，不是 Lightroom 开尔文或通用单位。settings 设为目标值；style 独立叠加。'};
+  if(command==='controls')return {parameters:publicProject({candidates:[],source:{},versions:[]}).parameters,styles:publicProject({candidates:[],source:{},versions:[]}).styles,grayCardReference:editorControlReference(),directions:{warmth:'正值更暖，负值更冷',tint:'正值减绿／向洋红，负值减洋红／向绿'},semantics:'曝光为 EV；其余数值是本编辑器相对控制，不是 Lightroom 开尔文或通用单位。settings 设为目标值；style 独立叠加。'};
   if(command==='lettering'&&!o.input)return letteringCapabilities();
   if(!folder)fail('PROJECT_REQUIRED','请用 --project 指定照片项目目录。');
   switch(command){
@@ -51,4 +51,4 @@ export async function runCLI(values=process.argv.slice(2)) {
     default:fail('UNKNOWN_COMMAND','未知命令。运行 help 查看用法。');
   }
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href)runCLI().then(result=>{if(result)console.log(JSON.stringify({ok:true,...result},null,2));}).catch(error=>{console.error(JSON.stringify({ok:false,error:{code:error.code||'LOCAL_TOOL_FAILED',message:error.code?error.message:'本地操作失败。请检查路径、文件权限与格式；已有工作已保留。'}},null,2));process.exitCode=1;});
+if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href)runCLI().then(result=>{if(result)console.log(JSON.stringify({ok:true,...result},null,2));}).catch(error=>{console.error(JSON.stringify({ok:false,error:localFailure(error)},null,2));process.exitCode=1;});

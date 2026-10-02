@@ -27,6 +27,13 @@ export function cleanRect(value) {
 }
 const fingerprint=p=>hash({current:p.currentId,intent:p.intent,notes:p.notes});
 export const currentVersion=p=>p.versions.find(v=>v.id===p.currentId);
+export function localFailure(error){
+  const messages={ENOENT:'文件未找到。请检查照片或项目路径，恢复文件后重试；已有编辑保留。',EACCES:'无法读取或保存这个位置。请选择有读写权限的目录，已有编辑保留。',EPERM:'这个位置没有读写权限。请选择可用目录后重试，已有编辑保留。',ENOSPC:'磁盘空间不足。腾出空间后重试；已保存的版本仍保留。',EIO:'文件读取或保存暂时失败。请检查磁盘后重试，已有编辑保留。'};
+  const message=messages[error?.code];
+  if(message)return {code:error.code,message};
+  if(!error?.code||/^E[A-Z0-9]+$/.test(error.code))return {code:'LOCAL_OPERATION_FAILED',message:'操作未完成。请检查文件与保存位置后重试，已有编辑保留。'};
+  return {code:error.code,message:error.message};
+}
 export function findVersion(p,key='current') {
   if(key==='current')return currentVersion(p);
   if(key==='original')return p.versions[0];
@@ -81,7 +88,10 @@ export async function initProject(image,folder,{intent=''}={}) {
   }catch(error){throw error;}
 }
 function stateFromPlan(p,plan) {
-  const next=structuredClone(currentVersion(p).state);next.settings={...next.settings,...cleanSettings(plan.settings)};
+  const source=plan.fromCandidate?p.candidates.find(c=>c.id===plan.fromCandidate):currentVersion(p);
+  if(!source)fail('CANDIDATE_NOT_FOUND','精调所依据的试片已接受或取消，请读取最新版本。');
+  if(plan.fromCandidate && source.baseFingerprint!==fingerprint(p))fail('STALE_CANDIDATE','这份试片的意图、批注或基础版本已更新，请重新读取项目并试片。');
+  const next=structuredClone(source.state);next.settings={...next.settings,...cleanSettings(plan.settings)};
   if(plan.textOverlays!==undefined){if(plan.mode!=='lettering')fail('LETTERING_MODE_REQUIRED','添加、修改或移除文字需明确使用 mode: lettering；普通修片不自动加字。');next.textOverlays=cleanTextOverlays(plan.textOverlays);}
   if(plan.style!==undefined){if(plan.style===null)next.style=null;else {const preset=presetById(plan.style.id);if(!preset)fail('UNKNOWN_STYLE','风格不存在，请先读取风格目录。');if(!Number.isFinite(plan.style.amount)||plan.style.amount<0||plan.style.amount>100)fail('STYLE_AMOUNT','风格强度应为 0～100。');next.style={id:preset.id,amount:plan.style.amount};}}
   if(plan.crop!==undefined){if(plan.crop===null)next.crop=null;else {next.crop=validCrop(plan.crop);if(!next.crop||plan.crop.angle!==undefined&&(!Number.isFinite(plan.crop.angle)||Math.abs(plan.crop.angle)>15))fail('INVALID_CROP','裁剪越界、过小或拉直超过 ±15°。请保留至少 5% 的长宽。');}}
@@ -108,8 +118,8 @@ export async function createCandidate(folder,plan) {
     const planHash=hash(plan);if(prior){if(prior.planHash!==planHash)fail('REQUEST_CONFLICT','同一请求编号对应了不同方案，请使用新编号。');return {project:p,candidate:prior,reused:true};}
     if(!Number.isInteger(plan.revision)||plan.baseVersion!==p.currentId)fail('STALE_REVISION','方案需填写 inspect 返回的 revision 和 currentId；请基于最新版本精调。');expect(p,plan.revision);
     if(p.candidates.length>=8)fail('CANDIDATE_LIMIT','最多保留 8 个候选。请接受或取消一个后继续。');
-    const {state,warnings}=stateFromPlan(p,plan);if(hash(state)===hash(currentVersion(p).state))fail('NO_CHANGE','这份方案与当前效果一致，可以保留当前版本。');
-    const candidate={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:p.currentId,createdAt:now(),baseFingerprint:fingerprint(p),state,goal:text(plan.goal),tradeoff:text(plan.tradeoff),warnings,requestId:text(plan.requestId,80),planHash};
+    const {state,warnings}=stateFromPlan(p,plan);if(hash(state)===hash(currentVersion(p).state)||plan.fromCandidate&&hash(state)===hash(p.candidates.find(c=>c.id===plan.fromCandidate).state))fail('NO_CHANGE','这份方案与所选效果一致，可以保留这版，不必重复试片。');
+    const candidate={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:p.currentId,...(plan.fromCandidate?{refinedFrom:plan.fromCandidate}:{}),createdAt:now(),baseFingerprint:fingerprint(p),state,goal:text(plan.goal),tradeoff:text(plan.tradeoff),warnings,requestId:text(plan.requestId,80),planHash};
     p.candidates.push(candidate);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,candidate};
   });
 }

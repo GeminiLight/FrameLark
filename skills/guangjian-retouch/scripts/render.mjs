@@ -13,8 +13,9 @@ import {writeImageMetadata} from './engine/export-files.js';
 import {drawTextOverlays,letteringVersion} from './text-overlays.mjs';
 let cached=null;
 async function sourceImage(folder,p) {
-  const file=path.join(folder,'source','normalized.png');const bytes=await readFile(file);
-  if(hash(bytes)!==p.source.normalizedChecksum || hash(await readFile(path.join(folder,'source','original.bin')))!==p.source.checksum)fail('SOURCE_CHANGED','项目源图已改变。请恢复原片备份，或作为新项目重新加入。');
+  const file=path.join(folder,'source','normalized.png');let bytes,original;
+  try{bytes=await readFile(file);original=await readFile(path.join(folder,'source','original.bin'));}catch(error){if(error.code==='ENOENT')fail('SOURCE_MISSING','项目原片文件未找到。请让 Agent 检查并恢复项目源图，再重试预览；已有编辑保留。');throw error;}
+  if(hash(bytes)!==p.source.normalizedChecksum || hash(original)!==p.source.checksum)fail('SOURCE_CHANGED','项目源图已改变。请恢复原片备份，或作为新项目重新加入。');
   if(cached?.key===p.source.normalizedChecksum)return cached.image;
   const image=await loadImage(bytes);
   cached={key:p.source.normalizedChecksum,image};return image;

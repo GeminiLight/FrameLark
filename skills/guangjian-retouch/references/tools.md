@@ -20,6 +20,8 @@
 }
 ```
 
+继续改一份未接受的试片时加 `"fromCandidate":"最新 inspect 返回的候选 ID"`，其余 `revision` / `baseVersion` 仍用最新项目值。工具继承该试片的全部层，再更新指定目标；基础版本、意图或批注改变会拒绝过期试片。原候选保留，可取消或比较；不会自动接受。
+
 值为示例，不是通用修片配方。settings 未出现的参数和未出现的局部保留；style/crop 字段不出现则保持，null 则移除该层。已存在参数设为 0 可清除，局部 `remove:true` 可移除该处效果。requestId 相同且计划相同会返回已有候选，避免重试重复生成；不同计划不得复用同一个 requestId。
 
 裁剪：`crop:{x:0.05,y:0,width:0.9,height:1,angle:0}`。长宽至少 .05，原片内范围，角度 ±15°。保留标记被切到时拒绝方案；用户明确授权该处裁剪后方可 `allowProtectedCrop:true`。
@@ -72,7 +74,7 @@ node <skill>/scripts/cli.mjs serve --project <project> --port 0 --session-file <
 
 先运行 `node <skill>/scripts/cli.mjs lettering` 查看真实样式、字体与范围。文字模式独立于 `controls` 的修片参数，不需要额外模型服务。
 
-`lettering --project <project> --input <plan.json>`：创建文字候选，命令只接受文字变更，保留当前光色、风格、局部和裁剪。`candidate` 中若包含 `textOverlays`，也必须明确 `mode: lettering`。
+`lettering --project <project> --input <plan.json>`：创建文字候选，命令只接受文字变更，保留当前光色、风格、局部和裁剪。也可填写 `fromCandidate`，把文字放到未接受的修片试片上，保留那份试片的实际效果。`candidate` 中若包含 `textOverlays`，也必须明确 `mode: lettering`。
 
 ```json
 {
