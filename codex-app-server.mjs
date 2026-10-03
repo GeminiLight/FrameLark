@@ -63,7 +63,7 @@ export class CodexAppServer {
       if(this.child!==child)return;
       this.stop(codexFailure(diagnostic));
     });
-    await this.rpc('initialize',{clientInfo:{name:'frameyn',title:'Frameyn photo workspace',version:'0.3.0'}});
+    await this.rpc('initialize',{clientInfo:{name:'frameyn',title:'Frameyn photo workspace',version:'0.3.0'},capabilities:{experimentalApi:true}});
     current();
     this.send({method:'initialized',params:{}});
     // A user-level MCP configuration may be merged by Codex. Disable every discovered
