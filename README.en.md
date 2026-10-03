@@ -219,3 +219,7 @@ npm test
 Tests cover projects, pixel processing, local sessions, selective editing, protections, and knowledge retrieval. Technical tests use generated charts; actual photo observations are recorded separately. See [validation scope](docs/VALIDATION.md).
 
 [Contributing](CONTRIBUTING.md) · [Skill entry point](skills/guangjian-retouch/SKILL.md) · [CLI and JSON reference](skills/guangjian-retouch/references/tools.md)
+
+## Contributors
+
+Thanks to [Yijie Xu (@yeahjack)](https://github.com/yeahjack) for selective edit acceptance, parameter and local-layer locks, protected regions, and rendering and preview responsiveness improvements: [#1](https://github.com/GeminiLight/frameyn/pull/1), [#2](https://github.com/GeminiLight/frameyn/pull/2).

@@ -213,3 +213,7 @@ npm test
 自动测试覆盖项目、像素处理、本地会话、逐项选择、保护与知识检索。技术测试使用生成图，实际照片观察另有记录，见 [验证范围](docs/VALIDATION.md)。
 
 [维护指南](CONTRIBUTING.md) · [Skill 入口](skills/guangjian-retouch/SKILL.md) · [CLI 与 JSON 参考](skills/guangjian-retouch/references/tools.md)
+
+## 贡献者
+
+感谢 [Yijie Xu（@yeahjack）](https://github.com/yeahjack) 贡献逐项调整采纳、参数与局部层锁定、画面区域保护，以及渲染和预览响应优化：[#1](https://github.com/GeminiLight/frameyn/pull/1)、[#2](https://github.com/GeminiLight/frameyn/pull/2)。
