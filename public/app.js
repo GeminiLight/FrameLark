@@ -1,4 +1,7 @@
 import {exchangeSchema,validateExchange,restoreWebExchange} from './project-exchange.js';
+import {preparePhotoFile} from './import-conversion.js';
+import {createProjectWorkspace} from './project-workspace.js';
+import {workspacePatch,snapshotFromProject} from './project-snapshot.js';
 import {readVisionStream,partialReply} from './vision-stream.js';
 import {defaultModelTiers,tierNames} from './model-routing.js';
 import {importLimits,importAccept,runImportBatch,loadPhotoImage,PhotoImportError} from './photo-import.js';
@@ -97,7 +100,8 @@ let renderRevision = 0,renderedFrameKey=null;
 let cachedCropPreview=null,thumbnailSignature=null;
 const draftStore=createDraftStore();
 const photoViewer=createPhotoViewer($('#viewer-dialog'));
-const advisorViewer=createPhotoViewer($('#advisor-preview-dialog'),{prefix:'advisor-preview',onState:status=>{$('#advisor-preview-accept').disabled=status!=='ready';}});
+let advisorPreviewReady=false;
+const advisorViewer=createPhotoViewer($('#advisor-preview-dialog'),{prefix:'advisor-preview',onState:status=>{advisorPreviewReady=status==='ready';updateAdvisorAccept();}});
 const advisorRequests=createPhotoRequests(),reassessmentRequests=createPhotoRequests();
 let reassessmentRequest=null;
 let pendingAdvisorPreview=null,collectionPresetId=null,collectionGeneration=0,collectionHolding=false,collectionHoverId=null;
@@ -267,6 +271,39 @@ const seriesWorkspace=createSeriesWorkspace({
     scheduleDraftSave();renderPhotoTabs();showToast(changed.length?`已应用 ${changed.length} 张的组图调整，可逐张精调或整组撤销。`:'已保留这组照片的当前光色。');
   }
 });
+
+const projectWorkspace=createProjectWorkspace({
+  getPhoto:currentPhoto,getPhotos:()=>photoSessions,
+  getPatch:photo=>{saveCurrentPhoto({finish:false});return workspacePatch(photoSnapshot(photo),{intent:photo.creativeIntent,conversation:photo.conversation});},
+  onLoad:async(data,existing)=>{
+    let photo=existing;
+    if(!photo){
+      if(photoSessions.length>=12)throw new Error('最多打开 12 张照片，请先移出一张。');
+      if(photoSessions.reduce((sum,p)=>sum+p.image.naturalWidth*p.image.naturalHeight,0)+data.source.width*data.source.height>100_000_000)throw new Error('工作区照片总尺寸接近上限，请先移出部分照片。');
+      const response=await fetch(`/api/projects/${data.id}/source`);if(!response.ok)throw new Error('项目原片无法读取。');
+      const blob=await response.blob();photo=await addPhotoSource(URL.createObjectURL(blob),data.name,false,false,blob,{strict:true});
+    }
+    await applySharedProject(photo,data);if(currentPhotoId!==photo.id)activatePhoto(photo.id);return photo;
+  },onUpdate:applySharedProject,notify:showToast
+});
+function applySharedProject(photo,data) {
+  const meaningful=value=>JSON.stringify([value.currentId,value.current,value.intent,value.notes.map(({id,note,rect,protect})=>({id,note,rect,protect}))]);
+  if(photo.projectData&&meaningful(photo.projectData)===meaningful(data)){
+    if(JSON.stringify(data.conversation)!==JSON.stringify(photo.projectData.conversation)){photo.conversation=data.conversation.map(m=>({...m,id:crypto.randomUUID()}));if(currentPhotoId===photo.id)renderAgent();}
+    photo.projectData=data;return;
+  }
+  const snapshot=snapshotFromProject(data);
+  advisorRequests.cancel(photo.id,'project-updated');photo.agentBusy=false;
+  Object.assign(photo,{manual:snapshot.manual,active:new Set(),advisorLayers:[],crop:snapshot.crop,presetId:snapshot.presetId,presetAmount:snapshot.presetAmount,annotations:snapshot.annotations,
+    creativeIntent:data.intent,conversation:data.conversation.map(m=>({...m,id:crypto.randomUUID()})),history:{past:[],future:[]},projectId:data.id,projectPath:data.path,projectRevision:data.revision,projectCurrentId:data.currentId,originalFileName:data.name,projectData:data});
+  preparePhotoPreview(photo);photo.analysis=analyzeLocal(photo);photo.analysisSource='local';photo.analysisStatus='idle';photo.assessment=null;photo.exported=false;
+  nextAnnotationId=Math.max(nextAnnotationId,...photo.annotations.map(a=>Number(String(a.id).replace('note-',''))+1).filter(Number.isFinite));
+  if(currentPhotoId===photo.id){
+    if($('#advisor-preview-dialog').open)$('#advisor-preview-dialog').close();
+    for(const key of photoStateKeys)state[key]=photo[key];editHistory.past=[];editHistory.future=[];editHistory.range=null;
+    renderSliders();renderAnnotations();renderLocalEditor();renderPresets();renderAnalysis();renderAgent();sizePhotoStage();scheduleRender();refreshActions();
+  }
+}
 
 function currentPhoto() { return photoSessions.find(photo => photo.id === currentPhotoId); }
 
@@ -584,6 +621,7 @@ function activatePhoto(id) {
   analysisGeneration++;
   reassessGeneration++;
   currentPhotoId = id;
+  projectWorkspace.status(photo);
   $('#agent-live').textContent='';
   photo.versions=(photo.versions || []).map(item=>({...item,signature:snapshotAcceptanceSignature(item.snapshot)}));
   preparePhotoPreview(photo);
@@ -629,6 +667,7 @@ function removePhoto(id) {
   const index = photoSessions.findIndex(photo => photo.id === id);
   if (index < 0) return;
   const photo = photoSessions[index];
+  projectWorkspace.release(photo);
   advisorRequests.cancel(id,'removed');reassessmentRequests.cancel(id,'removed');
   if(reassessmentRequest?.id===id)cancelReassessment('removed');
   const nextId = photoSessions[index + 1]?.id || photoSessions[index - 1]?.id;
@@ -1786,7 +1825,7 @@ function renderAgent({follow=false}={}) {
     thread.innerHTML = photo.conversation.map((message,index) => message.role === 'status'
       ? `<div class="agent-request-status" role="status">${escapeHtml(message.text)}${message.requestQuestion ? `<button type="button" data-agent-retry="${index}" ${photo.agentBusy ? 'disabled':''}>继续这条提问</button>`:''}</div>` : message.role === 'user'
       ? `<div class="agent-message user">${escapeHtml(message.text)}${agentMessageContext(message,index)}</div>`
-      : `<div class="agent-message assistant" data-reply-id="${escapeHtml(message.id || String(index))}"><div class="agent-message-head"><i><img src="/assets/guangjian-icon.svg?v=4" alt="" /></i>帧映 · ${message.source === 'ai' ? '审美顾问' : '本地引导'}</div>${message.provenance?.model ? `<small class="agent-model-source">${escapeHtml(message.provenance.model)} · ${escapeHtml(tierNames[message.provenance.tier] || '标准')}</small>`:''}${message.failure ? `<div class="agent-failure"><p>${escapeHtml(message.failure)}</p><button type="button" data-agent-retry="${index}" ${photo.agentBusy || !state.aiAvailable ? 'disabled':''}>用最新批注重试</button></div>`:''}<div class="agent-message-body">${escapeHtml(message.text)}</div>${message.principle ? `<p class="agent-principle"><b>摄影笔记</b> · ${escapeHtml(message.principle)}</p>` : ''}${message.clarification ? `<div class="agent-clarification"><strong>${escapeHtml(message.clarification.question)}</strong>${message.clarification.choices.map(choice=>`<button type="button" data-agent-intent="${escapeHtml(choice)}">${escapeHtml(choice)}</button>`).join('')}</div>` : ''}${agentActionMarkup(message,index)}</div>`).join('');
+      : `<div class="agent-message assistant" data-reply-id="${escapeHtml(message.id || String(index))}"><div class="agent-message-head"><i><img src="/assets/guangjian-icon.svg?v=4" alt="" /></i>帧映 · ${message.source === 'ai' ? '审美顾问' : message.source === 'local' ? '本地引导':'历史回复'}</div>${message.provenance?.model ? `<small class="agent-model-source">${escapeHtml(message.provenance.model)} · ${escapeHtml(tierNames[message.provenance.tier] || '标准')}</small>`:''}${message.failure ? `<div class="agent-failure"><p>${escapeHtml(message.failure)}</p><button type="button" data-agent-retry="${index}" ${photo.agentBusy || !state.aiAvailable ? 'disabled':''}>用最新批注重试</button></div>`:''}<div class="agent-message-body">${escapeHtml(message.text)}</div>${message.principle ? `<p class="agent-principle"><b>摄影笔记</b> · ${escapeHtml(message.principle)}</p>` : ''}${message.clarification ? `<div class="agent-clarification"><strong>${escapeHtml(message.clarification.question)}</strong>${message.clarification.choices.map(choice=>`<button type="button" data-agent-intent="${escapeHtml(choice)}">${escapeHtml(choice)}</button>`).join('')}</div>` : ''}${agentActionMarkup(message,index)}</div>`).join('');
   }
   hydrateIcons(thread);
   if (photo?.agentBusy) {thread.insertAdjacentHTML('beforeend','<div class="agent-typing" role="status"><span></span><p class="agent-partial"></p></div>');renderAgentProgress();}
@@ -1941,17 +1980,36 @@ function cancelAdvisor() {
   photo.conversation.push({role:'status',text:'本次对话已取消，照片与已有建议保留。可继续输入或重新提问。'});
   renderAgent();scheduleDraftSave();$('#agent-input').focus();
 }
+function updateAdvisorAccept(){
+  const pending=pendingAdvisorPreview,photo=photoSessions.find(p=>p.id===pending?.photoId);
+  $('#advisor-preview-accept').disabled=!advisorPreviewReady||Boolean(photo?.projectId&&(!pending?.projectCandidate||pending?.projectBusy));
+}
+async function syncProjectPreview(pending){
+  const photo=photoSessions.find(p=>p.id===pending.photoId);if(!photo?.projectId)return;
+  const generation=++pending.projectGeneration,candidate=structuredClone(pending.candidate);
+  pending.projectBusy=true;updateAdvisorAccept();
+  try{
+    if(pending.projectCandidate){await projectWorkspace.discard(photo,pending.projectCandidate);pending.projectCandidate=null;}
+    const patch=workspacePatch(candidate,{intent:photo.creativeIntent,conversation:photo.conversation});
+    const token=await projectWorkspace.propose(photo,patch,pending.explanation);
+    if(pending!==pendingAdvisorPreview||generation!==pending.projectGeneration){await projectWorkspace.discard(photo,token);return;}
+    pending.projectCandidate=token;pending.projectPatch=patch;
+  }catch(error){if(pending===pendingAdvisorPreview)$('#advisor-preview-progress').textContent=error.message;}
+  finally{if(generation===pending.projectGeneration){pending.projectBusy=false;updateAdvisorAccept();}}
+}
+
 function openAdjustmentPreview(before,candidate,explanation,metadata={}) {
   if(!candidate)return;
-  pendingAdvisorPreview={photoId:currentPhotoId,signature:currentEffectSignature(),intent:cleanIntent(state.creativeIntent),before,candidate,fullCandidate:structuredClone(candidate),review:state.analysis,...metadata};
+  pendingAdvisorPreview={photoId:currentPhotoId,signature:currentEffectSignature(),intent:cleanIntent(state.creativeIntent),before,candidate,fullCandidate:structuredClone(candidate),review:state.analysis,explanation,projectGeneration:0,...metadata};
   $('#advisor-preview-goal').textContent=explanation.goal;
   $('#advisor-preview-scope').textContent=`范围 · ${explanation.scope}`;
   $('#advisor-preview-changes').textContent=`变化 · ${explanation.changes}`;
   $('#advisor-preview-tradeoff').textContent=`留意 · ${explanation.tradeoff}`;
-  $('#advisor-preview-accept').textContent='接受调整';
+  $('#advisor-preview-accept').textContent='应用调整';
   $('#advisor-preview-strength-row').hidden=!scalablePreview(before,candidate);
   $('#advisor-preview-strength').value=100;$('#advisor-preview-strength-value').textContent='100%';
   advisorViewer.open(state.image,[viewerVersion(before,'before','当前版本'),viewerVersion(candidate,'candidate','建议预览')],'before','candidate');
+  syncProjectPreview(pendingAdvisorPreview);
 }
 function previewSuggestions(ids,{crop=false}={}) {
   if(!state.analysis || state.loading)return;
@@ -1982,15 +2040,25 @@ $('#advisor-preview-strength').addEventListener('input',()=>{
   const a=snapshotSettings(pending.before),b=snapshotSettings(pending.candidate);
   $('#advisor-preview-changes').textContent='变化 · '+sliderSpecs.filter(spec=>Math.abs(b[spec.key]-a[spec.key])>.001).map(spec=>`${spec.label} ${formatSlider(b[spec.key]-a[spec.key],spec)}`).join('、');
   advisorViewer.updateVersion('candidate',viewerVersion(pending.candidate,'candidate','建议预览'));
+  if(currentPhoto()?.projectId){pending.projectBusy=true;clearTimeout(pending.projectTimer);pending.projectTimer=setTimeout(()=>syncProjectPreview(pending),200);updateAdvisorAccept();}
 });
 $('#advisor-preview-cancel').addEventListener('click',()=>$('#advisor-preview-dialog').close());
-$('#advisor-preview-dialog').addEventListener('close',()=>{pendingAdvisorPreview=null;});
-$('#advisor-preview-accept').addEventListener('click',()=>{
+$('#advisor-preview-dialog').addEventListener('close',()=>{const pending=pendingAdvisorPreview;if(pending){clearTimeout(pending.projectTimer);if(!pending.projectAccepted&&!pending.projectAccepting)projectWorkspace.discard(photoSessions.find(p=>p.id===pending.photoId),pending.projectCandidate);}pendingAdvisorPreview=null;});
+$('#advisor-preview-accept').addEventListener('click',async()=>{
   const pending=pendingAdvisorPreview;
   if(pending?.review!==state.analysis || !previewStillValid(pending,{photoId:currentPhotoId,signature:currentEffectSignature(),intent:state.creativeIntent})){showToast('照片或目标已变化，请重新预览。');$('#advisor-preview-dialog').close();return;}
   const message=pending.messageId ? currentPhoto().conversation.find(item=>item.id===pending.messageId):null;
   if(pending.messageId && !message)return;
   if(message && annotationsChanged(message,renderedAnnotations())){showToast('批注已更新，请重新提问与预览。');$('#advisor-preview-dialog').close();return;}
+  const photo=currentPhoto();
+  if(photo.projectId){
+    if(!pending.projectCandidate||pending.projectBusy)return;
+    pending.projectAccepting=true;$('#advisor-preview-accept').disabled=true;
+    try{
+      const data=await projectWorkspace.accept(photo,pending.projectCandidate,pending.projectPatch);pending.projectAccepted=true;
+      if(currentPhotoId!==photo.id){applySharedProject(photo,data);showToast('已应用文件项目中的调整。');return;}
+    }catch(error){$('#advisor-preview-progress').textContent=error.message;pending.projectAccepting=false;updateAdvisorAccept();return;}
+  }
   restoreEdit(pending.candidate);if(message)message.applied=true;saveEdit(pending.before);
   $('#advisor-preview-dialog').close();renderAgent();buildPresetThumbs(state.image);renderPresets();
   showToast('已应用调整，可继续微调或撤销。');
@@ -2126,7 +2194,19 @@ function registerExport(task) {
   if(photo.id===currentPhotoId){state.exported=photo.exported;refreshActions();renderVersions();renderEditions();}
   scheduleDraftSave();
 }
-async function makeExport(photo,snapshot,options,{signal,progress}) {
+async function makeExport(photo,snapshot,options,{signal,progress},projectVersionId=null) {
+  if(projectVersionId){
+    progress('正在生成成片并保存到项目');
+    const result=await projectWorkspace.exportVersion(photo,projectVersionId,options,signal);
+    signal.throwIfAborted();const response=await fetch(result.download,{signal});if(!response.ok)throw new Error('成片已生成，但下载未完成。可以在文件项目中查看。');
+    const blob=await response.blob(),url=URL.createObjectURL(blob);
+    try{
+      const image=await loadPhotoImage(url,{signal}),scale=Math.min(1,1400/Math.max(image.naturalWidth,image.naturalHeight)),canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,canvas.width,canvas.height);
+      const stats=inspectPixels(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height).stats;
+      return {blob,width:result.width,height:result.height,stats,projectPath:result.path};
+    }finally{URL.revokeObjectURL(url);}
+  }
   signal.throwIfAborted();progress('准备输出尺寸');
   const {rect,width,height}=outputGeometry(snapshot.crop,photo.image.naturalWidth,photo.image.naturalHeight,options.maxSide);
   const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
@@ -2143,15 +2223,17 @@ async function makeExport(photo,snapshot,options,{signal,progress}) {
     return {blob:new Blob([bytes],{type:encoded.type}),width,height,stats:inspectPixels(pixels,width,height).stats};
   } finally {signal.removeEventListener('abort',stop);renderer.dispose();canvas.width=0;canvas.height=0;}
 }
-function exportPhoto() {
+async function exportPhoto() {
   if(!exportPhotoIds.length || state.loading)return;
   saveCurrentPhoto();const ids=[...exportPhotoIds],options=exportOptions(),group=++exportGroup,closeId=pendingCloseAfterExportId;
   const remember=ids.length===1 && $('#export-remember').checked;
   $('#export-dialog').close();if($('#library-dialog').open)$('#library-dialog').close();
   for(const [index,id] of ids.entries()) {
     const photo=photoSessions.find(item=>item.id===id);if(!photo)continue;
+    let projectVersionId=null;
+    if(photo.projectId){try{const saved=await projectWorkspace.flush(photo);projectVersionId=saved.currentId;}catch(error){showToast(error.message);continue;}}
     preparePhotoPreview(photo);const snapshot=photoSnapshot(photo),signature=snapshotAcceptanceSignature(snapshot);
-    exportQueue.add({key:`export:${id}:${signature}:${JSON.stringify(options)}`,kind:'export',photoId:id,label:photo.imageName,group,snapshot,signature,remember,closeId:ids.length===1 ? closeId:null,automatic:ids.length===1,name:safeFilename(photo.imageName,options.format==='png' ? 'png':'jpg',ids.length>1 ? String(index+1).padStart(2,'0'):''),run:context=>makeExport(photo,snapshot,options,context)});
+    exportQueue.add({key:`export:${id}:${signature}:${JSON.stringify(options)}`,kind:'export',photoId:id,label:photo.imageName,group,snapshot,signature,remember,closeId:ids.length===1 ? closeId:null,automatic:ids.length===1,name:safeFilename(photo.imageName,options.format==='png' ? 'png':'jpg',ids.length>1 ? String(index+1).padStart(2,'0'):''),run:context=>makeExport(photo,snapshot,options,context,projectVersionId)});
   }
   showToast(ids.length>1 ? '已加入导出队列；完成的照片可随时打包下载。':'正在生成成片，你可以继续编辑。');
   if(ids.length>1){renderTasks();$('#tasks-dialog').showModal();}
@@ -2170,7 +2252,7 @@ function renderImportStatus() {
   $('#import-result-summary').textContent=importingFiles ? `正在读取 ${done+1} / ${total} 张照片`:`${successes} 张已加入${failed ? ` · ${failed} 张未加入`:''}`;
   $('#import-result-note').textContent=importingFiles ? '已就绪的照片可以继续编辑。取消仅会停止导入剩余照片。':failed ? '已加入的照片和原有编辑都保留。逐张处理后，可以重新选择或重试。':'照片方向已按文件信息读取，每张的编辑会分别保留。';
   const displayed=importingFiles ? importRows:failed ? importRows.filter(row=>row.status==='failed'):importRows;
-  $('#import-results').innerHTML=displayed.map(row=>`<article class="import-result" data-import-state="${row.status}"><span class="import-result-icon" data-icon="${row.status==='success' ? 'check':row.status==='failed' ? 'image':'upload'}"></span><div><strong>${escapeHtml(row.file.name || '未命名照片')}</strong><span>${row.status==='success' ? `${row.metadata.displayWidth} × ${row.metadata.displayHeight} px · 已加入`:row.status==='failed' ? escapeHtml(row.problem.reason):row.status==='reading' ? '正在检查格式、尺寸与方向…':'等待读取'}</span>${row.problem ? `<p>${escapeHtml(row.problem.action)}</p>${row.problem.detail ? `<small>${escapeHtml(row.problem.detail)}</small>`:''}`:''}</div>${row.problem?.retryable ? `<button type="button" data-import-retry="${row.id}" ${importingFiles ? 'disabled':''}>重试</button>`:''}</article>`).join('');
+  $('#import-results').innerHTML=displayed.map(row=>`<article class="import-result" data-import-state="${row.status}"><span class="import-result-icon" data-icon="${row.status==='success' ? 'check':row.status==='failed' ? 'image':'upload'}"></span><div><strong>${escapeHtml(row.file.name || '未命名照片')}</strong><span>${row.status==='success' ? `${row.metadata.displayWidth} × ${row.metadata.displayHeight} px · 已加入${row.metadata.convertedFrom?' · HEIC 已转换':''}`:row.status==='failed' ? escapeHtml(row.problem.reason):row.status==='reading' ? '正在检查格式、尺寸与方向…':'等待读取'}</span>${row.problem ? `<p>${escapeHtml(row.problem.action)}</p>${row.problem.detail ? `<small>${escapeHtml(row.problem.detail)}</small>`:''}`:''}</div>${row.problem?.retryable ? `<button type="button" data-import-retry="${row.id}" ${importingFiles ? 'disabled':''}>重试</button>`:''}</article>`).join('');
   hydrateIcons($('#import-results'));
   $('#import-retry-all').hidden=!failed || !importRows.some(row=>row.problem?.retryable);
   $('#import-retry-all').disabled=importingFiles;
@@ -2188,11 +2270,14 @@ async function processImportRows(rows) {
   try {
     await runImportBatch(rows,{
       signal:importController.signal,
+      prepare:(file,signal)=>preparePhotoFile(file,{signal}),
       capacity:()=>({count:photoSessions.length,pixels:photoSessions.reduce((sum,photo)=>sum+photo.image.naturalWidth*photo.image.naturalHeight,0)}),
-      commit:async(file,metadata,signal)=>{
+      commit:async(file,metadata,signal,original)=>{
         // Normalize MIME only. Original bytes, EXIF and color profile are preserved.
         const blob=file.slice(0,file.size,metadata.mime),url=URL.createObjectURL(blob);
         const photo=await addPhotoSource(url,file.name.replace(/\.[^.]+$/,''),false,false,blob,{metadata,signal,strict:true});
+        photo.originalFileName=original.name;
+        if(original!==file)photo.sourceOriginalBlob=original;
         newPhotos.push(photo);analyzeImage(photo);scheduleDraftSave();
         return {id:photo.id,width:photo.image.naturalWidth,height:photo.image.naturalHeight};
       },
@@ -2364,7 +2449,7 @@ function taskChanged(task) {
   if(task?.kind==='export' && task.status==='done' && task.automatic && !task.downloaded) {
     triggerDownload(task.result.blob,task.name);registerExport(task);
     if(task.closeId){const photo=photoSessions.find(item=>item.id===task.photoId);if(photo && snapshotAcceptanceSignature(photoSnapshot(photo))===task.signature)removePhoto(task.photoId);else showToast('成片已开始下载；生成期间新增的调整保留，照片没有移出。');task.closeId=null;}
-    else showToast('成片已开始下载。生成时的版本已保留。');
+    else showToast(task.result?.projectPath ? '成片已保存到 '+task.result.projectPath+'，并已开始下载。':'成片已开始下载。生成时的版本已保留。');
   }
   if(task?.kind==='export' && task.status==='failed')showToast(`「${task.label}」导出未完成，可在任务中重试。`);
   if($('#tasks-dialog').open)renderTasks();
@@ -2970,7 +3055,7 @@ dropZone.addEventListener('drop', event => {
 });
 window.addEventListener('pagehide',()=>{finishAnnotationNote();finishRangeEdit();flushDraftSave();});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden') {finishAnnotationNote();finishRangeEdit();flushDraftSave();}});
-window.addEventListener('beforeunload',event=>{if(draftDirty || draftFailed || draftSaving || [...analysisQueue.tasks,...exportQueue.tasks].some(task=>['queued','running'].includes(task.status) || task.kind==='export' && task.status==='done' && !task.downloaded)) {flushDraftSave();event.preventDefault();event.returnValue='';}});
+window.addEventListener('beforeunload',event=>{finishAnnotationNote();finishRangeEdit();projectWorkspace.schedule(currentPhoto());if(projectWorkspace.hasPending() || draftDirty || draftFailed || draftSaving || [...analysisQueue.tasks,...exportQueue.tasks].some(task=>['queued','running'].includes(task.status) || task.kind==='export' && task.status==='done' && !task.downloaded)) {flushDraftSave();event.preventDefault();event.returnValue='';}});
 
 function captureVersion(kind,label) {
   finishRangeEdit();finishAnnotationNote();
@@ -3003,7 +3088,8 @@ function renderDraftStatus() {
   $('#draft-status').title=draftFailed ? '本次修改尚未保存；点击可重试或导出照片':draftSavedAt ? `上次保存 ${new Date(draftSavedAt).toLocaleString('zh-CN')}`:'查看、继续编辑或清理草稿';
 }
 function scheduleDraftSave() {
-  if(draftRestoring || (!draftSavedAt && !photoSessions.some(photo=>!photo.isDemo))) return;
+  for(const photo of photoSessions)if(photo.projectId)projectWorkspace.schedule(photo);
+  if(draftRestoring || (!draftSavedAt && !photoSessions.some(photo=>!photo.isDemo&&!photo.projectId))) return;
   draftDirty=true;draftRequested=true;renderDraftStatus();
   clearTimeout(draftTimer);draftTimer=setTimeout(flushDraftSave,300);
 }
@@ -3107,6 +3193,9 @@ async function initialize() {
   refreshVisionAvailability(statusController.signal).then(()=>renderAgent())
     .catch(()=>{}).finally(()=>clearTimeout(statusTimeout));
   renderAgent();
+  await projectWorkspace.capabilities();
+  const linkedProject=new URL(location.href).searchParams.get('project');
+  if(linkedProject){try{const loaded=await projectWorkspace.load(linkedProject);if(!loaded)showEmptyWorkspace();return;}catch(error){showToast(error.message);}}
   await refreshDraftList();
   if(draftList.some(item=>!item.deletedAt)){showEmptyWorkspace();renderDraftList();}
   else await addPhotoSource('/assets/alpine-demo.png','清晨的山脊',true);

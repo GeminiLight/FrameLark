@@ -7,7 +7,8 @@ import {presets,presetById} from './engine/presets.js';
 import {validCrop} from './engine/crop-utils.js';
 import {cleanTextOverlays,validateTextComposition,letteringCapabilities} from './text-overlays.mjs';
 import {outputGeometry} from './engine/export-settings.js';
-import {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,object,equal} from './engine/edit-values.js';
+import {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,object,equal,bounded,ids} from './engine/edit-values.js';
+import {heicKind,convertHeic} from './heic.mjs';
 import {hash,legacyHash,pipelineVersion,selectionIdentity} from './engine/edit-identity.js';
 import {planKeys,normalizePlan,compileSelection,checkProtectedCrop,snapshotItem} from './engine/edit-plan.js';
 import {emptyGuards,guardsOf,assertGuards,lockState,unlockState,validateGuards,geometryOf,mergeRestoreGuards} from './engine/edit-guards.js';
@@ -89,11 +90,13 @@ export async function initProject(image,folder,{intent=''}={}) {
   folder=path.resolve(folder);const bytes=await readFile(path.resolve(image));
   if(bytes.length>30*1024*1024 || !bytes.length)fail('IMAGE_SIZE','照片为空或超过 30 MB，请转换成较小的 JPEG/PNG 后重新加入。');
   let metadata,normalized,info;
-  try{metadata=await sharp(bytes,{limitInputPixels:50_000_000}).metadata();
+  const heic=heicKind(bytes),input=heic?await convertHeic(bytes):bytes;
+  try{metadata=await sharp(input,{limitInputPixels:50_000_000}).metadata();
     if(!['jpeg','png','webp','avif','heif'].includes(metadata.format) || (metadata.pages||1)>1)fail('IMAGE_FORMAT','本版支持静态 JPEG、PNG、WebP、AVIF；HEIC、RAW、TIFF 请先转成 JPEG/PNG。');
     if(metadata.format==='heif' && metadata.compression!=='av1')fail('IMAGE_FORMAT','HEIC 请先转成 JPEG/PNG。');
     if(Math.max(metadata.width,metadata.height)>16384)fail('IMAGE_SIZE','最长边超过 16384 像素，请先缩小照片。');
-    normalized=await sharp(bytes,{limitInputPixels:50_000_000}).rotate().toColourspace('srgb').ensureAlpha().png().toBuffer();info=await sharp(normalized).metadata();
+    normalized=await sharp(input,{limitInputPixels:50_000_000}).rotate().toColourspace('srgb').ensureAlpha().png().toBuffer();info=await sharp(normalized).metadata();
+    if(heic)metadata.format='heic';
   }catch(error){if(error instanceof PhotoError)throw error;fail('IMAGE_DECODE','这张照片无法解码。请重新导出静态 JPEG/PNG；已有工作不会被清空。');}
   try{await mkdir(folder,{recursive:false,mode:0o700});}catch(error){if(error.code==='EEXIST')fail('PROJECT_EXISTS','这个目录已经存在。请选择新的项目目录，避免覆盖已有工作。');throw error;}
   try{await mkdir(path.join(folder,'source'),{mode:0o700});await mkdir(path.join(folder,'previews'));await mkdir(path.join(folder,'exports'));
@@ -227,6 +230,51 @@ export async function saveNote(folder,value) {
 }
 export const deleteNote=(folder,value)=>mutateProject(folder,value.revision,p=>{if(!p.notes.some(n=>n.id===value.id))fail('NOTE_NOT_FOUND','标记已删除。');p.notes=p.notes.filter(n=>n.id!==value.id);return {};});
 export const setIntent=(folder,value)=>mutateProject(folder,value.revision,p=>{p.intent=text(value.intent);return {};});
+
+// The full Web workspace uses the same lock, revision and version journal as CLI.
+// Auto-saved edits are not preference feedback and never overwrite an old version.
+export async function saveWorkspaceSnapshot(folder,value) {
+  object(value,['revision','baseVersion','settings','style','crop','annotations','intent','conversation','name']);
+  if(!Number.isInteger(value.revision))fail('STALE_REVISION','请先读取最新项目版本。');
+  return mutateProject(folder,value.revision,async(p,root)=>{
+    if(value.baseVersion!==p.currentId)fail('STALE_REVISION','项目已在另一处更新，请先查看最新版本。');
+    const before=currentVersion(p),guards=guardsOf(before.state);
+    if(before.state.textOverlays?.length || Object.values(guards).some(list=>list.length))fail('WORKSPACE_UNSUPPORTED','这个版本包含文字或保护设置，请在 Agent 暗房继续编辑。');
+    if(!Array.isArray(value.annotations)||value.annotations.length>8)fail('INVALID_LOCAL','最多保留 8 个标记或局部范围。');
+    ids(value.annotations.map(a=>a.id),'INVALID_LOCAL');
+    const point=point=>{object(point,['x','y'],'INVALID_MASK');return {x:bounded(point.x,0,1,'INVALID_MASK'),y:bounded(point.y,0,1,'INVALID_MASK')};};
+    const notes=[],locals=[];
+    for(const raw of value.annotations) {
+      const rect=cleanRect(raw.rect),old=p.notes.find(n=>n.id===raw.id),note=text(raw.note,600);
+      if(raw.hasNote!==false || note){const number=old?.number || Math.max(p.nextNoteNumber||1,...p.notes.map(n=>n.number+1));p.nextNoteNumber=Math.max(p.nextNoteNumber||1,number+1);notes.push({id:raw.id,number,rect,note,protect:old?.protect || false,updatedAt:now()});}
+      const settings=cleanSettings(raw.localSettings || {});
+      if(Object.values(settings).some(Boolean)||raw.hasLocal){
+        const maskType=raw.maskType || 'rectangle';if(!['rectangle','radial','linear','brush'].includes(maskType))fail('INVALID_MASK','不支持的局部范围。');
+        const layer={id:raw.id,rect,note,maskType,feather:bounded(raw.feather??.36,0,1,'INVALID_MASK'),localAmount:bounded(raw.localAmount??100,0,150,'INVALID_LOCAL'),localEnabled:raw.localEnabled!==false,localSettings:settings};
+        if(maskType==='linear'){layer.start=point(raw.start);layer.end=point(raw.end);}
+        if(maskType==='brush'){if(!Array.isArray(raw.points)||!raw.points.length||raw.points.length>600)fail('INVALID_MASK','画笔范围无效。');layer.points=raw.points.map(point);layer.brushRadius=bounded(raw.brushRadius,.001,.15,'INVALID_MASK');}
+        locals.push(layer);
+      }
+    }
+    let style=null;
+    if(value.style){object(value.style,['id','amount'],'UNKNOWN_STYLE');if(!presetById(value.style.id))fail('UNKNOWN_STYLE','风格不存在。');style={id:value.style.id,amount:bounded(value.style.amount,0,100,'STYLE_AMOUNT')};}
+    const crop=value.crop?validCrop(value.crop):null;if(value.crop&&!crop)fail('INVALID_CROP','裁剪范围无效。');
+    if(crop?.angle!==undefined)bounded(crop.angle,-15,15,'INVALID_CROP');
+    const state={...structuredClone(before.state),settings:{...neutralSettings(),...cleanSettings(value.settings)},style,crop,locals};
+    p.notes=notes;p.intent=text(value.intent);
+    validateCandidateState(p,state);await verifyReferences(root,p,state);
+    if(!equal(before.state,state)) {
+      const version={id:id(),name:text(value.name,40)||'网页调整',parentId:before.id,createdAt:now(),acceptedAt:now(),acceptedBy:'user',mode:'workspace',state};
+      p.versions.push(version);p.currentId=version.id;p.acceptedId=version.id;
+    }
+    if(value.conversation!==undefined){
+      if(!Array.isArray(value.conversation)||value.conversation.length>24||JSON.stringify(value.conversation).length>60000)fail('INVALID_CONVERSATION','对话记录过长。');
+      p.workspaceConversation=value.conversation.map(m=>({role:['user','assistant','status'].includes(m.role)?m.role:'status',text:text(m.text,1600),source:['ai','local'].includes(m.source)?m.source:undefined,provenance:m.provenance&&typeof m.provenance.model==='string'?{model:text(m.provenance.model,120),tier:['fast','standard','deep'].includes(m.provenance.tier)?m.provenance.tier:'standard'}:undefined}));
+    }
+    if(JSON.stringify(p).length>3_800_000)fail('PROJECT_TOO_LARGE','项目记录接近上限，请另存为新项目后继续。');
+    return {version:currentVersion(p)};
+  });
+}
 export async function acceptCandidate(folder,value) {
   const acceptedBy=value.acceptedBy===undefined?'user':value.acceptedBy;
   if(!['user','agent'].includes(acceptedBy))fail('ACCEPT_SOURCE','接受来源应为 user 或 agent。');
@@ -315,5 +363,5 @@ export function preferenceChoices(p){
 }
 export const recordExport=(folder,value)=>mutateProject(folder,undefined,p=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...value,createdAt:now()});return {};});
 export function publicProject(p) {
-  return {...p,workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
+  return {...p,workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，macOS 可转换静态 HEIC/HEIF；JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
 }

@@ -4,6 +4,8 @@
 !server.mjs
 !vision-service.mjs
 !codex-app-server.mjs
+!project-bridge.mjs
+!project-routes.mjs
 !series-review.mjs
 !public/
 !public/**
