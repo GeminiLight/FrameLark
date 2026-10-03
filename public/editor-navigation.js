@@ -10,7 +10,7 @@ export function shortcutAction(event,{dialog=false,viewer=false,typing=false,ran
   if(command)return key==='z' ? event.shiftKey ? 'redo':'undo':null;
   if(key==='?')return 'help';
   if(learning)return null;
-  return {'[':'previous-photo',']':'next-photo','1':'diagnosis','2':'adjust','3':'agent','4':'agent','z':'viewer','?':'help'}[key] || null;
+  return {'[':'previous-photo',']':'next-photo','1':'agent','2':'adjust','3':'diagnosis','4':'agent','z':'viewer','?':'help'}[key] || null;
 }
 
 export function photoNavigationIndex(key,current,length) {

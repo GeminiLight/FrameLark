@@ -1,3 +1,5 @@
+import {ProjectBridge} from './project-bridge.mjs';
+import {handleProjectRoutes} from './project-routes.mjs';
 import {responseLanguage} from './public/response-language.js';
 import http from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
@@ -21,6 +23,7 @@ const host = process.env.HOST || '127.0.0.1';
 const publicDir = fileURLToPath(new URL('./public/',import.meta.url)).replace(/[\\/]$/,'');
 const cloudDeployment=process.env.VERCEL==='1';
 const vision = await createVisionService();
+const projects = new ProjectBridge();
 const analysisPromptVersion = 'photo-review-2026-10-03-color-v4';
 const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
 
@@ -178,6 +181,14 @@ function sendVisionFailure(response,error) {
   return sendJson(response,failure.status,{error:failure.toJSON()});
 }
 
+function canAccessLocalFiles(request,write=false) {
+  if(cloudDeployment)return false;
+  const authorities=['localhost:'+port,'127.0.0.1:'+port,'[::1]:'+port],origins=authorities.map(h=>'http://'+h);
+  if(!authorities.includes(request.headers.host)||request.headers['sec-fetch-site']==='cross-site')return false;
+  if(request.headers.origin&&!origins.includes(request.headers.origin))return false;
+  return !write || origins.includes(request.headers.origin)&&['application/json','application/octet-stream'].some(type=>request.headers['content-type']?.startsWith(type));
+}
+
 function canConfigureVision(request) {
   if(cloudDeployment)return false;
   const authorities = ['localhost:' + port,'127.0.0.1:' + port,'[::1]:' + port];
@@ -193,6 +204,7 @@ function cancelOnDisconnect(response) {
 
 export async function handleRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  if(await handleProjectRoutes(request,response,url,{bridge:projects,readBody,allowed:canAccessLocalFiles,cloud:cloudDeployment}))return;
   if(url.pathname==='/api/codex-status' && request.method==='POST'){
     if(!canConfigureVision(request))return sendJson(response,403,{error:{code:'FORBIDDEN_ORIGIN',message:'请在本机工作台中检查 Codex 登录。'}});
     try{return sendJson(response,200,await vision.discoverCodex());}catch(error){return sendVisionFailure(response,error);}
@@ -324,8 +336,8 @@ export async function handleRequest(request, response) {
 
 if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
   const server=http.createServer(handleRequest);
-  server.on('close',()=>vision.close());
-  for(const signal of ['SIGINT','SIGTERM'])process.once(signal,()=>{vision.close();server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref();});
+  server.on('close',()=>{vision.close();projects.close();});
+  for(const signal of ['SIGINT','SIGTERM'])process.once(signal,()=>{vision.close();projects.close();server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref();});
   server.on('error',error=>{
     console.error(error.code==='EADDRINUSE'
       ? `端口 ${port} 已被占用。请停止之前的工作台，或设置 PORT 使用其他端口。`
