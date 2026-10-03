@@ -238,6 +238,7 @@ export async function saveWorkspaceSnapshot(folder,value) {
   if(!Number.isInteger(value.revision))fail('STALE_REVISION','请先读取最新项目版本。');
   return mutateProject(folder,value.revision,async(p,root)=>{
     if(value.baseVersion!==p.currentId)fail('STALE_REVISION','项目已在另一处更新，请先查看最新版本。');
+    if(p.workflow?.mode==='reviewed')fail('WORKSPACE_REVIEWED','这个项目已启用诊断与复审流程，请在 Skill 中继续。');
     const before=currentVersion(p),guards=guardsOf(before.state);
     if(before.state.textOverlays?.length || Object.values(guards).some(list=>list.length))fail('WORKSPACE_UNSUPPORTED','这个版本包含文字或保护设置，请在 Agent 暗房继续编辑。');
     if(!Array.isArray(value.annotations)||value.annotations.length>8)fail('INVALID_LOCAL','最多保留 8 个标记或局部范围。');

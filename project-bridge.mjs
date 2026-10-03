@@ -33,7 +33,7 @@ export class ProjectBridge {
     const union=new Set([...p.notes.map(n=>n.id),...current.state.locals.map(n=>n.id)]);
     const movedMask=current.state.locals.some(l=>{const n=p.notes.find(n=>n.id===l.id);return n&&JSON.stringify(n.rect)!==JSON.stringify(l.rect);});
     return {id:p.id,path,name:p.source.name,source:p.source,revision:p.revision,currentId:p.currentId,intent:p.intent,notes:p.notes,current:current.state,
-      supported:!unsupported&&!movedMask&&union.size<=8,limitations:movedMask?'标记位置与已保存的局部范围不同，请用 Agent 暗房继续。':unsupported?'这个版本包含文字或保护设置，请用 Agent 暗房继续。':union.size>8?'当前批注与局部范围合计超过 8 个，请用 Agent 暗房继续。':'',
+      supported:p.workflow?.mode!=='reviewed'&&!unsupported&&!movedMask&&union.size<=8,limitations:p.workflow?.mode==='reviewed'?'这个项目已启用诊断与复审流程，请在 Skill 中继续。':movedMask?'标记位置与已保存的局部范围不同，请用 Agent 暗房继续。':unsupported?'这个版本包含文字或保护设置，请用 Agent 暗房继续。':union.size>8?'当前批注与局部范围合计超过 8 个，请用 Agent 暗房继续。':'',
       versions:p.versions.map(v=>({id:v.id,name:v.name,at:v.createdAt})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn})=>({id,title,dependsOn})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
       exports:(p.exports||[]).map(e=>({path:e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
   }

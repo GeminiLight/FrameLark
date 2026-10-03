@@ -20,6 +20,12 @@ test('conversion failure stays a clear import failure rather than corrupting an 
   assert.equal(committed,false);assert.equal(rows[0].problem.code,'HEIC');assert.match(rows[0].problem.detail,/不支持/);
 });
 
+test('actual PNG content is not sent to HEIC conversion just because of its filename',async()=>{
+  const png=await readFile(new URL('../../public/assets/vision-probe.png',import.meta.url));
+  const file=new File([png],'incorrect-extension.heic',{type:'image/heic'});
+  assert.equal(await preparePhotoFile(file,{fetchImpl:()=>{throw new Error('must not convert a PNG');}}),file);
+});
+
 test('local file routes reject cloud and foreign-origin requests before filesystem access',async()=>{
   for(const cloud of [false,true]){
     const response=new EventEmitter();response.writeHead=status=>{response.status=status;};response.end=value=>{response.value=JSON.parse(value);};

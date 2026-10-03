@@ -66,6 +66,15 @@ test('protected versions cannot be silently replaced by the simpler Web workspac
   await assert.rejects(bridge.save(data.id,{...workspacePatch(snapshot),revision:view.revision,baseVersion:view.currentId}),{code:'WORKSPACE_UNSUPPORTED'});
 });
 
+test('Web snapshot saves cannot bypass an explicitly reviewed Skill workflow',async t=>{
+  const {bridge,data}=await fixture(t);
+  const {configureWorkflow}=await import('../skills/photo-retouch/scripts/workflow.mjs');
+  await configureWorkflow(data.path,{revision:data.revision,mode:'reviewed',independent:true});
+  const view=await bridge.get(data.id);assert.equal(view.supported,false);
+  await assert.rejects(bridge.save(data.id,{...workspacePatch(snapshotFromProject(view)),revision:view.revision,baseVersion:view.currentId}),{code:'WORKSPACE_REVIEWED'});
+  assert.equal((await loadProject(data.path)).workflow.mode,'reviewed');
+});
+
 test('file changes notify the Web client without a polling loop',async t=>{
   const {bridge,data}=await fixture(t);let resolveEvent;const event=new Promise(resolve=>{resolveEvent=resolve;});
   const close=await bridge.subscribe(data.id,resolveEvent);t.after(close);

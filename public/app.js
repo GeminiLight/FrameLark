@@ -3460,6 +3460,7 @@ $('#project-export').addEventListener('click',async()=>{
   if(!photo?.originalBlob||photo.isDemo){exchangeStatus('请先加入自己的照片，再下载编辑项目。');return;}
   const button=$('#project-export');button.disabled=true;
   try{
+    if(photo.projectId||photo.sourceOriginalBlob)throw new Error('文件项目或 HEIC 原片请通过项目文件夹继续共享；这里的便携快照用于普通浏览器草稿。');
     if(photo.originalBlob.size>30*1024*1024)throw new Error('原片超过项目交换的 30 MB 限制，请先转换。');
     const bytes=new Uint8Array(await photo.originalBlob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
     const value=validateExchange({schema:exchangeSchema,renderingVersion,source:{name:photo.imageName,mime:photo.originalBlob.type,bytes:bytes.length,checksum:await digestPhoto(bytes),width:photo.image.naturalWidth,height:photo.image.naturalHeight,data:btoa(binary)},intent:photo.creativeIntent||'',notes:photo.annotations.map(a=>({id:a.id,rect:a.rect,note:a.note||'',protect:Boolean(a.protect)})),versions:[{id:'original',name:'原片',role:'original',state:{settings:defaults,style:null,crop:null,locals:[]}},...(photo.versions||[]).map(v=>portableVersion(v.snapshot,v.id,v.label)),portableVersion(photoSnapshot(photo),'current','当前编辑')],currentId:'current'});
