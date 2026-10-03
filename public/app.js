@@ -1885,7 +1885,7 @@ async function askDesignAgent(question, focusId = currentPhoto()?.agentFocusId) 
   try {
     if (state.aiAvailable) {
       const response = await fetch('/api/design-chat',{method:'POST',signal:request.controller.signal,headers:{'Content-Type':'application/json','Accept':'application/x-ndjson'},body:JSON.stringify({
-        image:currentAgentPreview(annotationContext.focusId),question:text,history,context:requestContext,sessionKey:photo.projectId || photo.id,tier:$('#agent-model-tier').value
+        image:currentAgentPreview(annotationContext.focusId),question:text,history,context:requestContext,sessionKey:photo.projectId || `${draftWorkspaceId}:${photo.id}`,tier:$('#agent-model-tier').value
       })});
       let streamed='';
       const result=await readVisionStream(response,event=>{
