@@ -1,0 +1,184 @@
+{
+  "scene": "山脊上的旅行者",
+  "subject": "landscape",
+  "summary": "右上方朝霞明亮，左下方人物与近处山岩的暗部接近。",
+  "insight": "保留天空层次，让前景人物在山峦之间成为视线落点。",
+  "recommendedStyle": "golden-hour",
+  "observations": {
+    "subject": {
+      "finding": "人物是清楚的视线落点，背包的轮廓略暗。",
+      "evidence": "左下方的人物穿橙色外套，背包与身后山体亮度接近。",
+      "location": "左下方人物",
+      "verdict": "improve",
+      "confidence": "high",
+      "region": {
+        "x": 0.2,
+        "y": 0.43,
+        "width": 0.17,
+        "height": 0.34
+      },
+      "condition": "以保留自然光色和画面叙事为目标；预览不足处需要放大确认。"
+    },
+    "background": {
+      "finding": "远山层次与云海值得保留。",
+      "evidence": "中景的深色山脊与后方浅色山峦、云海形成深度。",
+      "location": "中央远山与云海",
+      "verdict": "keep",
+      "confidence": "high",
+      "region": {
+        "x": 0.4,
+        "y": 0.32,
+        "width": 0.5,
+        "height": 0.48
+      },
+      "condition": "以保留自然光色和画面叙事为目标；预览不足处需要放大确认。"
+    },
+    "light": {
+      "finding": "朝霞暖光有方向，太阳周围高光需要克制。",
+      "evidence": "右上方太阳周围的天空明显亮于远山，仍可看见云层过渡。",
+      "location": "右上方天空",
+      "verdict": "improve",
+      "confidence": "high",
+      "region": {
+        "x": 0.65,
+        "y": 0.03,
+        "width": 0.32,
+        "height": 0.24
+      },
+      "condition": "以保留自然光色和画面叙事为目标；预览不足处需要放大确认。"
+    },
+    "composition": {
+      "finding": "人物与远山的关系完整，下沿岩石可以适当收紧。",
+      "evidence": "人物位于左侧，下沿前景岩石占据较多画面；裁剪需保留脚下平台。",
+      "location": "下沿前景",
+      "verdict": "improve",
+      "confidence": "medium",
+      "region": {
+        "x": 0,
+        "y": 0.8,
+        "width": 1,
+        "height": 0.2
+      },
+      "condition": "以保留自然光色和画面叙事为目标；预览不足处需要放大确认。"
+    },
+    "order": {
+      "finding": "测试观察：需结合表达目标判断。",
+      "evidence": "测试画面的明暗与主体位置提供阅读线索。",
+      "location": "全画面",
+      "condition": "这是测试契约；情绪判断不是作者意图。",
+      "confidence": "low",
+      "verdict": "uncertain",
+      "region": null
+    },
+    "emotion": {
+      "finding": "测试观察：需结合表达目标判断。",
+      "evidence": "测试画面的明暗与主体位置提供阅读线索。",
+      "location": "全画面",
+      "condition": "这是测试契约；情绪判断不是作者意图。",
+      "confidence": "low",
+      "verdict": "uncertain",
+      "region": null
+    }
+  },
+  "styleMatches": [
+    {
+      "id": "golden-hour",
+      "reason": "朝霞的暖光适合保留温度，同时压住天空。"
+    },
+    {
+      "id": "open-road",
+      "reason": "远山和空旷感适合柔和淡彩。"
+    },
+    {
+      "id": "silent-silver",
+      "reason": "山脊的明暗结构适合尝试银灰色。"
+    }
+  ],
+  "metrics": {
+    "light": 78,
+    "highlights": 62,
+    "shadows": 70,
+    "color": 82,
+    "contrast": 74,
+    "detail": 73
+  },
+  "crop": {
+    "needed": true,
+    "reason": "适当收紧下沿前景岩石，完整保留人物、脚下平台与右上方光源。",
+    "x": 0.02,
+    "y": 0,
+    "width": 0.98,
+    "height": 0.94
+  },
+  "recommendations": [
+    {
+      "title": "保留朝霞层次",
+      "category": "光线",
+      "reason": "右上方太阳附近较亮，适当压低高光可保留云层。",
+      "goal": "保留云的细节。",
+      "caution": "不要把太阳周围的暖光压成灰色。",
+      "lesson": "先保护高光，再决定暗部细节。",
+      "observationIds": [
+        "light"
+      ],
+      "adjustments": {
+        "exposure": 0,
+        "contrast": 0,
+        "highlights": -18,
+        "shadows": 0,
+        "whites": -5,
+        "blacks": 0,
+        "vibrance": 0,
+        "saturation": 0,
+        "warmth": 0,
+        "tint": 0,
+        "fade": 0,
+        "vignette": 0,
+        "curveShadows": 0,
+        "curveMidtones": 0,
+        "curveHighlights": 0,
+        "texture": 0,
+        "clarity": 0,
+        "dehaze": 0,
+        "sharpen": 0,
+        "denoise": 0
+      }
+    }
+  ],
+  "lessons": [
+    {
+      "title": "让主体有足够分离度",
+      "body": "主体和背景保持亮度差，观众更容易找到视线落点。"
+    }
+  ],
+  "conclusion": {
+    "kind": "adjust",
+    "reason": "右上方天空有可见的亮部层次，适当收高光；下沿前景可收紧，同时保留远山空间。"
+  },
+  "metricEvidence": {
+    "light": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "highlights": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "shadows": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "color": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "contrast": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "detail": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    }
+  }
+}

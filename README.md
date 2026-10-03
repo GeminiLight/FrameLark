@@ -5,11 +5,12 @@
 [![打开 Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "在线体验 · 需要 Vercel 访问权限")
 [![安装 Agent Skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
 [![启动本地 Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
+[![部署到 Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
 [![浏览摄影知识](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#摄影知识)
 
-**照片精修，提供 Online Demo、Web UI 和 Agent Skill。**
+**照片精修，提供完整 Web 工作台、Online Demo 和 Agent Skill。**
 
-本地可在浏览器中手动调整，或让视觉 Agent 审片并提供可预览的修片方案。两种方式共用照片项目，保留原片、批注和版本。
+在浏览器中上传照片，审片、调色、比较风格、整理组图和导出。也可以让自己的视觉 Agent 使用 Skill，围绕原片、批注和版本继续精修。前端、AI 接口和 Skill 源码都在这个仓库中。
 
 [English](README.en.md) · [开始使用](#开始使用) · [功能与范围](#功能与范围) · [界面](#界面) · [摄影知识](#摄影知识)
 
@@ -18,8 +19,8 @@
 | 方式 | 用途 | 入口 |
 | --- | --- | --- |
 | **Online Demo** | 多图上传、诊断与内置顾问；需 Vercel 访问权限。 | [打开在线工作室](https://ai-photography-preview-geminilights-projects.vercel.app/) |
-| **Web UI** | 手动调光色、试风格、裁剪和导出，无需 Agent。 | [启动本地暗房](#web-ui) |
-| **Agent Skill** | 让自己的 Agent 审片、生成试片，再在 Web UI 中比较和精调。 | [安装 Skill](#agent-skill) |
+| **Web UI** | 本地运行完整工作台，上传多图、手动精修、组图和导出；接入视觉模型后启用诊断与顾问。 | [一键启动](#web-ui) |
+| **Agent Skill** | 让自己的 Agent 审片、生成候选，在 Agent 暗房中比较和精调。无需另配模型服务。 | [安装 Skill](#agent-skill) |
 
 ## 开始使用
 
@@ -32,7 +33,25 @@ cd frameyn
 
 ### Web UI
 
-准备依赖，选择照片并创建项目：
+一条命令启动完整工作台，无需先安装 npm 依赖：
+
+```sh
+npm start
+```
+
+打开 **http://localhost:3177**。未接入模型时，可以上传、手动精修、使用风格和导出；在本地界面的模型接入设置中配置有视觉能力的模型，即可启用 AI 审片与顾问。按 `Ctrl+C` 停止。
+
+也可以用 Docker 启动：
+
+```sh
+docker compose up -d --build
+```
+
+[部署与模型配置](docs/DEPLOYMENT.md) · [部署到 Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
+
+### Agent 暗房
+
+围绕文件项目与自己的 Agent 协作时，准备图片处理依赖并创建项目：
 
 ```sh
 npm run setup
@@ -47,7 +66,7 @@ node skills/guangjian-retouch/scripts/cli.mjs serve \
   --project "./projects/my-photo"
 ```
 
-打开终端返回的地址，在浏览器中调整。点击 **生成试片** 查看对照，再 **接受这版** 或 **取消试片**；接受后导出。
+打开终端返回的地址，在 Agent 暗房中调整。点击 **生成试片** 查看对照，再 **接受这版** 或 **取消试片**；接受后导出。
 
 项目目录须是新目录。按 `Ctrl+C` 停止服务，重新运行 `serve` 即可继续已保存的项目。
 
@@ -56,7 +75,7 @@ node skills/guangjian-retouch/scripts/cli.mjs serve \
 
 [打开 Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) 体验多图上传、诊断与内置顾问，目前需要 Vercel 访问权限。视觉模型状态以页面显示为准。
 
-它是独立部署的应用，源码暂未包含在本仓库中；浏览器草稿与本地项目不会自动同步。
+在线应用与 `npm start` 使用本仓库的 `public/`、`api/` 和服务端源码。工作台草稿保存在各自浏览器中；Agent 暗房使用文件项目，两类工作空间不会自动同步。
 
 </details>
 
@@ -93,7 +112,7 @@ npm run install:skill
 做一个克制的奶油贴纸，放在留白处，避开主体。先给我看文字版，也保留无字版。
 ```
 
-本地 Web UI 的 **文字点缀** 可修改文案、位置、字号、配色和轻装饰；接受前只生成候选。中文需本机有可用中文字体。详情见 [文字点缀](skills/guangjian-retouch/references/lettering.md)。
+Agent 暗房的 **文字点缀** 可修改文案、位置、字号、配色和轻装饰；接受前只生成候选。中文需本机有可用中文字体。详情见 [文字点缀](skills/guangjian-retouch/references/lettering.md)。
 
 <details>
 <summary>更新或安装到其他宿主</summary>
@@ -137,6 +156,12 @@ node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
 
 ## 界面
 
+**完整工作台**：`npm start` 启动，与在线应用使用同一份源码。下图使用内置示例照片，未配置视觉模型。
+
+![完整工作台：图库、修片、学习、偏好与照片审阅。](assets/screenshots/studio-overview.png)
+
+**Agent 暗房**：与自己的 Agent 协作，比较文件项目中的候选。
+
 **手动精调**
 
 ![本地 Web UI：完整照片与光色控制。](assets/screenshots/darkroom-edit.png)
@@ -162,7 +187,7 @@ node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
 
 ## 摄影知识
 
-79 个章节，覆盖 10 类题材与场景，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
+85 个章节，覆盖 10 类题材与场景，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
 
 <details>
 <summary>知识目录与检索</summary>
@@ -190,7 +215,9 @@ node skills/guangjian-retouch/scripts/knowledge.mjs read --id style-daily-soft
 
 ```mermaid
 flowchart LR
-    person[你] <--> ui[Web UI]
+    person[你] <--> studio[完整工作台]
+    studio --> api[视觉模型接口]
+    person <--> ui[Agent 暗房]
     person <--> agent[自己的视觉 Agent]
     skill[摄影 Skill] --> agent
     agent -->|Tool Use| cli[本地 CLI]
@@ -198,7 +225,7 @@ flowchart LR
     cli <--> project
 ```
 
-Web UI 与 CLI 读写同一份项目。原片单独保存，候选接受后才成为当前版本；版本或批注变化时，旧候选会失效。讨论标记与已接受的局部调整分别保存。
+Agent 暗房与 CLI 读写同一份文件项目。原片单独保存，候选接受后才成为当前版本；版本或批注变化时，旧候选会失效。完整工作台使用浏览器草稿，内置顾问通过服务端接入用户配置的视觉模型。
 
 </details>
 
@@ -206,11 +233,12 @@ Web UI 与 CLI 读写同一份项目。原片单独保存，候选接受后才�
 
 ```sh
 npm run setup
+npm run engine:check
 npm run knowledge:check
 npm test
 ```
 
-自动测试覆盖项目、像素处理、本地会话、逐项选择、保护与知识检索。技术测试使用生成图，实际照片观察另有记录，见 [验证范围](docs/VALIDATION.md)。
+`npm run test:web` 检查完整工作台、AI 接口和照片效果；`npm run test:skill` 检查项目、逐项选择、保护、渲染与知识检索。`npm test` 执行两组检查。Web 的授权照片检查集与 Skill 的生成测试图分别保存，见 [验证范围](docs/VALIDATION.md)。
 
 [维护指南](CONTRIBUTING.md) · [Skill 入口](skills/guangjian-retouch/SKILL.md) · [CLI 与 JSON 参考](skills/guangjian-retouch/references/tools.md)
 

@@ -1,0 +1,117 @@
+{
+  "scene": "山脊上的旅行者",
+  "subject": "landscape",
+  "summary": "人物与远山、云海之间的关系完整，暖色晨光与灰蓝色山峦相互呼应。",
+  "insight": "保留天空层次，让前景人物在山峦之间成为视线落点。",
+  "recommendedStyle": "none",
+  "observations": {
+    "subject": {
+      "finding": "橙色外套已经让人物从远山中清楚分离。",
+      "evidence": "人物处在左侧山脊，衣服暖色与灰蓝色山体形成对照。",
+      "verdict": "keep",
+      "confidence": "medium",
+      "location": "示例讲解",
+      "region": null,
+      "condition": "以保留自然光色和画面叙事为目标；预览不足处需要放大确认。"
+    },
+    "background": {
+      "finding": "前景、远山与云海保留了完整的空间层次。",
+      "evidence": "岩石、山脊和云海由近及远展开，交代了人物所处的环境。",
+      "verdict": "keep",
+      "confidence": "medium",
+      "location": "示例讲解",
+      "region": null,
+      "condition": "以保留自然光色和画面叙事为目标；预览不足处需要放大确认。"
+    },
+    "light": {
+      "finding": "晨光的暖色与山峦的冷色已经相互呼应。",
+      "evidence": "右上方的暖光与灰蓝色山体并置，形成清晨氛围。",
+      "verdict": "keep",
+      "confidence": "medium",
+      "location": "示例讲解",
+      "region": null,
+      "condition": "以保留自然光色和画面叙事为目标；预览不足处需要放大确认。"
+    },
+    "composition": {
+      "finding": "人物一侧的云海与远山值得留出空间。",
+      "evidence": "人物位于左侧，右侧的大幅景色让视线向远方延伸。",
+      "verdict": "keep",
+      "confidence": "medium",
+      "location": "示例讲解",
+      "region": null,
+      "condition": "以保留自然光色和画面叙事为目标；预览不足处需要放大确认。"
+    },
+    "order": {
+      "finding": "测试观察：需结合表达目标判断。",
+      "evidence": "测试画面的明暗与主体位置提供阅读线索。",
+      "location": "全画面",
+      "condition": "这是测试契约；情绪判断不是作者意图。",
+      "confidence": "low",
+      "verdict": "uncertain",
+      "region": null
+    },
+    "emotion": {
+      "finding": "测试观察：需结合表达目标判断。",
+      "evidence": "测试画面的明暗与主体位置提供阅读线索。",
+      "location": "全画面",
+      "condition": "这是测试契约；情绪判断不是作者意图。",
+      "confidence": "low",
+      "verdict": "uncertain",
+      "region": null
+    }
+  },
+  "styleMatches": [],
+  "metrics": {
+    "light": 78,
+    "highlights": 62,
+    "shadows": 70,
+    "color": 82,
+    "contrast": 74,
+    "detail": 73
+  },
+  "crop": {
+    "needed": false,
+    "reason": "保留人物一侧的远景空间，当前不需要收紧画幅。",
+    "x": 0,
+    "y": 0,
+    "width": 1,
+    "height": 1
+  },
+  "recommendations": [],
+  "lessons": [
+    {
+      "title": "让主体有足够分离度",
+      "body": "主体和背景保持亮度差，观众更容易找到视线落点。"
+    }
+  ],
+  "conclusion": {
+    "kind": "keep",
+    "reason": "人物与环境的关系已经完整。保留远山与云海的空间，以及晨光原有的冷暖对照。"
+  },
+  "metricEvidence": {
+    "light": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "highlights": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "shadows": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "color": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "contrast": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    },
+    "detail": {
+      "evidence": "测试依据：原片该区域的可见亮度与层次。",
+      "condition": "测试适用条件：自然影调目标，需人工放大确认。"
+    }
+  }
+}

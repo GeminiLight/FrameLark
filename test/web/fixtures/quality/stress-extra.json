@@ -1,0 +1,37 @@
+{
+  "cases": [
+    {
+      "id": "portrait-cast",
+      "file": "portrait-cast.png",
+      "pixels": "portrait-cast.ppm",
+      "width": 512,
+      "height": 512,
+      "source": "NASA / Eileen Collins",
+      "rights": "public domain",
+      "topic": "portrait",
+      "variant": "synthetic RGB color cast: R\u00d71.12 G\u00d71.07 B\u00d70.72",
+      "parent": "portrait",
+      "sha256": "06c5b4cc0ea475915454ee6f3ea28012bfdc5952a84540eef1c8c50e3e845000",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [
+        {
+          "x": 0.32,
+          "y": 0.02,
+          "width": 0.29,
+          "height": 0.34
+        }
+      ],
+      "protectionStatus": "manual approximate reference; check source before adjudicating crop"
+    }
+  ],
+  "limitations": [
+    "Synthetic color cast is not a sensor white-balance test"
+  ]
+}

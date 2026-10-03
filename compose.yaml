@@ -1,0 +1,16 @@
+services:
+  frameyn:
+    build:
+      context: .
+      args:
+        NODE_IMAGE: ${FRAMEYN_NODE_IMAGE:-node:24-alpine}
+    environment:
+      PORT: ${FRAMEYN_PORT:-3177}
+    ports:
+      - "127.0.0.1:${FRAMEYN_PORT:-3177}:${FRAMEYN_PORT:-3177}"
+    volumes:
+      - frameyn-settings:/app/.guangjian
+    restart: unless-stopped
+
+volumes:
+  frameyn-settings:

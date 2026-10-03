@@ -5,11 +5,12 @@
 [![Open the Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "Online demo · Vercel access required")
 [![Install the agent skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
 [![Start the local Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
+[![Deploy to Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
 [![Browse photography knowledge](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#photography-knowledge)
 
-**Photo retouching with an Online Demo, a Web UI, and an agent skill.**
+**Photo retouching with a complete Web studio, an Online Demo, and an agent skill.**
 
-Work locally in your browser or ask a visual agent to review the photograph and suggest edits you can preview. Both work with the same photo project, preserving originals, annotations, and versions.
+Upload photos, adjust color, compare styles, curate a series, and export in your browser. Your own visual agent can also use the Skill to work with originals, annotations, and saved versions. The frontend, AI routes, and Skill source are all included in this repository.
 
 [简体中文](README.md) · [Get started](#get-started) · [Capabilities](#capabilities) · [Interface](#interface) · [Photography knowledge](#photography-knowledge)
 
@@ -18,8 +19,8 @@ Work locally in your browser or ask a visual agent to review the photograph and 
 | Mode | Use | Start |
 | --- | --- | --- |
 | **Online Demo** | Multiple uploads, diagnosis, and an integrated advisor. Vercel access required. | [Open the online studio](https://ai-photography-preview-geminilights-projects.vercel.app/) |
-| **Web UI** | Adjust light and color, try styles, crop, and export manually. No agent required. | [Start the darkroom](#web-ui) |
-| **Agent skill** | Your agent reviews the image and proposes candidates; compare and refine them in the Web UI. | [Install the skill](#agent-skill) |
+| **Web UI** | Run the complete studio locally: multiple uploads, manual retouching, series, and export. Connect a visual model for diagnosis and the advisor. | [Start the studio](#web-ui) |
+| **Agent skill** | Your agent reviews photos and proposes candidates; compare and refine them in the agent darkroom. No separate model service required. | [Install the skill](#agent-skill) |
 
 ## Get started
 
@@ -32,7 +33,25 @@ cd frameyn
 
 ### Web UI
 
-Prepare dependencies, choose a photograph, and create a project:
+Start the complete studio with one command; no npm dependency installation is needed:
+
+```sh
+npm start
+```
+
+Open **http://localhost:3177**. Upload, edit manually, apply styles, and export without a model connection. Configure a visual model in the local application's connection settings to enable AI review and the advisor. Press `Ctrl+C` to stop. The interface is currently in Chinese.
+
+Or run with Docker:
+
+```sh
+docker compose up -d --build
+```
+
+[Deployment and model settings](docs/DEPLOYMENT.md) · [Deploy to Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
+
+### Agent darkroom
+
+For file-based projects with your own agent, prepare image dependencies and create a project:
 
 ```sh
 npm run setup
@@ -47,7 +66,7 @@ node skills/guangjian-retouch/scripts/cli.mjs serve \
   --project "./projects/my-photo"
 ```
 
-Open the printed URL. Adjust controls, then select **生成试片** (Create trial), compare, and **接受这版** (Accept) or **取消试片** (Discard). Export after accepting. The interface is currently in Chinese.
+Open the printed URL in the agent darkroom. Adjust controls, then select **生成试片** (Create trial), compare, and **接受这版** (Accept) or **取消试片** (Discard). Export after accepting.
 
 Use a new project directory. Press `Ctrl+C` to stop the server; run `serve` again to continue the saved project.
 
@@ -56,7 +75,7 @@ Use a new project directory. Press `Ctrl+C` to stop the server; run `serve` agai
 
 The [Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) offers multiple uploads, diagnosis, and an integrated advisor. It currently requires Vercel access. Check the page for the visual-model connection status.
 
-It is a separate deployment whose source is not included in this repository. Browser drafts do not automatically synchronize with local projects.
+The online application and `npm start` use this repository's frontend, API routes, and server. Studio drafts live in each browser; the agent darkroom uses file-based projects. These workspaces do not automatically synchronize.
 
 </details>
 
@@ -141,6 +160,12 @@ Fonts are supplied by the host computer; Chinese text requires an installed CJK 
 
 ## Interface
 
+**Complete studio**: started with `npm start`, using the same source as the online application. The screenshot shows the built-in example with no visual model configured.
+
+![Complete studio: photo navigation, retouching, learning, preferences, and review.](assets/screenshots/studio-overview.png)
+
+**Agent darkroom**: compare candidates in a file-based project with your own agent.
+
 **Manual retouching**
 
 ![Local Web UI: the full photograph and light/color controls.](assets/screenshots/darkroom-edit.png)
@@ -166,7 +191,7 @@ Actual local-interface screenshots using the built-in demo image. [Capture notes
 
 ## Photography knowledge
 
-79 sections cover 10 subject and scene playbooks, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
+85 sections cover 10 subject and scene playbooks, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
 
 <details>
 <summary>Knowledge directory and search</summary>
@@ -196,7 +221,9 @@ Local keyword search makes no model requests; review still requires the agent to
 
 ```mermaid
 flowchart LR
-    person[You] <--> ui[Web UI]
+    person[You] <--> studio[Complete studio]
+    studio --> api[Visual model API]
+    person <--> ui[Agent darkroom]
     person <--> agent[Your visual agent]
     skill[Photography skill] --> agent
     agent -->|Tool Use| cli[Local CLI]
@@ -204,7 +231,7 @@ flowchart LR
     cli <--> project
 ```
 
-The Web UI and CLI share project records. Originals are stored separately. A candidate becomes current only after acceptance; changes to the base version or annotations invalidate old candidates. Discussion markers and accepted local adjustments are stored separately.
+The agent darkroom and CLI share file-based project records. Originals are stored separately. A candidate becomes current only after acceptance; changes to the base version or annotations invalidate old candidates. The complete studio uses browser drafts and connects its advisor to the configured visual model through server-side routes.
 
 </details>
 
@@ -212,11 +239,12 @@ The Web UI and CLI share project records. Originals are stored separately. A can
 
 ```sh
 npm run setup
+npm run engine:check
 npm run knowledge:check
 npm test
 ```
 
-Tests cover projects, pixel processing, local sessions, selective editing, protections, and knowledge retrieval. Technical tests use generated charts; actual photo observations are recorded separately. See [validation scope](docs/VALIDATION.md).
+`npm run test:web` checks the complete studio, AI routes, and photo processing. `npm run test:skill` checks projects, selective editing, protections, rendering, and knowledge retrieval. `npm test` runs both. Licensed Web photo fixtures and generated Skill charts are kept separately. See [validation scope](docs/VALIDATION.md).
 
 [Contributing](CONTRIBUTING.md) · [Skill entry point](skills/guangjian-retouch/SKILL.md) · [CLI and JSON reference](skills/guangjian-retouch/references/tools.md)
 

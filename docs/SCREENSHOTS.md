@@ -1,5 +1,11 @@
 # 界面截图
 
+## 完整工作台
+
+`assets/screenshots/studio-overview.png` 来自 2026-10-03 对整合后仓库实际运行的 `npm start` 的截图，视口 1280 × 720。使用内置 `public/assets/alpine-demo.png`，页面标注为示例光色分析，未配置视觉模型。
+
+## Agent 暗房
+
 截图来自本地 Web UI，使用产品内置的 `alpine-demo.png`。截图日期：2026-10-03；视口：1440 × 960。
 
 | 截图 | 内容 |

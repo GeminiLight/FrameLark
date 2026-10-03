@@ -1,0 +1,2 @@
+# P6 fixtures contain raw RGB bytes; line-ending conversion would corrupt them.
+*.ppm binary

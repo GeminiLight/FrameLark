@@ -1,0 +1,10 @@
+**
+!Dockerfile
+!package.json
+!server.mjs
+!vision-service.mjs
+!series-review.mjs
+!public/
+!public/**
+!api/
+!api/**

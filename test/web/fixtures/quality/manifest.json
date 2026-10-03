@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "sources": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+  "independentPhotos": 6,
+  "limitations": [
+    "One light-skin portrait only",
+    "No camera RAW",
+    "Exposure and noise stress conditions are synthetic, not sensor measurements",
+    "No independent architecture or mixed-lighting portrait yet"
+  ],
+  "cases": [
+    {
+      "id": "portrait",
+      "file": "portrait.png",
+      "pixels": "portrait.ppm",
+      "width": 512,
+      "height": 512,
+      "source": "NASA / Eileen Collins",
+      "rights": "public domain",
+      "topic": "portrait",
+      "variant": "original",
+      "parent": null,
+      "sha256": "74d3ec6cca600b36965c09e909769cea633b52668a183f36ad32f45187784441",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [
+        {
+          "x": 0.32,
+          "y": 0.02,
+          "width": 0.29,
+          "height": 0.34
+        }
+      ],
+      "protectionStatus": "manual approximate reference; check source before adjudicating crop"
+    },
+    {
+      "id": "night",
+      "file": "night.png",
+      "pixels": "night.ppm",
+      "width": 640,
+      "height": 427,
+      "source": "SpaceX",
+      "rights": "public domain",
+      "topic": "night",
+      "variant": "original",
+      "parent": null,
+      "sha256": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [
+        {
+          "x": 0.45,
+          "y": 0.15,
+          "width": 0.12,
+          "height": 0.76
+        }
+      ],
+      "protectionStatus": "manual approximate reference; check source before adjudicating crop"
+    },
+    {
+      "id": "contrast",
+      "file": "contrast.png",
+      "pixels": "contrast.ppm",
+      "width": 512,
+      "height": 512,
+      "source": "Lav Varshney",
+      "rights": "CC0",
+      "topic": "contrast",
+      "variant": "original",
+      "parent": null,
+      "sha256": "fe10d880ba2653ffab56ce84355c6161a98deb9bda56417f60eb1879ac6f6753",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [
+        {
+          "x": 0.08,
+          "y": 0.13,
+          "width": 0.58,
+          "height": 0.74
+        }
+      ],
+      "protectionStatus": "manual approximate reference; check source before adjudicating crop"
+    },
+    {
+      "id": "still-life",
+      "file": "still-life.png",
+      "pixels": "still-life.ppm",
+      "width": 600,
+      "height": 400,
+      "source": "Rachel Michetti / Pikolo Espresso Bar",
+      "rights": "CC0",
+      "topic": "still-life",
+      "variant": "original",
+      "parent": null,
+      "sha256": "bc7c679e93a04b35aef5c5d644f0293d6aac8df7ccbba06f1d5bdddc0285050b",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [
+        {
+          "x": 0.23,
+          "y": 0.01,
+          "width": 0.56,
+          "height": 0.83
+        }
+      ],
+      "protectionStatus": "manual approximate reference; check source before adjudicating crop"
+    },
+    {
+      "id": "pet",
+      "file": "pet.png",
+      "pixels": "pet.ppm",
+      "width": 451,
+      "height": 300,
+      "source": "Stefan van der Walt",
+      "rights": "CC0",
+      "topic": "pet",
+      "variant": "original",
+      "parent": null,
+      "sha256": "617403922b8bfe24d06d800cd9da0ea73363b22577bdcf04aa465087caf39d07",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [
+        {
+          "x": 0.15,
+          "y": 0.25,
+          "width": 0.62,
+          "height": 0.59
+        }
+      ],
+      "protectionStatus": "manual approximate reference; check source before adjudicating crop"
+    },
+    {
+      "id": "deep-field",
+      "file": "deep-field.png",
+      "pixels": "deep-field.ppm",
+      "width": 640,
+      "height": 558,
+      "source": "NASA / Hubble",
+      "rights": "public domain",
+      "topic": "deep-field",
+      "variant": "original",
+      "parent": null,
+      "sha256": "be8a5a068af70be01c753e23c0733d306ab9024d84b638c0af1a04a0d9b85daa",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [],
+      "protectionStatus": "not labeled; crop needs human review"
+    },
+    {
+      "id": "portrait-vertical",
+      "file": "portrait-vertical.png",
+      "pixels": "portrait-vertical.ppm",
+      "width": 341,
+      "height": 512,
+      "source": "derived from portrait",
+      "rights": "public domain",
+      "topic": "portrait",
+      "variant": "2:3 crop",
+      "parent": "portrait",
+      "sha256": "ccb7668fc2d1ffc2297a610c8ce9b98148bb844c23fec9a9d0791fa98f378c51",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [],
+      "protectionStatus": "not labeled; crop needs human review"
+    },
+    {
+      "id": "night-wide",
+      "file": "night-wide.png",
+      "pixels": "night-wide.ppm",
+      "width": 640,
+      "height": 277,
+      "source": "derived from night",
+      "rights": "public domain",
+      "topic": "night",
+      "variant": "wide crop",
+      "parent": "night",
+      "sha256": "6b31dc7bc2f0eb71d550a13511c49f805860a9c5733ff89557187568685afc52",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [],
+      "protectionStatus": "not labeled; crop needs human review"
+    },
+    {
+      "id": "portrait-low",
+      "file": "portrait-low.png",
+      "pixels": "portrait-low.ppm",
+      "width": 512,
+      "height": 512,
+      "source": "derived from portrait",
+      "rights": "same as parent",
+      "topic": "portrait",
+      "variant": "synthetic encoded-brightness x0.48",
+      "parent": "portrait",
+      "sha256": "0bad71ac7554800a54f1fa9430fb20ea4f6ba9963be5a293ec479ad3a67c7838",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [],
+      "protectionStatus": "not labeled; crop needs human review"
+    },
+    {
+      "id": "still-life-high",
+      "file": "still-life-high.png",
+      "pixels": "still-life-high.ppm",
+      "width": 600,
+      "height": 400,
+      "source": "derived from still-life",
+      "rights": "same as parent",
+      "topic": "still-life",
+      "variant": "synthetic encoded-brightness x1.35",
+      "parent": "still-life",
+      "sha256": "ff14c02773ed93809b62b8eeef215c2b7508b06312e4cbfd7303d6beb9836dbd",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [],
+      "protectionStatus": "not labeled; crop needs human review"
+    },
+    {
+      "id": "night-noise",
+      "file": "night-noise.png",
+      "pixels": "night-noise.ppm",
+      "width": 640,
+      "height": 427,
+      "source": "derived from night",
+      "rights": "public domain",
+      "topic": "night",
+      "variant": "synthetic Gaussian channel noise sigma=12 seed=731",
+      "parent": "night",
+      "sha256": "2dbe52d041fd90990757f69cf5ddc71f0c4a5d8785ede7a394d6adafde52356c",
+      "reviewStatus": "pending visual editor review",
+      "watch": [
+        "wrong advice",
+        "over-adjustment",
+        "unsafe crop",
+        "texture loss",
+        "preview/export mismatch"
+      ],
+      "protectedRegions": [],
+      "protectionStatus": "not labeled; crop needs human review"
+    }
+  ]
+}

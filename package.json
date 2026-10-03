@@ -1,6 +1,6 @@
 {
   "name": "frameyn",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Frameyn: a photography workspace with a Web UI, an agent skill, and local retouching tools.",
@@ -8,9 +8,18 @@
     "node": ">=20.9.0"
   },
   "scripts": {
+    "dev": "node --watch server.mjs",
+    "start": "node server.mjs",
+    "photo": "node skills/guangjian-retouch/scripts/cli.mjs",
     "install:skill": "node scripts/install-photo-skill.mjs",
+    "skill:install": "node scripts/install-photo-skill.mjs",
     "setup": "node skills/guangjian-retouch/scripts/setup.mjs",
+    "engine:check": "node scripts/check-shared-engine.mjs",
     "knowledge:check": "node skills/guangjian-retouch/scripts/knowledge.mjs check",
-    "test": "node test/prepare-fixtures.mjs && node --test test/skill-knowledge.test.mjs test/local-runtime.test.mjs test/local-lettering.test.mjs test/selective-edits.test.mjs test/protection-render.test.mjs test/ui-controlled-edits.test.mjs test/performance-pipeline.test.mjs"
+    "test": "node scripts/run-tests.mjs",
+    "test:web": "node scripts/run-tests.mjs web",
+    "test:skill": "node scripts/run-tests.mjs skill",
+    "quality": "node scripts/photo-quality.mjs",
+    "quality:vision": "node scripts/photo-quality.mjs --vision"
   }
 }

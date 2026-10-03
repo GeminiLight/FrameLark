@@ -1,10 +1,52 @@
-name: Skill checks
+name: Frameyn checks
 on:
   push:
   pull_request:
 permissions:
   contents: read
 jobs:
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: docker compose -p frameyn-ci up -d --build --wait --wait-timeout 120
+      - name: Check the complete studio
+        run: |
+          node --input-type=module <<'JS'
+          import assert from 'node:assert/strict';
+          const base='http://localhost:3177';
+          for(const file of ['/','/app.js','/assets/alpine-demo.png','/assets/vision-probe.png']){
+            const response=await fetch(base+file);
+            assert.equal(response.status,200,file);
+            await response.arrayBuffer();
+          }
+          const status=await(await fetch(base+'/api/status')).json();
+          assert.equal(status.aiAvailable,false);
+          assert.equal(status.connectionStatus,'unconfigured');
+          console.log('Container serves the complete studio without a model key.');
+          JS
+      - if: always()
+        run: docker compose -p frameyn-ci down --volumes
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm run engine:check
+      - run: npm run test:web
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -18,4 +60,4 @@ jobs:
           package-manager-cache: false
       - run: npm run setup
       - run: npm run knowledge:check
-      - run: npm test
+      - run: npm run test:skill

@@ -1,5 +1,13 @@
 # 维护 Frameyn · 帧映
 
+## 工作台与 Skill
+
+完整工作台位于 `public/`、`api/` 和根目录服务端文件，使用 `npm start` 运行。Agent Skill 位于 `skills/guangjian-retouch/`；安装器直接安装该目录。不要从旧的外部 `local/` 目录覆盖已维护的 Skill 运行时。
+
+Web 测试放在 `test/web/`，Skill 测试保留在 `test/`。两组都进入 `npm test`，也可分别运行 `npm run test:web` 和 `npm run test:skill`。Web 的授权照片不与 Skill 的生成测试图混用。
+
+修改共用像素模块时同步检查 `public/` 与 Skill 内分发副本，运行 `npm run engine:check` 和两组测试；渲染变化还需检查保护参考的管线兼容性。部署说明见 [运行与部署](docs/DEPLOYMENT.md)。
+
 ## 知识与工具保持对应
 
 修改知识后运行 `npm run knowledge:check`。新增章节同时更新 `references/knowledge-index.json`；风格 id 与参数必须来自真实引擎。运行 `npm test` 验证项目与检索行为。

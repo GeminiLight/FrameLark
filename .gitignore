@@ -1,6 +1,7 @@
 node_modules/
 .env
 .env.*
+!.env.local.example
 .guangjian/
 .vercel/
 .DS_Store
@@ -11,3 +12,4 @@ exports/
 drafts/
 test/fixtures/
 artifacts/
+coverage/
