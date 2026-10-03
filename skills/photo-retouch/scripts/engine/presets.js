@@ -20,7 +20,7 @@ export const presets = [
   },
   {
     id:'golden-hour',name:'金色时刻',category:'旅行 · 风景',groups:['landscape','portrait'],feels:['vivid'],
-    mood:'让余晖更有温度和纵深',inspiration:'灵感线索：经典风景摄影',
+    mood:'加强余晖的暖色与层次',inspiration:'灵感线索：经典风景摄影',
     adjustments:{exposure:.06,contrast:8,highlights:-20,shadows:10,whites:7,blacks:-4,vibrance:10,warmth:13,tint:2,orangeSaturation:8,blueSaturation:-4,vignette:9}
   },
   {
@@ -31,7 +31,7 @@ export const presets = [
   },
   {
     id:'blue-hour',name:'蓝调时分',category:'城市 · 夜景',groups:['night','street'],feels:['film'],
-    mood:'冷静蓝色与克制的高光',inspiration:'灵感线索：暮色城市摄影',
+    mood:'偏蓝的色调与柔和高光',inspiration:'灵感线索：暮色城市摄影',
     adjustments:{exposure:-.04,contrast:12,highlights:-24,shadows:7,blacks:-7,vibrance:8,saturation:-5,warmth:-11,tint:3,blueSaturation:14,greenSaturation:-8,vignette:10}
   },
   {
@@ -47,19 +47,19 @@ export const presets = [
   },
   {
     id:'luminous-poem',name:'微光诗篇',category:'人像 · 自然',groups:['portrait','landscape'],feels:['airy'],
-    mood:'把明亮与柔和留在同一画面',inspiration:'灵感线索：川内伦子的光影作品',
+    mood:'明亮、柔和、低对比',inspiration:'灵感线索：川内伦子的光影作品',
     source:'https://rinkokawauchi.com/en/works/',
     adjustments:{exposure:.13,contrast:-14,highlights:-21,shadows:17,whites:4,blacks:12,vibrance:-4,saturation:-9,warmth:2,fade:14,blueSaturation:-10,grain:3}
   },
   {
     id:'street-grain',name:'街头颗粒',category:'街头 · 黑白',groups:['street','monochrome'],feels:['mono','film'],
-    mood:'粗粝颗粒与坚决的黑白反差',inspiration:'灵感线索：森山大道的街头影像',
+    mood:'粗颗粒与强烈的黑白反差',inspiration:'灵感线索：森山大道的街头影像',
     source:'https://www.moriyamadaido.com/',
     adjustments:{contrast:30,highlights:5,shadows:-11,whites:10,blacks:-22,grain:27,clarity:11,sharpen:7,monochrome:100}
   },
   {
     id:'silent-silver',name:'静默银调',category:'风景 · 黑白',groups:['landscape','monochrome'],feels:['mono','airy'],
-    mood:'低调银灰与安静的明暗过渡',inspiration:'灵感线索：Michael Kenna 的风景作品',
+    mood:'银灰色调与柔和的明暗过渡',inspiration:'灵感线索：Michael Kenna 的风景作品',
     source:'https://www.michaelkenna.com/gallery.php',
     adjustments:{exposure:.03,contrast:3,highlights:-18,shadows:16,whites:5,blacks:7,fade:13,grain:3,monochrome:100}
   },
@@ -77,13 +77,13 @@ export const presets = [
   },
   {
     id:'ordinary-color',name:'日常原色',category:'生活 · 街头',groups:['portrait','street'],feels:['vivid'],
-    mood:'让日常物件拥有清楚的色彩关系',inspiration:'灵感线索：William Eggleston 的日常彩色摄影',
+    mood:'突出日常物件的色彩差异',inspiration:'灵感线索：William Eggleston 的日常彩色摄影',
     source:'https://egglestonartfoundation.org/',
     adjustments:{contrast:4,highlights:-11,shadows:8,vibrance:13,saturation:6,warmth:3,orangeSaturation:14,greenSaturation:6,blueSaturation:7,fade:5,grain:5}
   },
   {
     id:'open-road',name:'公路淡彩',category:'旅行 · 风景',groups:['landscape','street'],feels:['airy','film'],
-    mood:'自然低对比与有呼吸感的色彩',inspiration:'灵感线索：Stephen Shore 的公路与日常作品',
+    mood:'低对比与自然淡彩',inspiration:'灵感线索：Stephen Shore 的公路与日常作品',
     source:'https://www.stephenshore.net/photographs.php',
     adjustments:{exposure:.07,contrast:-10,highlights:-15,shadows:13,saturation:-9,warmth:3,fade:12,greenSaturation:-4,blueSaturation:-6,grain:3}
   },
