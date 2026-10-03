@@ -61,7 +61,7 @@ test('typing, native sliders, composition, dialogs and loading keep their own ke
   assert.equal(shortcutAction(key('z',{metaKey:true}),{typing:true,range:true,dialog:true}),null);
 });
 test('editor shortcuts are distinct from viewer magnification and browser shortcuts',()=>{
-  assert.equal(shortcutAction(key('1')),'diagnosis');assert.equal(shortcutAction(key('2')),'adjust');assert.equal(shortcutAction(key('3')),'agent');assert.equal(shortcutAction(key('1'),{viewer:true}),'actual');
+  assert.equal(shortcutAction(key('1')),'agent');assert.equal(shortcutAction(key('2')),'adjust');assert.equal(shortcutAction(key('3')),'diagnosis');assert.equal(shortcutAction(key('1'),{viewer:true}),'actual');
   assert.equal(shortcutAction(key('+'),{viewer:true}),'zoom-in');assert.equal(shortcutAction(key('-'),{viewer:true}),'zoom-out');assert.equal(shortcutAction(key('0'),{viewer:true}),'fit');
   assert.equal(shortcutAction(key('+',{metaKey:true}),{viewer:true}),null);assert.equal(shortcutAction(key('z',{metaKey:true})),'undo');assert.equal(shortcutAction(key('z',{ctrlKey:true,shiftKey:true})),'redo');
   assert.equal(shortcutAction(key('4')),'agent');assert.equal(shortcutAction(key('Z')),'viewer');assert.equal(shortcutAction(key('?')),'help');

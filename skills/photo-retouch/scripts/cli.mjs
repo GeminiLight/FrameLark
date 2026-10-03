@@ -56,8 +56,9 @@ const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <comman
   restore:'--id <version-id> [--revision <n>]',
   compare:'--a <id|original|current> --b <id|current> [--region <JSON 原片范围>]',
   export:'[--version <id|current>] [--preset share|print|original] [--format png|jpeg] [--output <new-file>] [--max-side <px>] [--quality <60..100>] [--dpi <72..1200>] [--without-text true]',
+  studio:'[--url http://127.0.0.1:3177]；连接完整工作台，共享文件项目并返回打开地址',
   serve:'[--port 0] [--session-file <private-json-file>]；仅监听 127.0.0.1，按 Ctrl+C 停止'
-},notes:['工具只在本地处理像素；审片与对话由宿主 Agent 进行。','JPEG/PNG/WebP/AVIF 输入；8 位 sRGB，PNG/JPEG 输出，8192 px / 1600 万像素上限。','原片字节和编辑方案独立保存；已有文件不会被导出覆盖。']};
+},notes:['工具只在本地处理像素；审片与对话由宿主 Agent 进行。','JPEG/PNG/WebP/AVIF 输入；macOS 可转换静态 HEIC/HEIF；8 位 sRGB，PNG/JPEG 输出，8192 px / 1600 万像素上限。','原片字节和编辑方案独立保存；已有文件不会被导出覆盖。']};
 function args(values){const opts={};for(let i=0;i<values.length;i++){if(!values[i].startsWith('--')||values[i+1]===undefined||values[i+1].startsWith('--'))fail('ARGUMENT','每个选项需要一个值；运行 help 查看用法。');opts[values[i].slice(2)]=values[++i];}return opts;}
 async function inspectPreview(session,key,options){try{return await session.previewPhoto(key,options);}catch(error){if(!error.code)throw error;return {error:localFailure(error),available:false};}}
 async function input(file,limit=65536){if(!file)fail('INPUT_REQUIRED','请用 --input 提供 JSON 文件，或 - 从标准输入读取。');let bytes='';if(file==='-'){for await(const part of process.stdin){bytes+=part;if(Buffer.byteLength(bytes)>limit)fail('INPUT_SIZE','方案 JSON 超过读取上限，请分批提交。');}}else bytes=await readFile(path.resolve(file),'utf8');if(Buffer.byteLength(bytes)>limit)fail('INPUT_SIZE','方案 JSON 超过读取上限，请分批提交。');try{return JSON.parse(bytes);}catch{fail('INVALID_JSON','JSON 无法读取，请检查格式后重试。');}}
@@ -112,6 +113,7 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'restore':return restoreVersion(folder,{id:o.id,revision});
     case 'compare':{const p=await loadProject(folder),{findVersion}=await import('./project.mjs'),b=findVersion(p,o.b||'current'),options={region:o.region?JSON.parse(o.region):undefined,referenceCrop:b.state.crop};return {a:await previewPhoto(folder,o.a||'original',options),b:await previewPhoto(folder,b.id,options),alignment:'同一原片坐标、裁剪与倍率；两侧各自版本的光色与局部处理。完整原构图可单独 preview original 查看。'};}
     case 'export':{const result=await exportPhoto(folder,o.version||'current',{preset:o.preset,format:o.format,output:o.output,maxSide:o['max-side']?Number(o['max-side']):undefined,quality:o.quality?Number(o.quality):undefined,dpi:o.dpi?Number(o.dpi):undefined,withoutText:o['without-text']==='true'});await recordExport(folder,result);return result;}
+    case 'studio':{const {openStudioProject}=await import('./studio.mjs');return openStudioProject(folder,{url:o.url});}
     case 'serve':{const {serveProject}=await import('./server.mjs');await serveProject(folder,{port:Number(o.port)||0,sessionFile:o['session-file']});return;}
     default:fail('UNKNOWN_COMMAND','未知命令。运行 help 查看用法。');
   }

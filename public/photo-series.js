@@ -40,7 +40,7 @@ export function validateSeriesReview(value,ids,{sequence='visual'}={}) {
   if(sequence==='manual'&&value.order.some((id,i)=>id!==ids[i]))throw new Error('建议改变了你指定的顺序，请重试。');
   if(!value.sharedStyle||!['none',...presets.map(p=>p.id)].includes(value.sharedStyle.presetId)||!Number.isFinite(value.sharedStyle.amount)||value.sharedStyle.amount<0||value.sharedStyle.amount>70)throw new Error('共同风格结果不可用，请重试。');
   for(const photo of value.photos){
-    if(!Array.isArray(photo.changes)||new Set(photo.changes.map(c=>c.key)).size!==photo.changes.length||photo.changes.some(c=>!Object.hasOwn(seriesBounds,c.key)||!Number.isFinite(c.value)||Math.abs(c.value)>seriesBounds[c.key]))throw new Error('逐张调整超出温和处理范围，请重试。');
+    if(!Array.isArray(photo.changes)||new Set(photo.changes.map(c=>c.key)).size!==photo.changes.length||photo.changes.some(c=>!Object.hasOwn(seriesBounds,c.key)||!Number.isFinite(c.value)||Math.abs(c.value)>seriesBounds[c.key]))throw new Error('单张调整幅度超出允许范围，请重试。');
   }
   return value;
 }

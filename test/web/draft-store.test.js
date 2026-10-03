@@ -1,6 +1,13 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {buildDraftWorkspace,restoreDraftPhoto} from '../../public/draft-store.js';
 const photo=()=>({id:'photo-2',isDemo:false,originalBlob:new Blob(['original bytes'],{type:'image/png'}),imageName:'人物',active:new Set(['light']),manual:{exposure:.12},crop:{x:.1,y:0,width:.8,height:1},annotations:[{id:'note-1',note:'保留肤色',rect:{x:.2,y:.2,width:.2,height:.2}}],advisorLayers:[{id:'a',settings:{saturation:-5}}],history:{past:[{active:[],manual:{exposure:0},annotations:[]}],future:[]},conversation:[{role:'assistant',text:'轻调',id:'a',applied:true}],exported:true,acceptedSignature:'accepted',versions:[{kind:'manual',label:'保留气氛',snapshot:{active:[],manual:{exposure:.12},annotations:[]}}]});
+test('unsynchronized file edits keep a browser recovery copy until the project confirms saving',async()=>{
+  const source={...photo(),projectId:'project',projectPending:true,sourceOriginalBlob:new Blob(['raw JPEG bytes'],{type:'image/jpeg'}),originalFileName:'original.jpg'};
+  const pending=buildDraftWorkspace('draft',[source],source.id);assert.equal(pending.photos.length,1);
+  const recovered=restoreDraftPhoto(pending.photos[0]);assert.equal(recovered.manual.exposure,.12);assert.equal(recovered.versions[0].label,'保留气氛');assert.equal(recovered.projectId,undefined);
+  assert.equal(await recovered.sourceOriginalBlob.text(),'raw JPEG bytes');assert.equal(recovered.originalFileName,'original.jpg');
+  source.projectPending=false;assert.equal(buildDraftWorkspace('draft',[source],source.id).photos.length,0);
+});
 test('drafts recover original bytes, crop, notes, sources, history and lifecycle states',async()=>{
   const original=photo(),workspace=buildDraftWorkspace('draft',[original,{...photo(),isDemo:true}],'photo-2');
   assert.equal(workspace.photos.length,1);

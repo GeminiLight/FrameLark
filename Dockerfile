@@ -2,7 +2,7 @@ ARG NODE_IMAGE=node:24-alpine
 FROM ${NODE_IMAGE}
 WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=3177
-COPY --chown=node:node package.json server.mjs vision-service.mjs codex-vision.mjs series-review.mjs ./
+COPY --chown=node:node package.json server.mjs vision-service.mjs codex-app-server.mjs project-bridge.mjs project-routes.mjs series-review.mjs ./
 COPY --chown=node:node public/ ./public/
 COPY --chown=node:node api/ ./api/
 RUN mkdir -p /app/.guangjian && chown node:node /app/.guangjian

@@ -57,10 +57,10 @@ export function localDesignReply(question, context = {}) {
   let query = concise(question, 800).toLowerCase();
   const intent=describeIntent(context.creativeIntent);
   const requested=describeIntent(query);
-  if(!intent.text && requested.vague && !context.focusAnnotation)return normalizeDesignReply({reply:'先选择这张照片想保留或加强的感觉，再给出具体调整。',clarification:{question:requested.question,choices:requested.choices}});
+  if(!intent.text && requested.vague && !context.focusAnnotation)return normalizeDesignReply({reply:'先说说想改哪里，或想保留什么。',clarification:{question:requested.question,choices:requested.choices}});
   const conflict=intent.text && !context.focusAnnotation && /我想|想试|调成|变成|更有|试试/.test(query) && requested.kind!=='custom' && requested.kind!==intent.kind && (intent.kind==='skin' && ['cinema','film','mono','vivid'].includes(requested.kind) || intent.kind==='mono' && requested.kind!=='mono' || intent.kind==='quiet' && requested.kind==='vivid');
-  if(conflict)return normalizeDesignReply({reply:'这个新方向与当前意图有不同取舍。先确认这张照片的目标。',clarification:{question:'保留当前意图，还是改用你刚提出的方向？',choices:[intent.text,requested.text]}});
-  if(intent.vague && !context.focusAnnotation)return normalizeDesignReply({reply:'先明确这张照片的表达目标，再决定是否调整。',clarification:{question:intent.question,choices:intent.choices}});
+  if(conflict)return normalizeDesignReply({reply:'这和之前设定的目标不同，先确认用哪个方向。',clarification:{question:'保留当前意图，还是改用你刚提出的方向？',choices:[intent.text,requested.text]}});
+  if(intent.vague && !context.focusAnnotation)return normalizeDesignReply({reply:'先说说想要的效果，再决定怎么调整。',clarification:{question:intent.question,choices:intent.choices}});
   if(intent.text && !context.focusAnnotation && !/裁|构图|亮|暗|曝光|高光|阴影|饱和|暖|冷|对比|质感|主体|肤色/.test(query)) query=intent.text.toLowerCase();
   if(intent.kind==='skin' && !context.focusAnnotation && !/曝光|高光|阴影|太暗|太亮|构图|裁/.test(query))return normalizeDesignReply({reply:'以肤色真实为目标，先保留原有颜色。当前本地模式不能识别脸部或判断肤色偏差；请标记具体位置并说明偏色，或接通视觉顾问再判断。不据此自动增色或套用强烈风格。',principle:'肤色真实优先于历史风格偏好，避免没有依据地改变白平衡。'});
   const focus = context.focusAnnotation;
@@ -77,29 +77,29 @@ export function localDesignReply(question, context = {}) {
       const crop = context.analysis?.cropRecommendation;
       const outside = crop && (focus.rect.x+focus.rect.width < crop.rect.x || focus.rect.x > crop.rect.x+crop.rect.width || focus.rect.y+focus.rect.height < crop.rect.y || focus.rect.y > crop.rect.y+crop.rect.height);
       return normalizeDesignReply({
-        reply:`${intro}这类问题先判断干扰是否在边缘，以及裁掉后会不会丢掉有用的空间。${outside ? '现有裁剪建议会移除这处，可以先打开预览核对。' : '现有裁剪建议未明确移除这处；可在「专业」里手动试裁。'} 本地模式无法判断具体物体是什么。`,
+        reply:`${intro}这类问题先判断干扰是否在边缘，以及裁掉后会不会丢掉有用的空间。${outside ? '现有裁剪建议会移除这处，可以先打开预览核对。' : '现有裁剪建议未明确移除这处；可在「构图与裁剪」中手动调整。'} 本地模式无法判断具体物体是什么。`,
         principle:'只裁掉明确分散视线的部分，同时保留交代场景的空间。',
         action:outside ? {kind:'crop',crop:crop.rect,label:'预览这处裁剪'} : undefined
       });
     }
     if (/太暗|偏暗|不够亮|看不清|提亮|更亮|亮一点|阴影|黑/.test(note)) return normalizeDesignReply({
       reply:`${intro}可以小幅提亮标记范围内的阴影，让内容更可读，同时保住整张照片原有的光线方向。`,
-      principle:'让关键内容可读即可，不需要把每一块阴影都提亮。',
+      principle:'看清重要内容就好，不必提亮所有阴影。',
       action:{kind:'region',label:'轻提这处阴影',changes:[{key:'shadows',value:22},{key:'exposure',value:.08}]}
     });
     if (/太亮|过亮|曝|刺眼|抢眼|压暗|降亮|高光/.test(note)) return normalizeDesignReply({
-      reply:`${intro}可以先试一笔柔和的局部高光微调，再比较这处是否还抢主体的视线。调整只落在标记范围内，并会在边缘淡出。`,
+      reply:`${intro}可以先降低这处的高光，看看是否还会分散注意力。调整只落在标记范围内，并会在边缘淡出。`,
       principle:'局部亮点是否需要压暗，取决于它是否抢走了主体的注意力。',
       action:{kind:'region',label:'轻收这处高光',changes:[{key:'highlights',value:-23},{key:'exposure',value:-.08}]}
     });
     if (/色|饱和|偏黄|偏蓝|偏绿|肤色|颜色/.test(note)) return normalizeDesignReply({
-      reply:`${intro}${colorComparison}。先看这里与周围的色温和饱和度，再试一笔局部微调；肤色等复杂颜色仍需要你对照原片确认。`,
+      reply:`${intro}${colorComparison}。先比较这里与周围的颜色，再试着做局部调整；肤色等复杂颜色仍需要你对照原片确认。`,
       principle:'色彩统一来自主色之间的关系，而不是每个区域都有相同饱和度。',
       action:/肤色/.test(note) ? undefined : /偏黄/.test(note) ? {kind:'region',label:'减轻这处偏黄',changes:[{key:'warmth',value:-10}]} : /偏蓝/.test(note) ? {kind:'region',label:'减轻这处偏蓝',changes:[{key:'warmth',value:10}]} : /偏绿/.test(note) ? {kind:'region',label:'减轻这处偏绿',changes:[{key:'tint',value:10}]} : /太淡|偏淡|不够饱和/.test(note) ? {kind:'region',label:'轻提这处色彩',changes:[{key:'vibrance',value:12}]} : {kind:'region',label:'轻收这处色彩',changes:[{key:'vibrance',value:-15},{key:'saturation',value:-7}]}
     });
     return normalizeDesignReply({
-      reply:`${intro}我记录了你指的范围。这个问题更需要判断那里的主体与背景关系；当前本地模式只能测光色，无法识别物体。可以再说一句你希望这处如何变化，我会据此缩小建议范围。`,
-      principle:'先说清楚想保留什么，再决定要动亮度、色彩还是构图。'
+      reply:`${intro}这个问题需要识别主体和背景。本地模式只能测量光色，建议连接 AI 模型后再判断；也可以直接说明这处需要提亮、压暗还是调整颜色。`,
+      principle:'先确定想改哪里，以及哪些内容要保留。'
     });
   }
   const analysis = context.analysis || {};
@@ -108,7 +108,7 @@ export function localDesignReply(question, context = {}) {
     const preserved = Object.values(analysis.observations || {}).filter(item => item.verdict === 'keep').slice(0,2).map(item => item.finding).join(' ');
     return normalizeDesignReply({
       reply:`${analysis.observationSource === 'demo' ? '参考示例的预写讲解，' : context.source === 'ai' ? '结合已有的视觉审片，' : '参考已有结论，'}目前建议保留原片。${analysis.conclusion.reason} ${preserved}`,
-      principle:'调整应解决明确的问题；构图和光色已经成立时，保留也能表达你的判断。'
+      principle:'没有明确需要调整的地方时，可以保留原片。'
     });
   }
   const recs = Array.isArray(analysis.recommendations) ? analysis.recommendations.map(item=>({...item,adjustments:remainingAdjustments(item.adjustments,context.currentAdjustments)})) : [];
@@ -137,7 +137,7 @@ export function localDesignReply(question, context = {}) {
   if (/黑白|单色|mono/.test(query)) {
     const id = context.subject === 'landscape' ? 'silent-silver' : 'mono-story';
     return normalizeDesignReply({
-      reply:`${intro}${observation}。可以试试「${presetById(id).name}」，观察去掉色彩后，主体和明暗结构是否依然成立。`,
+      reply:`${intro}${observation}。可以试试「${presetById(id).name}」，观察去掉色彩后，主体和明暗层次是否仍然清楚。`,
       principle:'黑白会放大亮度关系与画面结构；请特别检查主体是否仍从背景中分离。',
       action:{kind:'style',presetId:id,label:'试用黑白方向'}
     });
@@ -153,7 +153,7 @@ export function localDesignReply(question, context = {}) {
   if (/力量|戏剧|强烈|冲击/.test(query) && depth) {
     return normalizeDesignReply({
       reply:`${intro}${depth.reason} 想增强力量感，可先只加一点层次，并检查暗部有没有被压死。`,
-      principle:depth.lesson || '让最重要的亮暗关系更明确，比全面提高对比更有效。',
+      principle:depth.lesson || '只加强重点位置的明暗差异，避免整张照片反差过大。',
       action:adjustment(depth,['contrast','blacks','vignette'])
     });
   }
@@ -163,21 +163,21 @@ export function localDesignReply(question, context = {}) {
       : /自然/.test(query) ? (context.subject === 'landscape' ? 'open-road' : context.subject === 'night' ? 'blue-hour' : 'daily-soft')
       : presetById(context.recommendedStyle) ? context.recommendedStyle : 'daily-soft';
     return normalizeDesignReply({
-      reply:`${intro}${observation}。想增强情绪，可先试「${presetById(id).name}」，留意它是否保留原有光线方向。`,
-      principle:'风格应服务于照片已有的光与内容；强度可以再降低，不必一次调满。',
+      reply:`${intro}${observation}。想试另一种风格，可以预览「${presetById(id).name}」，留意它是否保留原有光线方向。`,
+      principle:'可以降低风格强度，保留原有的光色。',
       action:{kind:'style',presetId:id,label:`试用「${presetById(id).name}」`}
     });
   }
   if (/色|暖|冷|饱和|肤色|自然|color/.test(query) && color) {
     return normalizeDesignReply({
       reply:`${intro}${color.reason} 我会先小幅调整自然饱和度与色温，再看主体颜色是否仍真实。`,
-      principle:color.lesson || '让一两种主色带动画面，比让所有颜色同时变浓更耐看。',
+      principle:color.lesson || '可以只增强主要颜色，避免整张照片都过于鲜艳。',
       action:adjustment(color,['vibrance','saturation','warmth'])
     });
   }
   if (/亮|暗|曝光|高光|阴影|层次|light|dark/.test(query) && light) {
     return normalizeDesignReply({
-      reply:`${intro}${light.reason} 先试一组克制的明暗微调，并检查最亮处是否还有细节。`,
+      reply:`${intro}${light.reason} 先小幅调整明暗，再检查亮部细节。`,
       principle:light.lesson || '先保护亮部，再决定暗部需要多少信息。',
       action:adjustment(light,['exposure','highlights','shadows'])
     });
@@ -189,9 +189,9 @@ export function localDesignReply(question, context = {}) {
       action:adjustment(depth,['contrast','blacks','vignette'])
     });
   }
-  if(intent.text)return normalizeDesignReply({reply:`围绕「${intent.text}」，${base} 当前本地分析只有光色统计，没有足够依据提出符合这一目标的具体动作。先保留现有效果；可标记你在意的位置，或连接视觉顾问进一步判断。`,principle:'明确的意图不等于必须修改；没有对应依据时保留现有效果。'});
+  if(intent.text)return normalizeDesignReply({reply:`仅凭本地光色统计，还无法针对「${intent.text}」给出具体建议。先保留现有效果；可以标记想改的位置，或连接 AI 模型分析。`,principle:'没有明确的调整理由时，可以先保留当前效果。'});
   return normalizeDesignReply({
-    reply:light ? `${intro}我会先看明暗关系。${light.reason} 试完比较主体是否更清楚、亮部是否仍有层次。` : `${intro}${base} 你想让它更安静，还是更有力量？`,
+    reply:light ? `${intro}我会先看明暗关系。${light.reason} 试完比较主体是否更清楚、亮部是否仍有层次。` : `${intro}${base} 你想保留自然光色，还是增强明暗对比？`,
     principle:analysis.insight || light?.lesson || '先确定想让观众看哪里，再考虑亮度与色彩。',
     action:light ? adjustment(light,['exposure','highlights','shadows']) : emptyAction()
   });
