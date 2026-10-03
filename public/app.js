@@ -1,4 +1,5 @@
 import {exchangeSchema,validateExchange,restoreWebExchange} from './project-exchange.js';
+import {onDemandReview,canPreviewAdvisorResult} from './photo-first-policy.js';
 import {preparePhotoFile} from './import-conversion.js';
 import {createProjectWorkspace} from './project-workspace.js';
 import {workspacePatch,snapshotFromProject} from './project-snapshot.js';
@@ -44,7 +45,7 @@ import { buildBasicReview, validateReviewDecision, reviewPresentation } from './
 import { observationLabels, verdictLabels, normalizeObservations, reviewSourceLabel, normalizeVisionFailure, retainAppliedRecommendations } from './vision-review.js';
 import { tasteStorageKey,createAcceptedRecord,sanitizeTasteRecords,summarizeTaste,rememberedStyleAmount } from './taste-memory.js?v=2';
 
-let studioTab='diagnosis',workspaceSpace='studio',nextPanelAction=null;
+let studioTab='agent',workspaceSpace='studio',nextPanelAction=null;
 const inspectorPositions={diagnosis:0,adjust:0};
 let slidersInitialized=false;
 
@@ -104,6 +105,7 @@ let advisorPreviewReady=false;
 const advisorViewer=createPhotoViewer($('#advisor-preview-dialog'),{prefix:'advisor-preview',onState:status=>{advisorPreviewReady=status==='ready';updateAdvisorAccept();}});
 const advisorRequests=createPhotoRequests(),reassessmentRequests=createPhotoRequests();
 let reassessmentRequest=null;
+let exportAfterPreview=null;
 let pendingAdvisorPreview=null,collectionPresetId=null,collectionGeneration=0,collectionHolding=false,collectionHoverId=null;
 const collectionAmounts=new Map(),collectionRenderer=createPhotoRenderer();
 let collectionPixels=Promise.resolve();
@@ -296,7 +298,7 @@ function applySharedProject(photo,data) {
   advisorRequests.cancel(photo.id,'project-updated');photo.agentBusy=false;
   Object.assign(photo,{manual:snapshot.manual,active:new Set(),advisorLayers:[],crop:snapshot.crop,presetId:snapshot.presetId,presetAmount:snapshot.presetAmount,annotations:snapshot.annotations,
     creativeIntent:data.intent,conversation:data.conversation.map(m=>({...m,id:crypto.randomUUID()})),history:{past:[],future:[]},projectId:data.id,projectPath:data.path,projectRevision:data.revision,projectCurrentId:data.currentId,originalFileName:data.name,projectData:data});
-  preparePhotoPreview(photo);photo.analysis=analyzeLocal(photo);photo.analysisSource='local';photo.analysisStatus='idle';photo.assessment=null;photo.exported=false;
+  preparePhotoPreview(photo);photo.analysis=analyzeLocal(photo);photo.analysisSource='local';photo.analysisStatus='idle';photo.analysisProvenance=null;photo.originalRecommendations=null;photo.analysisIntent=data.intent;photo.assessment=null;photo.exported=data.exports.some(e=>e.versionId===data.currentId);photo.lastExportSignature=photo.exported?snapshotAcceptanceSignature(photoSnapshot(photo)):'';
   nextAnnotationId=Math.max(nextAnnotationId,...photo.annotations.map(a=>Number(String(a.id).replace('note-',''))+1).filter(Number.isFinite));
   if(currentPhotoId===photo.id){
     if($('#advisor-preview-dialog').open)$('#advisor-preview-dialog').close();
@@ -625,7 +627,7 @@ function activatePhoto(id) {
   $('#agent-live').textContent='';
   photo.versions=(photo.versions || []).map(item=>({...item,signature:snapshotAcceptanceSignature(item.snapshot)}));
   preparePhotoPreview(photo);
-  if(photo.isDemo && !photo.analysis){photo.analysis=analyzeLocal(photo);photo.analysisStatus='example';}
+  if(!photo.analysis){photo.analysis=onDemandReview(photo);photo.analysisStatus=photo.isDemo?'example':'idle';}
   for (const key of photoStateKeys) state[key] = photo[key];
   renderAnnotations();renderLocalEditor();
   editHistory.past = photo.history.past;
@@ -643,9 +645,9 @@ function activatePhoto(id) {
   $('#workspace-title').title = photo.imageName;
   $('#agent-context-photo').title = photo.imageName;
   $('#heading-counter').textContent = `${String(photoSessions.indexOf(photo) + 1).padStart(2, '0')} / ${String(photoSessions.length).padStart(2, '0')}`;
-  if (!Object.keys(state.presetThumbs).length) buildPresetThumbs(photo.image);
+  if (studioTab==='adjust' && !Object.keys(state.presetThumbs).length) buildPresetThumbs(photo.image);
   renderSliders();
-  renderPresets();
+  if(studioTab==='adjust')renderPresets();
   sizePhotoStage();
   setCompare(state.compare);
   scheduleRender();
@@ -655,8 +657,9 @@ function activatePhoto(id) {
   } else {
     $('#diagnosis-radar').innerHTML = '';
     $('#metric-grid').innerHTML = '';
-    analyzeImage();
+    photo.analysis=onDemandReview(photo);state.analysis=photo.analysis;renderAnalysis();
   }
+  selectTab(studioTab);
   renderAgent();
   renderPhotoTabs();
   refreshActions();
@@ -886,6 +889,10 @@ function hasEdits() {
 }
 
 function refreshActions() {
+  $('#photo-export-shortcut').disabled=!state.image||state.loading||state.renderPending||state.renderFailed;
+  $('#run-photo-review').disabled=!state.image||state.loading||state.analyzing;
+  $('#run-photo-review').textContent=state.aiAvailable?'完整审片':'连接模型以审片';
+  renderPhotoProposal();
   const photo=currentPhoto();
   if(photo && !photo.isDemo) state.exported=photo.lastExportSignature===currentAcceptanceSignature() || (photo.versions || []).some(item=>item.kind==='export' && item.signature===currentAcceptanceSignature());
   const edited = hasEdits();
@@ -924,7 +931,7 @@ function refreshActions() {
   document.querySelectorAll('[data-editor-action="reassess"]').forEach(button => { button.disabled = !edited || state.assessmentBusy || busy; });
   const needsReview = edited && !state.assessment;
   $('#panel-diagnosis').classList.toggle('needs-review', needsReview);
-  $('#panel-diagnosis').setAttribute('aria-label', needsReview ? '审片，有调整待复评' : '审片');
+  $('#panel-diagnosis').setAttribute('aria-label', needsReview ? '详细分析，有调整待复评' : '详细分析');
   const pieces = [];
   if (state.advisorLayers.some(item=>!item.annotationId)) pieces.push('顾问微调');
   if (state.active.size) pieces.push(`${state.active.size} 项建议`);
@@ -1002,10 +1009,20 @@ function showWorkspaceSpace(space) {
   if(workspaceSpace==='studio' && state.image)sizePhotoStage();
   if(changed)window.scrollTo({top:0,behavior:'instant'});
 }
+$('#more-tools').addEventListener('click',()=>$('#more-tools-dialog').showModal());
+$('#more-tools-close').addEventListener('click',()=>$('#more-tools-dialog').close());
+$('#more-tools-dialog').addEventListener('click',event=>{
+  const tool=event.target.closest('[data-workspace-tool]')?.dataset.workspaceTool;if(!tool)return;
+  $('#more-tools-dialog').close();
+  if(tool==='models')openVisionSettings();else if(tool==='projects')projectWorkspace.open();else if(tool==='drafts')$('#draft-status').click();else if(tool==='learn')$('#nav-learn').click();else if(tool==='profile')$('#profile-button').click();else if(tool==='help')$('#help-button').click();
+});
+$('#try-example').addEventListener('click',async()=>{await addPhotoSource('/assets/alpine-demo.png','清晨的山脊',true);selectTab('agent');});
+$('#empty-projects').addEventListener('click',()=>projectWorkspace.open());
+
 $('#nav-learn').addEventListener('click',()=>showWorkspaceSpace('learn'));
 document.querySelectorAll('.mobile-spaces [data-space]').forEach(button=>button.addEventListener('click',()=>{
   button.focus({preventScroll:true});
-  if(button.dataset.space==='library')$('#nav-library').click();else if(button.dataset.space==='profile')$('#nav-profile').click();else showWorkspaceSpace(button.dataset.space);
+  if(button.dataset.space==='more')$('#more-tools-dialog').showModal();else if(button.dataset.space==='library')$('#nav-library').click();else if(button.dataset.space==='profile')$('#nav-profile').click();else showWorkspaceSpace(button.dataset.space);
 }));
 $('#learn-practice').addEventListener('click',()=>{showWorkspaceSpace('studio');if(!state.image){fileInput.click();return;}selectTab('adjust');focusLightControls();});
 
@@ -1063,7 +1080,9 @@ function scheduleRender() {
       $('#render-status').hidden=true;
     } catch(error) {
       state.renderFailed=true;$('#render-status-text').textContent='预览未更新 · 已有编辑保留';$('#render-retry').hidden=false;
-    } finally { state.renderPending=false;refreshActions(); }
+    } finally { state.renderPending=false;refreshActions();
+      const queued=exportAfterPreview;if(queued){exportAfterPreview=null;if(!state.renderFailed&&queued.photoId===currentPhotoId&&queued.signature===currentEffectSignature()&&!document.querySelector('dialog[open]'))openExportDialog();else showToast('已应用调整，请确认当前效果后再导出。');}
+    }
   });
 }
 
@@ -1124,7 +1143,7 @@ function sizePhotoStage() {
   const availableHeight = window.innerWidth > 960
     ? backdrop.clientHeight - parseFloat(padding.paddingTop) - parseFloat(padding.paddingBottom)
     : Math.min(window.innerHeight * .65,660);
-  const maxHeight = Math.max(140,availableHeight);
+  const maxHeight = Math.max(140,innerWidth<=960?Math.min(availableHeight,innerHeight*.42):availableHeight);
   const stage = $('#photo-stage');
   stage.classList.toggle('cropped',Boolean(state.crop));
   stage.style.aspectRatio = `${width}/${height}`;
@@ -1144,7 +1163,7 @@ async function addPhotoSource(src,name,isDemo=false,activate=true,originalBlob=n
     originalRecommendations:null,assessment:null,exported:false,history:{past:[],future:[]},conversation:[],versions:[],agentBusy:false,agentFallback:false,agentDraft:'',agentFocusId:null
   };
     // Complete the first pixel read before adding a session. A failure cannot replace current work.
-    try {preparePhotoPreview(photo);} catch {throw new PhotoImportError('RESOURCE');}
+    try {preparePhotoPreview(photo);photo.analysis=onDemandReview(photo);photo.analysisStatus=isDemo?'example':'idle';} catch {throw new PhotoImportError('RESOURCE');}
     if(signal?.aborted)throw new PhotoImportError('CANCELLED');
     photoSessions.push(photo);
     renderPhotoTabs();
@@ -1478,7 +1497,7 @@ async function openVisionSettings() {
     if(editable)discoverLocalCodex();
     $('#vision-endpoint').value = settings.endpoint;
     $('#vision-api-key').placeholder = settings.hasKey ? '已配置密钥；留空保留' : '仅交给本机服务';
-    $('#vision-connection-summary').textContent = settings.connectionStatus === 'ready' ? `${settings.model} · 图片识别已验证` : settings.connectionStatus === 'error' ? `${settings.model} · ${settings.lastError?.message || '上次请求未完成'}` : settings.aiAvailable ? `${settings.model} · 已配置，等待验证` : '尚未配置视觉服务';
+    $('#vision-connection-summary').textContent = settings.connectionStatus === 'ready' ? `连接已验证 · 标准档 ${settings.model}` : settings.connectionStatus === 'error' ? `上次请求未完成 · ${settings.lastError?.message || '请重试'}` : settings.aiAvailable ? `${settings.model} · 已配置，等待验证` : '尚未配置视觉服务';
   } catch {
     $('#vision-connection-summary').textContent = '暂时无法读取连接状态';
     $('#vision-managed-note').textContent='连接状态暂时无法读取，请稍后重试。照片与已有调整均保留。';
@@ -1503,6 +1522,7 @@ async function connectVision(event) {
   const button = $('#vision-settings-connect');
   button.disabled = true;
   button.textContent = '正在验证图片识别…';
+  $('#quick-codex-connect').disabled=true;$('#quick-codex-connect').textContent='正在连接并校验图片…';
   $('#vision-settings-error').hidden = true;
   const timeout = setTimeout(() => controller.abort('timeout'),95_000);
   try {
@@ -1511,15 +1531,17 @@ async function connectVision(event) {
     if (!response.ok) {
       $('#vision-settings-error').textContent = normalizeVisionFailure(result).message;
       $('#vision-settings-error').hidden = false;
+      if(!$('#vision-settings-dialog').open)$('#vision-settings-dialog').showModal();
       return;
     }
     state.aiAvailable = result.aiAvailable;
     state.aiModel = result.model;
     $('#vision-api-key').value = '';
     $('#vision-settings-dialog').close();
-    showToast('图片识别校验通过，正在审阅当前照片。');
-    if (state.image) analyzeImage();
+    showToast('模型已连接。现在可以描述想改哪里。');
+    renderAgent();
   } catch {
+    if(!$('#vision-settings-dialog').open)$('#vision-settings-dialog').showModal();
     if ($('#vision-settings-dialog').open) {
       $('#vision-settings-error').textContent = controller.signal.reason === 'timeout' ? '连接验证等待超时，请重试。' : '未能连接本机服务，请检查网络后重试。';
       $('#vision-settings-error').hidden = false;
@@ -1529,6 +1551,7 @@ async function connectVision(event) {
     visionConfigBusy = false;
     button.disabled = false;
     button.textContent = '验证并连接';
+    $('#quick-codex-connect').disabled=false;$('#quick-codex-connect').textContent='使用本机 Codex';
   }
 }
 
@@ -1642,7 +1665,7 @@ function agentActionMarkup(message,index) {
   const stale=!applied && (notesChanged || (message.baseSignature && message.baseSignature!==currentEffectSignature()) || cleanIntent(message.baseIntent)!==cleanIntent(state.creativeIntent));
   const unavailable=action.kind==='region' && !state.annotations.some(item=>item.id===action.annotationId);
   const explanation=actionExplanation(action);
-  return `<div class="agent-action staged-action"><div class="agent-action-copy"><strong>${escapeHtml(explanation.goal)}</strong><small>${escapeHtml(explanation.scope)}</small><small>${escapeHtml(agentChanges(action))}</small></div><button type="button" data-agent-apply="${index}" ${applied || unavailable || stale ? 'disabled':''}>${unavailable ? '标记已删除':stale ? notesChanged ? '批注已更新 · 请重新提问':'目标或画面已变化 · 请重问':applied ? '已接受':'先预览'}</button></div>`;
+  return `<div class="agent-action staged-action"><div class="agent-action-copy"><strong>${escapeHtml(explanation.goal)}</strong><small>${escapeHtml(explanation.scope)}</small><small>${escapeHtml(agentChanges(action))}</small></div><button type="button" data-agent-apply="${index}" ${applied || unavailable || stale ? 'disabled':''}>${unavailable ? '标记已删除':stale ? notesChanged ? '批注已更新 · 请重新提问':'目标或画面已变化 · 请重问':applied ? '已应用':'先预览'}</button></div>`;
 }
 function agentChanges(action) {
   return action.kind==='style' ? `替换当前风格为「${presetById(action.presetId)?.name}」；其他调整保留`:action.kind==='crop' ? `保留约 ${Math.round(action.crop.width*action.crop.height*100)}% 原画幅；光色参数保持`:action.changes.map(item=>`${settingLabels[item.key] || item.key} ${item.value>0 ? '+':''}${Number(item.value.toFixed(2))}${item.key==='exposure' ? ' EV':''}`).join(' · ');
@@ -1752,6 +1775,9 @@ function renderAgentContext() {
   $('#agent-intent-edit').textContent=cleanIntent(state.creativeIntent) ? '已设目标':'调整目标';
   $('#agent-intent-edit').title=cleanIntent(state.creativeIntent) || '设置这张照片的调整目标';
   $('#agent-intent-edit').disabled=!photo;
+  $('#agent-connect-banner').hidden=!photo||state.aiAvailable;
+  $('#quick-codex-connect').hidden=state.visionConfigurationEditable===false;
+  $('#photo-export-shortcut').disabled=!photo||state.loading||state.renderPending||state.renderFailed;
   $('#agent-export').disabled=!photo || state.loading;
   $('#agent-view-photo').disabled=!photo;
   annotationPeek.refresh();
@@ -1835,11 +1861,26 @@ function renderAgent({follow=false}={}) {
   $('#agent-prompts').hidden=Boolean(photo?.conversation?.length);
   $('#agent-welcome').hidden=Boolean(photo?.conversation?.length);
   $('.right-panel').classList.toggle('has-conversation',Boolean(photo?.conversation?.length));
-  renderAnnotations();renderPanelGuidance();
+  renderAnnotations();renderPanelGuidance();renderPhotoProposal();
   if(newReply && reading.follow){const reply=[...thread.querySelectorAll('[data-reply-id]')].find(item=>item.dataset.replyId===newestReply);reading.offset=reply ? reply.getBoundingClientRect().top-thread.getBoundingClientRect().top+thread.scrollTop:0;reading.follow=false;}
   agentReading.set(photo?.id,reading);
   if(thread.clientHeight>0)restoreAgentReading();
 }
+function renderPhotoProposal(){
+  const photo=currentPhoto(),messages=photo?.conversation || [];
+  const index=messages.findLastIndex(m=>m.source==='ai'&&m.action&&m.action.kind!=='none'&&m.baseSignature===currentEffectSignature()&&cleanIntent(m.baseIntent)===cleanIntent(state.creativeIntent)&&!annotationsChanged(m,renderedAnnotations()));
+  const node=$('#photo-proposal');node.hidden=index<0;if(index<0)return;
+  const message=messages[index],explanation=actionExplanation(message.action);
+  $('#photo-proposal-goal').textContent=explanation.goal;$('#photo-proposal-detail').textContent=explanation.tradeoff || '先比较效果，满意后再应用。';
+  $('#photo-proposal-preview').dataset.messageIndex=String(index);
+}
+$('#photo-proposal-preview').addEventListener('click',event=>applyAgentAction(Number(event.currentTarget.dataset.messageIndex)));
+$('#photo-export-shortcut').addEventListener('click',()=>openExportDialog());
+$('#run-photo-review').addEventListener('click',()=>{if(!state.aiAvailable)openVisionSettings();else analyzeImage();});
+$('#quick-codex-connect').addEventListener('click',event=>{
+  $('#vision-settings-form').hidden=false;$('#vision-managed-note').hidden=true;$('#vision-provider').value='codex';updateVisionProvider();fillModelTiers(defaultModelTiers());$('#vision-remember').checked=true;connectVision(event);
+});
+
 function renderAgentProgress() {
   const photo=currentPhoto(),label=$('.agent-typing span'),partial=$('.agent-partial');
   if(!photo?.agentBusy||!label)return;
@@ -1970,6 +2011,8 @@ async function askDesignAgent(question, focusId = currentPhoto()?.agentFocusId) 
   scheduleDraftSave();
   if (currentPhoto() === photo) {
     renderAgent();
+    const latest=photo.conversation.at(-1);
+    if(canPreviewAdvisorResult({source,action:latest.action,photoId:photo.id,currentPhotoId,baseSignature:latest.baseSignature,currentSignature:currentEffectSignature(),baseIntent:latest.baseIntent,currentIntent:cleanIntent(state.creativeIntent),notesChanged:annotationsChanged(latest,renderedAnnotations()),dialogOpen:Boolean(document.querySelector('dialog[open]')),draft:photo.agentDraft || '',tab:workspaceSpace==='studio'?studioTab:'learn'}))applyAgentAction(photo.conversation.length-1);
     $('#agent-live').textContent = `${source === 'ai' ? '审美顾问' : '本地引导'}已回复${answer.action.kind!=='none' ? '，可先预览建议':''}。${annotationsChanged(photo.conversation.at(-1),renderedAnnotations()) ? '批注已更新，请围绕最新内容继续提问。':''}`;
   }
 }
@@ -1982,7 +2025,8 @@ function cancelAdvisor() {
 }
 function updateAdvisorAccept(){
   const pending=pendingAdvisorPreview,photo=photoSessions.find(p=>p.id===pending?.photoId);
-  $('#advisor-preview-accept').disabled=!advisorPreviewReady||Boolean(photo?.projectId&&(!pending?.projectCandidate||pending?.projectBusy));
+  const disabled=!advisorPreviewReady||Boolean(pending?.accepting)||Boolean(photo?.projectId&&(!pending?.projectCandidate||pending?.projectBusy));
+  $('#advisor-preview-accept').disabled=disabled;$('#advisor-preview-export').disabled=disabled;
 }
 async function syncProjectPreview(pending){
   const photo=photoSessions.find(p=>p.id===pending.photoId);if(!photo?.projectId)return;
@@ -2044,25 +2088,29 @@ $('#advisor-preview-strength').addEventListener('input',()=>{
 });
 $('#advisor-preview-cancel').addEventListener('click',()=>$('#advisor-preview-dialog').close());
 $('#advisor-preview-dialog').addEventListener('close',()=>{const pending=pendingAdvisorPreview;if(pending){clearTimeout(pending.projectTimer);if(!pending.projectAccepted&&!pending.projectAccepting)projectWorkspace.discard(photoSessions.find(p=>p.id===pending.photoId),pending.projectCandidate);}pendingAdvisorPreview=null;});
-$('#advisor-preview-accept').addEventListener('click',async()=>{
-  const pending=pendingAdvisorPreview;
+async function acceptAdvisorPreview(exportAfter=false){
+  const pending=pendingAdvisorPreview;if(!pending||pending.accepting)return;
   if(pending?.review!==state.analysis || !previewStillValid(pending,{photoId:currentPhotoId,signature:currentEffectSignature(),intent:state.creativeIntent})){showToast('照片或目标已变化，请重新预览。');$('#advisor-preview-dialog').close();return;}
   const message=pending.messageId ? currentPhoto().conversation.find(item=>item.id===pending.messageId):null;
   if(pending.messageId && !message)return;
   if(message && annotationsChanged(message,renderedAnnotations())){showToast('批注已更新，请重新提问与预览。');$('#advisor-preview-dialog').close();return;}
   const photo=currentPhoto();
+  if(photo.projectId&&(!pending.projectCandidate||pending.projectBusy))return;
+  pending.accepting=true;updateAdvisorAccept();
   if(photo.projectId){
-    if(!pending.projectCandidate||pending.projectBusy)return;
     pending.projectAccepting=true;$('#advisor-preview-accept').disabled=true;
     try{
       const data=await projectWorkspace.accept(photo,pending.projectCandidate,pending.projectPatch);pending.projectAccepted=true;
       if(currentPhotoId!==photo.id){applySharedProject(photo,data);showToast('已应用文件项目中的调整。');return;}
-    }catch(error){$('#advisor-preview-progress').textContent=error.message;pending.projectAccepting=false;updateAdvisorAccept();return;}
+    }catch(error){$('#advisor-preview-progress').textContent=error.message;pending.projectAccepting=false;pending.accepting=false;updateAdvisorAccept();return;}
   }
   restoreEdit(pending.candidate);if(message)message.applied=true;saveEdit(pending.before);
   $('#advisor-preview-dialog').close();renderAgent();buildPresetThumbs(state.image);renderPresets();
   showToast('已应用调整，可继续微调或撤销。');
-});
+  if(exportAfter){exportAfterPreview={photoId:photo.id,signature:currentEffectSignature()};if(!state.renderPending&&!state.renderFailed){exportAfterPreview=null;openExportDialog();}}
+}
+$('#advisor-preview-accept').addEventListener('click',()=>acceptAdvisorPreview());
+$('#advisor-preview-export').addEventListener('click',()=>acceptAdvisorPreview(true));
 
 function selectTab(name) {
   annotationPeek.hide();
@@ -2072,7 +2120,7 @@ function selectTab(name) {
   if(previous!=='agent')inspectorPositions[previous]=scroller.scrollTop;
   studioTab=editorTab(name);showWorkspaceSpace('studio');
   $('.right-panel').dataset.view=studioTab;
-  const headings={diagnosis:'审阅照片',adjust:'调整照片',agent:'审美顾问'};
+  const headings={diagnosis:'详细分析',adjust:'手动调整',agent:'对话修图'};
   document.querySelectorAll('.panel-tab').forEach(tab=>{
     const selected=tab.dataset.tab===studioTab;
     tab.classList.toggle('active',selected);tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected ? 0:-1;
@@ -2084,7 +2132,7 @@ function selectTab(name) {
   $('#inspector-description').textContent=studioTab==='adjust' ? '可以选择风格，也可以直接调整光色和细节。':'看看分析结果，试试调整效果。';
   $('#analysis-source-button').hidden=studioTab!=='diagnosis';
   $('#analysis-mode').hidden=studioTab!=='diagnosis';
-  if(['adjust','agent'].includes(studioTab)){buildPresetThumbs(state.image);renderPresets();}
+  if(studioTab==='adjust'){buildPresetThumbs(state.image);renderPresets();}
   if(studioTab==='agent')renderAgent();
   renderAnalysisStatus();refreshActions();
   scroller.scrollTop=studioTab==='agent' ? 0:inspectorPositions[studioTab] || 0;
@@ -2174,6 +2222,7 @@ function updateExportInfo() {
   $('#export-quality-row').hidden=options.format==='png';$('#export-artwork').hidden=!options.includeArtwork;
   $('#export-dimensions').innerHTML=photos.map(photo=>{const g=outputGeometry(photo.crop,photo.image.naturalWidth,photo.image.naturalHeight,options.maxSide);return `<li><span>${escapeHtml(photo.imageName)}</span><strong>${g.width} × ${g.height}<small>${g.original ? '裁剪后原尺寸':'已缩小'}${options.dpi>=240 ? ` · ${printCentimeters(g.width,options.dpi).toFixed(1)} × ${printCentimeters(g.height,options.dpi).toFixed(1)} cm`:''}</small></strong></li>`;}).join('');
   $('#export-info').textContent=photos.length>1 ? '每张照片保留各自的裁剪与调整。完成后可打包下载，失败照片可单独重试。':'调整写入新文件，原片保留。生成期间可以继续编辑。';
+  if(photos.length===1&&photos[0].projectId)$('#export-info').textContent+=' 成片也会保存在 '+photos[0].projectPath+'/exports/。';
 }
 function triggerDownload(blob,name) {
   const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60_000);
@@ -2273,12 +2322,12 @@ async function processImportRows(rows) {
       prepare:(file,signal)=>preparePhotoFile(file,{signal}),
       capacity:()=>({count:photoSessions.length,pixels:photoSessions.reduce((sum,photo)=>sum+photo.image.naturalWidth*photo.image.naturalHeight,0)}),
       commit:async(file,metadata,signal,original)=>{
-        // Normalize MIME only. Original bytes, EXIF and color profile are preserved.
+        // Keep original bytes separately when a HEIC working copy was converted.
         const blob=file.slice(0,file.size,metadata.mime),url=URL.createObjectURL(blob);
         const photo=await addPhotoSource(url,file.name.replace(/\.[^.]+$/,''),false,false,blob,{metadata,signal,strict:true});
         photo.originalFileName=original.name;
         if(original!==file)photo.sourceOriginalBlob=original;
-        newPhotos.push(photo);analyzeImage(photo);scheduleDraftSave();
+        newPhotos.push(photo);scheduleDraftSave();
         return {id:photo.id,width:photo.image.naturalWidth,height:photo.image.naturalHeight};
       },
       onChange:renderImportStatus
@@ -3082,6 +3131,7 @@ $('#version-items').addEventListener('click',event=>{
 });
 
 function renderDraftStatus() {
+  if(currentPhoto()?.projectId){$('#draft-status').textContent='浏览器草稿';$('#draft-status').title='当前照片保存在文件项目中；这里可查看其他浏览器草稿。';$('#draft-status').classList.remove('save-failed');return;}
   const own=Boolean(currentPhoto() && !currentPhoto().isDemo);
   $('#draft-status').textContent=draftFailed ? '保存失败 · 重试':draftSaving || draftDirty ? '保存中…':draftSavedAt && own ? '草稿已保存':own ? '等待保存':'草稿';
   $('#draft-status').classList.toggle('save-failed',draftFailed);
@@ -3193,12 +3243,14 @@ async function initialize() {
   refreshVisionAvailability(statusController.signal).then(()=>renderAgent())
     .catch(()=>{}).finally(()=>clearTimeout(statusTimeout));
   renderAgent();
-  await projectWorkspace.capabilities();
+  const capabilities=await projectWorkspace.capabilities();
+  $('#empty-projects').hidden=!capabilities.local;
+  document.querySelector('[data-workspace-tool="projects"]').hidden=!capabilities.local;
   const linkedProject=new URL(location.href).searchParams.get('project');
   if(linkedProject){try{const loaded=await projectWorkspace.load(linkedProject);if(!loaded)showEmptyWorkspace();return;}catch(error){showToast(error.message);}}
   await refreshDraftList();
   if(draftList.some(item=>!item.deletedAt)){showEmptyWorkspace();renderDraftList();}
-  else await addPhotoSource('/assets/alpine-demo.png','清晨的山脊',true);
+  else showEmptyWorkspace();
 }
 initialize();
 
@@ -3233,7 +3285,7 @@ function renderEditions() {
   $('#edition-compare').disabled=versionSelections.length!==2;
   $('#edition-storage-note').textContent=photo?.isDemo ? '示例版本仅在当前页面暂存；导入照片后的版本随草稿自动保存。' : '版本随照片草稿保存；恢复可撤销，不会修改原始文件。';
 }
-$('#versions-open').addEventListener('click',()=>{if(!state.image)return;finishRangeEdit();finishAnnotationNote();renderEditions();$('#versions-dialog').showModal();});
+$('#versions-open').addEventListener('click',()=>{if(!state.image)return;finishRangeEdit();finishAnnotationNote();if(currentPhoto()?.projectId){projectWorkspace.open('versions');return;}renderEditions();$('#versions-dialog').showModal();});
 $('#versions-close').addEventListener('click',()=>$('#versions-dialog').close());
 $('#edition-save').addEventListener('click',()=>{if(captureVersion('manual',$('#edition-name').value.trim() || `方案 ${currentPhoto().versions.length+1}`)){$('#edition-name').value='';showToast('已保存独立版本，可以继续尝试。');}});
 $('#edition-items').addEventListener('change',event=>{const id=event.target.dataset.editionSelect;if(!id)return;versionSelections=versionSelections.filter(value=>value!==id);if(event.target.checked)versionSelections.push(id);versionSelections=versionSelections.slice(-2);renderEditions();});
@@ -3305,6 +3357,7 @@ function renderCreativeIntent() {
 }
 function setCreativeIntent(value) {
   const photo=currentPhoto();if(!photo)return;
+  saveCurrentPhoto({finish:false});
   const next=cleanIntent(value);if(next===cleanIntent(state.creativeIntent))return;
   state.creativeIntent=next;photo.creativeIntent=next;
   cancelReassessment('intent');
@@ -3312,7 +3365,7 @@ function setCreativeIntent(value) {
   for(const task of analysisQueue.tasks.filter(item=>item.photoId===photo.id && ['queued','running'].includes(item.status)))analysisQueue.cancel(task.id,'superseded');
   reassessGeneration++;state.assessmentBusy=false;state.assessment=null;
   renderCreativeIntent();renderPresets();renderAgent();renderDiagnosis();scheduleDraftSave();
-  if(state.aiAvailable)analyzeImage(photo);
+  photo.analysis=onDemandReview(photo,{keepApplied:true});photo.analysisSource='local';photo.analysisStatus='idle';photo.analysisProvenance=null;photo.originalRecommendations=null;photo.analysisIntent=next;reflectPhotoAnalysis(photo);
   $('#agent-live').textContent=next ? `这张照片的调整目标：${next}。顾问将优先考虑这一目标。`:'已清除这张照片的调整目标。';
 }
 function renderIntentQuestion() {
