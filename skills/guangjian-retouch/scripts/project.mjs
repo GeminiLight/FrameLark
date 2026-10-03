@@ -11,8 +11,7 @@ import {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,object,equal} fro
 import {hash,legacyHash,pipelineVersion,selectionIdentity} from './engine/edit-identity.js';
 import {normalizePlan,compileSelection,checkProtectedCrop,snapshotItem} from './engine/edit-plan.js';
 import {emptyGuards,guardsOf,assertGuards,lockState,unlockState,validateGuards,geometryOf,mergeRestoreGuards} from './engine/edit-guards.js';
-import {protectionMask,assertNonOverlappingReferences} from './engine/protected-regions.js';
-import {validateReferences,verifyReferences,writeReferenceSnapshot,assertReferenceComplexity,protectionLimits} from './reference-store.mjs';
+import {validateReferences,verifyReferences,protectionLimits} from './reference-store.mjs';
 export {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,hash};
 const text=(v,max=300)=>String(v??'').trim().slice(0,max),id=()=>randomUUID(),now=()=>new Date().toISOString();
 const fingerprint=p=>hash({current:p.currentId,state:currentVersion(p)?.state,source:p.source,intent:p.intent,notes:p.notes,pipeline:pipelineVersion});
@@ -162,12 +161,21 @@ export const selectCandidateItems=(folder,value)=>mutate(folder,value.revision,a
 
 // Lock/protect creates a no-pixel-change accepted version. Unlock is always a
 // candidate because removing a final composite can reveal previously hidden edits.
-export const changeGuards=(folder,value)=>mutate(folder,value.revision,async(p,root)=>{
+function validateGuardChange(value) {
   const fields={lock:['parameters','localIds'],unlock:['parameterKeys','localIds','regionIds'],protect:['rect','coordinateSpace','maskType','feather']};
   if(!value||!Object.hasOwn(fields,value.operation))fail('INVALID_GUARD_OPERATION','保护操作支持 lock、protect、unlock。');
   object(value,['revision','operation','name',...fields[value.operation]]);
   if(value.name!==undefined&&typeof value.name!=='string')fail('INVALID_PLAN','保护名称必须是字符串。');
   if(!Number.isInteger(value.revision))fail('STALE_REVISION','保护操作需填写最新 revision。');
+}
+export async function changeGuards(folder,value,{prepare}={}) {
+  validateGuardChange(value);
+  if(value.operation==='protect'){
+    const {prepareProtection}=await import('./protection-preparation.mjs');
+    const prepared=await (prepare||prepareProtection)(folder,value);
+    return commitProtection(folder,value,prepared);
+  }
+  return mutate(folder,value.revision,async(p,root)=>{
   const base=currentVersion(p);let state;
   if(value.operation==='lock') state=lockState(base.state,value);
   else if(value.operation==='unlock'){
@@ -175,26 +183,34 @@ export const changeGuards=(folder,value)=>mutate(folder,value.revision,async(p,r
     if(p.candidates.length>=8)fail('CANDIDATE_LIMIT','请先接受或取消一个候选。');
     const candidate={id:id(),name:text(value.name,40)||'解除保护预览',mode:'guards',parentId:base.id,baseRevision:p.revision,createdAt:now(),baseFingerprint:fingerprint(p),state,items:[{id:'unlock',title:'解除所选保护',dependsOn:[],writePaths:['guards']}],selectedItemIds:['unlock'],guardOperation:{parameterKeys:value.parameterKeys||[],localIds:value.localIds||[],regionIds:value.regionIds||[]},legacy:false,noChange:false,warnings:['解除区域保护可能显露此前被覆盖的效果，请检查预览。']};
     candidate.selectionHash=selectionIdentity(base,candidate);await verifyReferences(root,p,state);p.candidates.push(candidate);return {candidate};
-  }else if(value.operation==='protect'){
-    if(guardsOf(base.state).regions.length>=8)fail('PROTECTION_LIMIT','最多保留 8 个保护区域。');
-    state=structuredClone(base.state);state.guards=structuredClone(guardsOf(state));
-    const sourceRect=outputGeometry(base.state.crop,p.source.width,p.source.height,1400).rect;
-    const viewCrop={x:sourceRect.x/p.source.width,y:sourceRect.y/p.source.height,width:sourceRect.width/p.source.width,height:sourceRect.height/p.source.height,angle:base.state.crop?.angle||0};
-    const region={id:id(),name:text(value.name,60)||'保留画面',referenceVersionId:base.id,sourceChecksum:p.source.checksum,normalizedChecksum:p.source.normalizedChecksum,pipeline:pipelineVersion,geometry:geometryOf(base.state),referenceStateHash:hash(base.state),mask:protectionMask(value,viewCrop,p.source)};
-    assertNonOverlappingReferences([...state.guards.regions,region]);
-    assertReferenceComplexity(p,{...state,guards:{...state.guards,regions:[...state.guards.regions,region]}});
-    const {renderFrame}=await import('./render.mjs');
-    const frame=await renderFrame(root,base.id,{maxSide:1400});
-    const clean=(base.state.textOverlays?.length||guardsOf(base.state).regions.length)?await renderFrame(root,base.id,{maxSide:1400,withoutText:true}):frame;
-    region.snapshot=await writeReferenceSnapshot(root,region.id,frame);
-    region.cleanSnapshot=await writeReferenceSnapshot(root,region.id,clean,true);
-    state.guards.regions.push(region);
   }else fail('INVALID_GUARD_OPERATION','保护操作支持 lock、protect、unlock。');
   if(equal(state,base.state))fail('NO_CHANGE','所选保护已经生效。');
   await verifyReferences(root,p,state);
   const version={id:id(),name:text(value.name,40)||(value.operation==='protect'?'保留画面效果':'锁定参数'),mode:'guards',parentId:base.id,createdAt:now(),acceptedAt:now(),state};
   p.versions.push(version);p.currentId=version.id;return {version};
 });
+}
+export async function commitProtection(folder,value,prepared) {
+  const {verifyPreparedProtection,discardPreparedProtection}=await import('./protection-preparation.mjs');
+  try {
+    return await mutate(folder,value.revision,async(p,root)=>{
+      if(prepared.revision!==p.revision||prepared.baseId!==p.currentId||prepared.projectHash!==hash(p))fail('STALE_REVISION','保护准备期间项目已更新，请重新读取后再保护。');
+      validateReferences(p,prepared.state);
+      await verifyPreparedProtection(root,prepared);
+      const version={id:id(),name:text(value.name,40)||'保留画面效果',mode:'guards',parentId:p.currentId,createdAt:now(),acceptedAt:now(),state:prepared.state};
+      p.versions.push(version);p.currentId=version.id;return {version};
+    });
+  } catch(error) {
+    // A duplicate commit or an uncertain write outcome may already have made
+    // these files live. Recheck ownership under the same lock before cleanup.
+    await locked(folder,async root=>{
+      const p=await loadProject(root),referencedPaths=new Set();
+      for(const v of [...p.versions,...p.candidates])for(const r of guardsOf(v.state).regions)for(const snapshot of [r.snapshot,r.cleanSnapshot])referencedPaths.add(snapshot.path);
+      await discardPreparedProtection(root,prepared,referencedPaths);
+    }).catch(()=>{}); // On an unreadable project, retain files rather than risk data loss.
+    throw error;
+  }
+}
 
 export async function saveNote(folder,value) {
   return mutate(folder,value.revision,p=>{let note=p.notes.find(n=>n.id===value.id);if(value.id&&!note)fail('NOTE_NOT_FOUND','这处批注已经删除。请读取最新批注。');

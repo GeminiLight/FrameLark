@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {initProject,loadProject,publicProject,currentVersion,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,recordExport,fail,localFailure} from './project.mjs';
-import {previewPhoto,exportPhoto} from './render.mjs';
+import {previewPhoto,exportPhoto,createRenderSession} from './render.mjs';
 import {editorControlReference} from './engine/control-reference.js';
 import {letteringCapabilities} from './text-overlays.mjs';
 const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
@@ -29,7 +29,7 @@ const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <comman
   serve:'[--port 0] [--session-file <private-json-file>]；仅监听 127.0.0.1，按 Ctrl+C 停止'
 },notes:['工具只在本地处理像素；审片与对话由宿主 Agent 进行。','JPEG/PNG/WebP/AVIF 输入；8 位 sRGB，PNG/JPEG 输出，8192 px / 1600 万像素上限。','原片字节和编辑方案独立保存；已有文件不会被导出覆盖。']};
 function args(values){const opts={};for(let i=0;i<values.length;i++){if(!values[i].startsWith('--')||values[i+1]===undefined||values[i+1].startsWith('--'))fail('ARGUMENT','每个选项需要一个值；运行 help 查看用法。');opts[values[i].slice(2)]=values[++i];}return opts;}
-async function inspectPreview(folder,key,options){try{return await previewPhoto(folder,key,options);}catch(error){if(!error.code)throw error;return {error:localFailure(error),available:false};}}
+async function inspectPreview(session,key,options){try{return await session.previewPhoto(key,options);}catch(error){if(!error.code)throw error;return {error:localFailure(error),available:false};}}
 async function input(file){if(!file)fail('INPUT_REQUIRED','请用 --input 提供 JSON 文件，或 - 从标准输入读取。');let bytes='';if(file==='-'){for await(const part of process.stdin){bytes+=part;if(bytes.length>65536)fail('INPUT_SIZE','方案 JSON 超过 64 KB，请缩短内容。');}}else bytes=await readFile(path.resolve(file),'utf8');if(Buffer.byteLength(bytes)>65536)fail('INPUT_SIZE','方案 JSON 超过 64 KB，请缩短内容。');try{return JSON.parse(bytes);}catch{fail('INVALID_JSON','JSON 无法读取，请检查格式后重试。');}}
 export async function runCLI(values=process.argv.slice(2)) {
   const [command='help',...rest]=values;if(['help','--help','-h'].includes(command))return help;
@@ -40,7 +40,7 @@ export async function runCLI(values=process.argv.slice(2)) {
   if(!folder)fail('PROJECT_REQUIRED','请用 --project 指定照片项目目录。');
   switch(command){
     case 'init':if(!o.image)fail('IMAGE_REQUIRED','请用 --image 指定原片。');return initProject(o.image,folder,{intent:o.intent});
-    case 'inspect':{const p=await loadProject(folder),preview=await inspectPreview(folder,'current'),original=await inspectPreview(folder,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(folder,'original',{region:note.rect}),current:await inspectPreview(folder,'current',{region:note.rect})});}return {folder,project:{...p,versions:p.versions.map(({id,name,parentId,createdAt})=>({id,name,parentId,createdAt})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
+    case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,project:{...p,versions:p.versions.map(({id,name,parentId,createdAt})=>({id,name,parentId,createdAt})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
     case 'preview':return previewPhoto(folder,o.version||'current',{maxSide:o['max-side']?Number(o['max-side']):1400,region:o.region?JSON.parse(o.region):undefined,withoutText:o['without-text']==='true'});
     case 'lettering':{const plan=await input(o.input);if(plan.mode!=='lettering'||!Array.isArray(plan.textOverlays)||['settings','style','crop','locals'].some(k=>plan[k]!==undefined))fail('LETTERING_PLAN','文字模式需 mode: lettering 和 textOverlays；光色、局部和裁剪请在修片候选中调整。');const result=await createCandidate(folder,plan);return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'candidate':{const result=await createCandidate(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id)};}

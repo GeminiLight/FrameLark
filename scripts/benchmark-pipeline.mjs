@@ -1,0 +1,45 @@
+import {performance} from 'node:perf_hooks';
+import {mkdir,writeFile,mkdtemp} from 'node:fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import {fileURLToPath} from 'node:url';
+import {createRequire} from 'node:module';
+const repo=process.env.PERF_REPO||fileURLToPath(new URL('../',import.meta.url));
+const root=path.join(repo,'skills/guangjian-retouch');
+const data=process.env.PERF_DATA||await mkdtemp(path.join(os.tmpdir(),'frameyn-benchmark-'));
+console.log(JSON.stringify({data,repo,label:process.env.PERF_LABEL||'working-tree'}));
+const require=createRequire(path.join(root,'package.json')),sharp=require('sharp');
+const {initProject,loadProject,createCandidate,acceptCandidate,changeGuards,saveNote}=await import(path.join(root,'scripts/project.mjs'));
+const {renderFrame}=await import(path.join(root,'scripts/render.mjs'));
+const {runCLI}=await import(path.join(root,'scripts/cli.mjs'));
+const {renderPixels}=await import(path.join(root,'scripts/engine/editor-engine.js'));
+const {compositeProtectedRegions,protectionMask}=await import(path.join(root,'scripts/engine/protected-regions.js'));
+const results=[];
+async function timed(label,fn,reps=1){const times=[];let result;for(let i=0;i<reps;i++){const t=performance.now();result=await fn();times.push(Number((performance.now()-t).toFixed(2)));}const row={label,ms:times,rssMiB:Number((process.memoryUsage().rss/1048576).toFixed(1)),...(result?.width?{width:result.width,height:result.height}: {})};results.push(row);console.log(JSON.stringify(row));return result;}
+function fixture(w,h){const p=new Uint8ClampedArray(w*h*4);let random=17;for(let y=0;y<h;y++)for(let x=0;x<w;x++){random=(Math.imul(random,1664525)+1013904223)>>>0;const noise=(random>>>24)&15,i=(y*w+x)*4;p[i]=30+x/w*190+noise;p[i+1]=30+y/h*180+noise;p[i+2]=40+(x+y)/(w+h)*160+noise;p[i+3]=255;}return p;}
+const W=2400,H=1600,pixels=fixture(W,H);await mkdir(data,{recursive:true});
+const source=path.join(data,'source.png');await sharp(Buffer.from(pixels),{raw:{width:W,height:H,channels:4}}).png().toFile(source);
+const folder=path.join(data,'project');await timed('init-3.84MP',()=>initProject(source,folder));
+const neutral=await timed('render-neutral-1400',()=>renderFrame(folder,'current',{maxSide:1400}),3);
+await timed('render-neutral-full',()=>renderFrame(folder,'current',{maxSide:8192}),2);
+let p=await loadProject(folder);const protect=await timed('protect-save-and-verify-1400',()=>changeGuards(folder,{revision:p.revision,operation:'protect',rect:{x:.1,y:.1,width:.2,height:.2},feather:.08}));
+p=await loadProject(folder);let c=await createCandidate(folder,{revision:p.revision,baseVersion:p.currentId,settings:{exposure:.25,contrast:12,warmth:6,grain:8,clarity:10,sharpen:15,denoise:10}});await acceptCandidate(folder,{id:c.candidate.id,revision:c.project.revision,selectionHash:c.candidate.selectionHash});
+await timed('render-protected-detail-1400',()=>renderFrame(folder,'current',{maxSide:1400}),3);
+await timed('render-protected-detail-full',()=>renderFrame(folder,'current',{maxSide:8192}),2);
+await timed('inspect-no-notes',()=>runCLI(['inspect','--project',folder]));
+for(let i=0;i<4;i++){p=await loadProject(folder);await saveNote(folder,{revision:p.revision,rect:{x:.1+i*.15,y:.5,width:.1,height:.1},note:'synthetic benchmark'});}
+await timed('inspect-four-notes',()=>runCLI(['inspect','--project',folder]));
+await timed('render-region-small-full-pipeline',()=>renderFrame(folder,'current',{region:{x:.1,y:.1,width:.1,height:.1},maxSide:1400}),2);
+const w=1400,h=933,raw=neutral.pixels,sourceSpec={width:w,height:h};
+await timed('pure-render-noop-1.306MP',()=>renderPixels(raw,w,h,{}),3);
+await timed('pure-render-tone-1.306MP',()=>renderPixels(raw,w,h,{exposure:.25,contrast:12,warmth:6}),3);
+await timed('pure-render-detail-1.306MP',()=>renderPixels(raw,w,h,{clarity:10,sharpen:15,denoise:10}),3);
+const makeRegion=(id,x=.1)=>({referenceVersionId:id,mask:protectionMask({rect:{x,y:.1,width:.15,height:.15},feather:.08},null,sourceSpec)});
+const region=makeRegion('a'),refs=new Map([['a',raw],['b',raw],['c',raw],['d',raw]]);
+await timed('pure-protection-one-small-region-1.306MP',()=>compositeProtectedRegions(raw,w,h,[region],refs,null,sourceSpec),3);
+await timed('pure-protection-four-same-reference-1.306MP',()=>compositeProtectedRegions(raw,w,h,[.1,.3,.5,.7].map(x=>makeRegion('a',x)),refs,null,sourceSpec),3);
+await timed('pure-protection-four-distinct-reference-1.306MP',()=>compositeProtectedRegions(raw,w,h,['a','b','c','d'].map((id,i)=>makeRegion(id,.1+i*.2)),refs,null,sourceSpec),3);
+const bigW=3265,bigH=4898,big=fixture(bigW,bigH),bigSource={width:bigW,height:bigH};
+await timed('pure-protection-one-small-region-15.992MP',()=>compositeProtectedRegions(big,bigW,bigH,[region],new Map([['a',big]]),null,bigSource),2);
+await timed('pure-protection-four-distinct-reference-15.992MP',()=>compositeProtectedRegions(big,bigW,bigH,['a','b','c','d'].map((id,i)=>makeRegion(id,.1+i*.2)),new Map(['a','b','c','d'].map(id=>[id,big])),null,bigSource));
+await writeFile(path.join(data,'results.json'),JSON.stringify({snapshot:process.env.PERF_LABEL||'working-tree',node:process.version,arch:process.arch,synthetic:true,results},null,2));

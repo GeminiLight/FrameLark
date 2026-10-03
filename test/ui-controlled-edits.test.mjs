@@ -183,7 +183,7 @@ test('UI mutation queue and preview identity complete a real HTTP selection-to-a
   const url = new URL(server.session.url), base = url.origin;
   const headers = {'X-Guangjian-Token':new URLSearchParams(url.hash.slice(1)).get('token'), 'Content-Type':'application/json'};
   async function api(route, value) { return fetch(base+'/api/'+route, {headers, ...(value ? {method:'POST', body:JSON.stringify(value)} : {})}); }
-  for (const route of ['/app.js','/controlled-edits.js','/controlled-edits-model.js','/lettering.js','/engine/crop-utils.js']) {
+  for (const route of ['/app.js','/controlled-edits.js','/controlled-edits-model.js','/preview-requests.js','/lettering.js','/engine/crop-utils.js']) {
     const response = await fetch(base+route); assert.equal(response.status,200,route); assert.match(response.headers.get('content-type'), /javascript/);
   }
   let project = await (await api('project')).json(), candidate = project.candidates[0], errors = [];
@@ -302,4 +302,109 @@ test('merged UI retains upstream recovery and refinement controls alongside prot
   assert.match(app,/fromCandidate:manualSource\.fromCandidate/);assert.match(app,/fromCandidate:localDraft\.source\.fromCandidate/);
   assert.match(app,/getBase:\(\)=>showing\(\)/);assert.match(lettering,/refinementSourceMatches\(sourceIdentity,getProject\(\)\)/);
   assert.match(lettering,/hasLetteringContent\(state\)/);assert.match(css,/\.photo-stage\.is-comparing/);
+});
+
+// Exercise the same DOM-free request coordinators used by app.js. Pending and
+// decoded previews both retain their exact revision/hash/view identity.
+test('repeated high-resolution zooms share one request and reuse the displayed preview', async () => {
+  const {createPreviewRequests}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const requests=createPreviewRequests(), first=deferred(), controllers=[];
+  const render=controller=>{controllers.push(controller);return first.promise;};
+  const pending=requests.load(identity(),8192,render);
+  assert.equal(requests.load(identity(),8192,render),pending);
+  assert.equal(requests.load(identity(),1400,render),pending);
+  await Promise.resolve();assert.equal(controllers.length,1);assert.equal(controllers[0].signal.aborted,false);
+  first.resolve(true);assert.equal(await pending,true);
+  assert.equal(await requests.load(identity(),8192,render),true);
+  assert.equal(await requests.load(identity(),1400,render),true);
+  assert.equal(controllers.length,1);assert.equal(controllers[0].signal.aborted,false);
+});
+
+test('detail upgrades replace low-resolution work once and stale completion cannot clear newer in-flight work', async () => {
+  const {createPreviewRequests}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const requests=createPreviewRequests(), low=deferred(), high=deferred(), controllers=[];
+  const initial=requests.load(identity(),1400,controller=>{controllers.push(controller);return low.promise;});
+  await Promise.resolve();
+  const upgrade=requests.load(identity(),8192,controller=>{controllers.push(controller);return high.promise;});
+  await Promise.resolve();assert.equal(controllers[0].signal.reason,'replaced');
+  low.resolve(true);assert.equal(await initial,false);
+  assert.equal(requests.load(identity(),8192,()=>{throw Error('duplicate');}),upgrade);
+  assert.equal(controllers[1].signal.aborted,false);
+  high.resolve(true);await upgrade;
+  assert.equal(await requests.load(identity(),8192,()=>{throw Error('duplicate');}),true);
+});
+
+test('every preview identity component defeats reuse and explicit invalidation permits same-identity reloads', async () => {
+  const {createPreviewRequests}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  for(const key of ['version','candidateId','selectionHash','revision','view','currentId']){
+    const requests=createPreviewRequests(), old=deferred();let controller;
+    const pending=requests.load(identity(),8192,value=>{controller=value;return old.promise;});
+    await Promise.resolve();
+    assert.equal(await requests.load(identity({[key]:'changed'}),8192,async()=>true),true,key);
+    assert.equal(controller.signal.reason,'replaced',key);old.resolve(true);await pending;
+    let fresh=0;await requests.load(identity(),8192,async()=>{fresh++;return true;});assert.equal(fresh,1,key);
+    requests.invalidate();await requests.load(identity(),8192,async()=>{fresh++;return true;});assert.equal(fresh,2,key);
+  }
+});
+
+test('failed, aborted and invalidated image requests are retryable and never become reusable previews', async () => {
+  const {createPreviewRequests}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const requests=createPreviewRequests();let calls=0;
+  await assert.rejects(requests.load(identity(),8192,async()=>{calls++;throw Error('network failure');}),/network failure/);
+  assert.equal(await requests.load(identity(),8192,async()=>{calls++;return false;}),false);
+  assert.equal(await requests.load(identity(),8192,async controller=>{calls++;controller.abort('timeout');return true;}),false);
+  const cancelled=requests.load(identity(),8192,async()=>{throw Error('must not dispatch after invalidation');});
+  requests.invalidate();assert.equal(await cancelled,false);
+  await requests.load(identity(),8192,async()=>{calls++;return true;});assert.equal(calls,4);
+});
+
+function pollTimers(){
+  let serial=0;const timers=new Map();
+  return {
+    schedule(fn){const id=++serial;timers.set(id,fn);return id;},cancel(id){timers.delete(id);},
+    size:()=>timers.size,
+    tick(){assert.equal(timers.size,1);const [id,fn]=timers.entries().next().value;timers.delete(id);return fn();},
+  };
+}
+
+test('project polling never overlaps a slow read or image update and start is idempotent', async()=>{
+  const {createProjectPoller}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const timers=pollTimers(), read=deferred(), updated=deferred();let reads=0,updates=0,connected=0;
+  const poller=createProjectPoller({...timers,read:()=>{reads++;return read.promise;},getProject:()=>({revision:1}),blocked:()=>false,update:()=>{updates++;return updated.promise;},connected:()=>connected++});
+  poller.start();poller.start();assert.equal(timers.size(),1);
+  const pending=timers.tick();poller.start();assert.equal(timers.size(),0);assert.equal(reads,1);
+  read.resolve({revision:2});await Promise.resolve();assert.equal(updates,1);assert.equal(timers.size(),0);
+  updated.resolve();await pending;assert.equal(timers.size(),1);assert.equal(connected,1);
+  poller.stop();assert.equal(timers.size(),0);
+});
+
+test('project polling recovers from an initially disconnected project and retries later failures', async()=>{
+  const {createProjectPoller}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const timers=pollTimers(), failures=[], previousProjects=[];let project,attempt=0,connections=0;
+  const poller=createProjectPoller({...timers,read:async()=>{if(++attempt%2)throw Error('disconnected');return {revision:0,currentId:'saved'};},getProject:()=>project,blocked:()=>false,
+    update:async(next,previous)=>{previousProjects.push(previous);project=next;},connected:()=>connections++,onError:error=>failures.push(error.message)});
+  poller.start();await timers.tick();assert.equal(project,undefined);assert.equal(timers.size(),1);
+  await timers.tick();assert.deepEqual(previousProjects,[undefined]);assert.equal(project.currentId,'saved');assert.equal(connections,1);
+  await timers.tick();await timers.tick();assert.equal(connections,2);assert.equal(previousProjects.length,1);
+  assert.deepEqual(failures,['disconnected','disconnected']);poller.stop();
+});
+
+test('polling checks draft/navigation blocks again after reads and ignores older project snapshots', async()=>{
+  const {createProjectPoller}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const timers=pollTimers();let blocked=true,reads=0,updates=0,connections=0,read=deferred();
+  const poller=createProjectPoller({...timers,read:()=>{reads++;return read.promise;},getProject:()=>({revision:4}),blocked:()=>blocked,update:async()=>updates++,connected:()=>connections++});
+  poller.start();await timers.tick();assert.equal(reads,0);
+  blocked=false;const pending=timers.tick();blocked=true;read.resolve({revision:5});await pending;assert.equal(updates,0);assert.equal(connections,0);
+  blocked=false;read=deferred();const stale=timers.tick();read.resolve({revision:3});await stale;assert.equal(updates,0);assert.equal(connections,0);
+  read=deferred();const same=timers.tick();read.resolve({revision:4});await same;assert.equal(updates,0);assert.equal(connections,1);
+  poller.stop();
+});
+
+test('stopping a poll suppresses late read delivery and later restart retains one timer', async()=>{
+  const {createProjectPoller}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const timers=pollTimers(), read=deferred();let updates=0,connections=0;
+  const poller=createProjectPoller({...timers,read:()=>read.promise,getProject:()=>undefined,blocked:()=>false,update:async()=>updates++,connected:()=>connections++});
+  poller.start();const pending=timers.tick();poller.stop();read.resolve({revision:1});await pending;
+  assert.equal(updates,0);assert.equal(connections,0);assert.equal(timers.size(),0);
+  poller.start();assert.equal(timers.size(),1);poller.stop();
 });
