@@ -1,3 +1,4 @@
+import {cleanToolRuns,versionToolRuns} from './engine/photo-tools/history.js';
 import {readFile,writeFile,mkdir,rename,rm,stat,open} from 'node:fs/promises';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
@@ -127,10 +128,11 @@ function compileCandidate(p,c,selected=c.selectedItemIds) {
     const state=unlockState(base.state,c.guardOperation);
     return {...c,state,selectionHash:selectionIdentity(base,{...c,state})};
   }
-  const compiled=compileSelection(base.state,c.items,selected),warnings=validateCandidateState(p,compiled.state,c.allowProtectedCrop);
-  return {...c,...compiled,warnings,selectionHash:selectionIdentity(base,{...c,...compiled})};
+  const compiled=compileSelection(base.state,c.items,selected,{source:p.source,notes:p.notes,toolNamespace:c.toolNamespace}),warnings=validateCandidateState(p,compiled.state,c.allowProtectedCrop);
+  const toolRuns=c.items.some(i=>i.operation)?[...(c.inheritedToolRuns||[]),{namespace:c.toolNamespace,label:c.name,operations:c.items.map(i=>i.operation),selectedItemIds:compiled.selectedItemIds,records:c.items.map(i=>({id:i.id,execution:i.execution}))}].slice(-24):c.toolRuns;
+  return {...c,...compiled,...(toolRuns?{toolRuns}:{}),warnings,selectionHash:selectionIdentity(base,{...c,...compiled})};
 }
-export async function createCandidate(folder,plan) {
+export async function createCandidate(folder,plan,{toolExecution,toolNamespace,signal}={}) {
   if(!plan || typeof plan!=='object' || Array.isArray(plan))fail('INVALID_PLAN','请提供候选方案 JSON。');
   return locked(folder,async root=>{
     const p=await loadProject(root),prior=p.candidates.find(c=>plan.requestId&&c.requestId===plan.requestId),planHash=hash(plan);
@@ -145,24 +147,27 @@ export async function createCandidate(folder,plan) {
     const base=currentVersion(p);let source=base;
     if(plan.fromCandidate!==undefined){
       if(typeof plan.fromCandidate!=='string'||!plan.fromCandidate)fail('INVALID_PLAN','fromCandidate 必须是候选编号。');
-      if(plan.items!==undefined)fail('AMBIGUOUS_PLAN','fromCandidate 用于整组精调；逐项计划请直接基于已保存版本提供完整 items。');
+      if(plan.items!==undefined||plan.operations!==undefined)fail('AMBIGUOUS_PLAN','fromCandidate 用于整组精调；逐项计划请直接基于已保存版本提供完整 items。');
       source=p.candidates.find(c=>c.id===plan.fromCandidate);
       if(!source)fail('CANDIDATE_NOT_FOUND','精调所依据的试片已接受或取消，请读取最新版本。');
       source=compileCandidate(p,source);
       if(source.guardOperation)fail('GUARD_SELECTION','解除保护试片需单独预览并接受，不能继续叠加精调。');
     }
     const executable={...plan};delete executable.actorId;delete executable.diagnosisId;
-    const normalized=normalizePlan(executable,{base:source.state,notes:p.notes,cleanText:cleanTextOverlays});
+    const namespace=toolNamespace||id();
+    const normalized=normalizePlan(executable,{base:source.state,notes:p.notes,source:p.source,toolNamespace:namespace,cleanText:cleanTextOverlays});
+    if(toolExecution)for(const item of normalized.items){const receipt=toolExecution.find(r=>r.id===item.id);if(receipt)item.execution={...structuredClone(receipt.execution),preview:receipt.preview?Object.fromEntries(['width','height','pixelHash','frameSpecHash'].map(k=>[k,receipt.preview[k]])):undefined};}
     if(plan.fromCandidate!==undefined){
       const result=compileSelection(source.state,normalized.items,normalized.selectedItemIds);
       if(result.noChange)fail('NO_CHANGE','这份方案与所选效果一致，可以保留这版，不必重复试片。');
       normalized.items=[snapshotItem(base.state,result.state,plan.name||'整组精调')];
       normalized.selectedItemIds=['whole-plan'];
     }
-    const draft={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:base.id,...(plan.fromCandidate?{refinedFrom:plan.fromCandidate}:{}),baseRevision:plan.revision,createdAt:now(),baseFingerprint:fingerprint(p),actorId:plan.actorId||diagnosis?.actorId||'host-agent',diagnosisId:diagnosis?.id||null,goal:text(plan.goal),tradeoff:text(plan.tradeoff),requestId:text(plan.requestId,80),planHash,allowProtectedCrop:plan.allowProtectedCrop===true,...normalized};
+    const draft={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:base.id,...(plan.fromCandidate?{refinedFrom:plan.fromCandidate}:{}),baseRevision:plan.revision,createdAt:now(),...(plan.operations?{toolNamespace:namespace,inheritedToolRuns:versionToolRuns(base)}:{toolRuns:versionToolRuns(base)}),baseFingerprint:fingerprint(p),actorId:plan.actorId||diagnosis?.actorId||'host-agent',diagnosisId:diagnosis?.id||null,goal:text(plan.goal),tradeoff:text(plan.tradeoff),requestId:text(plan.requestId,80),planHash,allowProtectedCrop:plan.allowProtectedCrop===true,...normalized};
     const candidate=compileCandidate(p,draft);
     if(candidate.legacy&&candidate.noChange)fail('NO_CHANGE','这份方案与当前效果一致，可以保留当前版本。');
     await verifyReferences(root,p,candidate.state);
+    if(signal?.aborted)fail('CANCELLED','工具方案已取消。');
     p.candidates.push(candidate);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,candidate};
   });
 }
@@ -199,7 +204,7 @@ export async function changeGuards(folder,value,{prepare}={}) {
   else if(value.operation==='unlock'){
     state=unlockState(base.state,value);
     if(p.candidates.length>=8)fail('CANDIDATE_LIMIT','请先接受或取消一个候选。');
-    const candidate={id:id(),name:text(value.name,40)||'解除保护预览',mode:'guards',parentId:base.id,baseRevision:p.revision,createdAt:now(),baseFingerprint:fingerprint(p),state,items:[{id:'unlock',title:'解除所选保护',dependsOn:[],writePaths:['guards']}],selectedItemIds:['unlock'],guardOperation:{parameterKeys:value.parameterKeys||[],localIds:value.localIds||[],regionIds:value.regionIds||[]},legacy:false,noChange:false,warnings:['解除区域保护可能显露此前被覆盖的效果，请检查预览。']};
+    const candidate={id:id(),name:text(value.name,40)||'解除保护预览',mode:'guards',parentId:base.id,baseRevision:p.revision,createdAt:now(),toolRuns:versionToolRuns(base),baseFingerprint:fingerprint(p),state,items:[{id:'unlock',title:'解除所选保护',dependsOn:[],writePaths:['guards']}],selectedItemIds:['unlock'],guardOperation:{parameterKeys:value.parameterKeys||[],localIds:value.localIds||[],regionIds:value.regionIds||[]},legacy:false,noChange:false,warnings:['解除区域保护可能显露此前被覆盖的效果，请检查预览。']};
     candidate.selectionHash=selectionIdentity(base,candidate);await verifyReferences(root,p,state);p.candidates.push(candidate);return {candidate};
   }else fail('INVALID_GUARD_OPERATION','保护操作支持 lock、protect、unlock。');
   if(equal(state,base.state))fail('NO_CHANGE','所选保护已经生效。');
@@ -269,11 +274,12 @@ function workspaceSnapshot(p,value,baseState=currentVersion(p).state) {
       if(Object.values(settings).some(Boolean)||raw.hasLocal){
         const maskType=raw.maskType || 'rectangle';if(!['rectangle','radial','linear','brush'].includes(maskType))fail('INVALID_MASK','不支持的局部范围。');
         const layer={id:raw.id,rect,note,maskType,feather:bounded(raw.feather??.36,0,1,'INVALID_MASK'),localAmount:bounded(raw.localAmount??100,0,150,'INVALID_LOCAL'),localEnabled:raw.localEnabled!==false,localSettings:settings};
+        if(raw.target!==undefined){object(raw.target,['kind','name','source','confidence'],'TOOL_TARGET_INVALID');if(raw.target.kind!=='object'||typeof raw.target.name!=='string'||!raw.target.name.trim()||raw.target.name.length>100||!['vision','user'].includes(raw.target.source)||!['high','medium','low'].includes(raw.target.confidence))fail('TOOL_TARGET_INVALID','对象记录无效。');layer.target=structuredClone(raw.target);}
         if(raw.exclude!==undefined){if(!Array.isArray(raw.exclude)||raw.exclude.length>8)fail('INVALID_MASK','排除范围无效。');layer.exclude=raw.exclude.map(r=>cleanRect(r));}
         if(maskType==='linear'){layer.start=point(raw.start);layer.end=point(raw.end);}
         if(maskType==='brush'){if(!Array.isArray(raw.points)||!raw.points.length||raw.points.length>600)fail('INVALID_MASK','画笔范围无效。');layer.points=raw.points.map(point);layer.brushRadius=bounded(raw.brushRadius,.001,.15,'INVALID_MASK');}
         const previous=baseState.locals.find(l=>l.id===raw.id);
-        const unchanged=previous&&adjustmentKeys.every(k=>(previous.localSettings?.[k]||0)===(settings[k]||0))&&equal(previous.rect,rect)&&previous.note===note&&(previous.maskType||'rectangle')===maskType&&(previous.feather??.36)===layer.feather&&(previous.localAmount??100)===layer.localAmount&&(previous.localEnabled!==false)===layer.localEnabled&&['start','end','points','brushRadius','exclude'].every(k=>equal(previous[k],layer[k]));
+        const unchanged=previous&&adjustmentKeys.every(k=>(previous.localSettings?.[k]||0)===(settings[k]||0))&&equal(previous.rect,rect)&&previous.note===note&&(previous.maskType||'rectangle')===maskType&&(previous.feather??.36)===layer.feather&&(previous.localAmount??100)===layer.localAmount&&(previous.localEnabled!==false)===layer.localEnabled&&['start','end','points','brushRadius','exclude','target'].every(k=>equal(previous[k],layer[k]));
         locals.push(unchanged?structuredClone(previous):layer);
       }
     }
@@ -283,7 +289,7 @@ function workspaceSnapshot(p,value,baseState=currentVersion(p).state) {
     if(crop?.angle!==undefined)bounded(crop.angle,-15,15,'INVALID_CROP');
     const state={...structuredClone(baseState),settings:{...neutralSettings(),...cleanSettings(value.settings)},style,crop,locals};
     const oldOrder=new Map(p.notes.map((note,index)=>[note.id,index]));
-    return {state,notes:notes.sort((a,b)=>(oldOrder.get(a.id)??Infinity)-(oldOrder.get(b.id)??Infinity)),nextNoteNumber};
+    return {state,toolRuns:cleanToolRuns(value.toolRuns===undefined?versionToolRuns(p.versions.find(v=>v.state===baseState)):value.toolRuns),notes:notes.sort((a,b)=>(oldOrder.get(a.id)??Infinity)-(oldOrder.get(b.id)??Infinity)),nextNoteNumber};
 }
 function versionName(value) {
   if(typeof value!=='string'||!value.trim()||value.trim().length>40)fail('INVALID_VERSION_NAME','版本名称需为 1–40 个字符。');
@@ -292,7 +298,7 @@ function versionName(value) {
 // Current edits and imported editions commit together. A retry after a lost response
 // reuses the same import identity, without adding duplicate versions.
 export async function saveWorkspaceSnapshot(folder,value) {
-  object(value,['revision','baseVersion','settings','style','crop','annotations','intent','conversation','name','versions','importId']);
+  object(value,['revision','baseVersion','settings','style','crop','annotations','intent','conversation','toolRuns','name','versions','importId']);
   if(!Number.isInteger(value.revision))fail('STALE_REVISION','请先读取最新项目版本。');
   const importing=value.versions!==undefined;
   if(importing&&(!Array.isArray(value.versions)||value.versions.length>40||typeof value.importId!=='string'||!/^[-a-zA-Z0-9]{1,80}$/.test(value.importId)))fail('INVALID_VERSIONS','迁移需有效编号，最多保留 40 个命名版本。');
@@ -312,14 +318,14 @@ export async function saveWorkspaceSnapshot(folder,value) {
         if(p.versions.some(old=>old.id===v.id)||typeof v.at!=='string'||!Number.isFinite(Date.parse(v.at)))fail('INVALID_VERSIONS','历史版本的编号或保存时间无效。');
         const saved=workspaceSnapshot(p,v.patch,p.versions[0].state);
         validateCandidateState({...p,notes:saved.notes},saved.state);await verifyReferences(root,p,saved.state);
-        p.versions.push({id:v.id,name:versionName(v.name),parentId:p.versions[0].id,createdAt:v.at,mode:'edition',kind:['manual','export','accepted','final'].includes(v.kind)?v.kind:'manual',state:saved.state,workspaceNotes:saved.notes});
+        p.versions.push({id:v.id,name:versionName(v.name),parentId:p.versions[0].id,createdAt:v.at,mode:'edition',kind:['manual','export','accepted','final'].includes(v.kind)?v.kind:'manual',state:saved.state,toolRuns:saved.toolRuns,workspaceNotes:saved.notes});
       }
       p.workspaceImports ||= [];p.workspaceImports.push({id:value.importId,hash:importHash});
     }
     p.notes=snapshot.notes;p.nextNoteNumber=snapshot.nextNoteNumber;p.intent=text(value.intent);
     validateCandidateState(p,snapshot.state);await verifyReferences(root,p,snapshot.state);
     if(!equal(before.state,snapshot.state)) {
-      const version={id:id(),name:text(value.name,40)||'网页调整',parentId:before.id,createdAt:now(),acceptedAt:now(),acceptedBy:'user',mode:'workspace',state:snapshot.state,workspaceNotes:structuredClone(p.notes)};
+      const version={id:id(),name:text(value.name,40)||'网页调整',parentId:before.id,createdAt:now(),acceptedAt:now(),acceptedBy:'user',mode:'workspace',state:snapshot.state,toolRuns:snapshot.toolRuns,workspaceNotes:structuredClone(p.notes)};
       p.versions.push(version);p.currentId=version.id;p.acceptedId=version.id;
     }
     if(value.conversation!==undefined){
@@ -337,7 +343,7 @@ export const saveWorkspaceEdition=(folder,value)=>mutateProject(folder,value.rev
   if(p.versions.filter(v=>v.mode==='edition').length>=40)fail('VERSION_LIMIT','最多保留 40 个命名版本；已有方案仍保留。');
   const snapshot=value.patch?workspaceSnapshot(p,value.patch):{state:structuredClone(currentVersion(p).state),notes:structuredClone(p.notes)};
   validateCandidateState({...p,notes:snapshot.notes},snapshot.state);
-  const version={id:id(),name:versionName(value.name),parentId:p.currentId,createdAt:now(),mode:'edition',kind:['manual','export','accepted','final'].includes(value.kind)?value.kind:'manual',state:snapshot.state,workspaceNotes:snapshot.notes};
+  const version={id:id(),name:versionName(value.name),parentId:p.currentId,createdAt:now(),mode:'edition',kind:['manual','export','accepted','final'].includes(value.kind)?value.kind:'manual',state:snapshot.state,toolRuns:snapshot.toolRuns||versionToolRuns(currentVersion(p)),workspaceNotes:snapshot.notes};
   p.versions.push(version);return {version};
 });
 export const renameWorkspaceVersion=(folder,value)=>mutateProject(folder,value.revision,p=>{

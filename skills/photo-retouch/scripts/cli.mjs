@@ -36,6 +36,8 @@ const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <comman
   'edit-sources':'[--version <id>] 查看手动、风格、局部及选中项目来源',
   rebuild:'--input <JSON> 显式重建指定调整层，生成可撤回试片并保留约束',
   inspect:'读取当前版本、最新批注、意图、候选和真实预览路径；不调用视觉模型',
+  'photo-tools':'工具目录、版本、目标类型与参数 Schema；不调用模型',
+  'compose':'--input <tool-plan.json|->；独立子进程执行工具组合，产生逐项候选与实际中间预览',
   controls:'实际参数范围、灰卡响应与风格目录',
   preview:'[--version <id|current|original>] [--max-side 1400] [--region <JSON 原片范围>] [--without-text true]',
   'tool-schema':'输出提供给宿主 Agent 的结构化工具契约；不启动模型服务',
@@ -66,6 +68,7 @@ export async function runCLI(values=process.argv.slice(2)) {
   const [command='help',...rest]=values;if(['help','--help','-h'].includes(command))return help;
   const o=args(rest),folder=o.project&&path.resolve(o.project),revision=o.revision===undefined?undefined:Number(o.revision);
   if(command==='controls')return {parameters:publicProject({candidates:[],source:{},versions:[]}).parameters,styles:publicProject({candidates:[],source:{},versions:[]}).styles,grayCardReference:editorControlReference(),directions:{warmth:'正值更暖，负值更冷',tint:'正值减绿／向洋红，负值减洋红／向绿'},semantics:'曝光为 EV；其余数值是本编辑器相对控制，不是 Lightroom 开尔文或通用单位。settings 设为目标值；style 独立叠加。'};
+  if(command==='photo-tools'){const {photoTools}=await import('./engine/photo-tools/registry.js');return {tools:photoTools.describe(),execution:'subprocess'};}
   if(command==='lettering'&&!o.input)return letteringCapabilities();
   if(command==='tool-schema'){const {hostToolContract}=await import('./tool-contract.mjs');return hostToolContract();}
   if(command==='examples')return visualExamples({id:o.id,query:o.query});
@@ -89,6 +92,7 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,project:{...p,workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),versions:p.versions.map(({id,name,parentId,createdAt,acceptedBy})=>({id,name,parentId,createdAt,acceptedBy})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
     case 'preview':return previewPhoto(folder,o.version||'current',{maxSide:o['max-side']?Number(o['max-side']):1400,region:o.region?JSON.parse(o.region):undefined,withoutText:o['without-text']==='true'});
     case 'lettering':{const plan=await input(o.input);if(plan.mode!=='lettering'||!Array.isArray(plan.textOverlays)||['settings','style','crop','locals'].some(k=>plan[k]!==undefined))fail('LETTERING_PLAN','文字模式需 mode: lettering 和 textOverlays；光色、局部和裁剪请在修片候选中调整。');const result=await createCandidate(folder,plan);return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
+    case 'compose':{const {createToolCandidate}=await import('./tool-candidates.mjs');return createToolCandidate(folder,await input(o.input));}
     case 'candidate':{const result=await createCandidate(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'select':{const result=await selectCandidateItems(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id,{selectionHash:result.candidate.selectionHash,revision:result.project.revision})};}
     case 'guards':{const result=await changeGuards(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate?.id||result.version.id)};}
