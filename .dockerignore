@@ -6,6 +6,7 @@
 !codex-app-server.mjs
 !project-bridge.mjs
 !project-routes.mjs
+!photo-tool-service.mjs
 !series-review.mjs
 !public/
 !public/**

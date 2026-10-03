@@ -25,7 +25,7 @@ test('vision route calls the configured image model and returns actionable analy
     };
     Object.assign(reassessment,{beforeEvidence:reviewFixture.metricEvidence,afterEvidence:reviewFixture.metricEvidence,improvements:[{finding:'天空层次更完整。',evidence:'右上云层过渡更清楚。',condition:'以保留自然晨光为目标。'}],tradeoffs:[{finding:'前景稍亮。',evidence:'左下岩石的暗调变浅。',condition:'若希望低调，可降低强度。'}],preserved:[]});
     const analysis = structuredClone(reviewFixture);analysis.observations.emotion.location=null;
-    const designReply = {clarification:{question:'',choices:[]},reply:'天空已有暖光，先收一点高光，保留云层。',principle:'先保护亮部，再调整暗部。',action:{
+    const designReply = {clarification:{question:'',choices:[]},reply:'天空已有暖光，先收一点高光，保留云层。',principle:'先保护亮部，再调整暗部。',action:{steps:[],
       kind:'adjustment',label:'试用光线微调',goal:'保留天空层次',tradeoff:'检查暗调是否被改变',presetId:'none',changes:[{key:'highlights',value:-12}],crop:{x:0,y:0,width:1,height:1}
     }};
     response.writeHead(200, {'Content-Type':'application/json'});
@@ -130,9 +130,11 @@ test('vision route calls the configured image model and returns actionable analy
   assert.match(requests[2].instructions,/focusAnnotation/);
   assert.match(requests[2].input[0].content[0].text,/肤色真实/);
   assert.match(requests[2].instructions,/优先于历史/);
-  assert.ok(requests[2].text.format.schema.properties.action.properties.tradeoff);
+  const actionSchema=requests[2].text.format.schema.properties.action;
+  assert.ok(actionSchema.anyOf[0].properties.operations);assert.ok(actionSchema.anyOf.at(-1).properties.tradeoff);
+  assert.ok(requests[2].text.format.schema.$defs.photoTarget);
   assert.ok(requests[2].text.format.schema.properties.clarification);
-  assert.equal(requests[2].text.format.schema.properties.action.properties.presetId.enum.length,15);
+  assert.equal(actionSchema.anyOf.at(-1).properties.presetId.enum.length,15);
 
   const badQuestion = await fetch(`${base}/api/design-chat`,{
     method:'POST',headers:{'Content-Type':'application/json'},

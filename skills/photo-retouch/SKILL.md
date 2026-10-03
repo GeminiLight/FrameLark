@@ -22,6 +22,7 @@ description: 摄影审片、选片与精修：单张诊断，或从一批照片�
 | 人像、风景、夜景、街头、建筑、静物、宠物等 | [题材策略](references/subject-playbooks.md) |
 | 主次、留白、复杂场景、摄影练习 | [构图与拍摄](references/composition-craft.md) |
 | 曝光、白平衡、肤色、曲线、HSL | [光线与色彩](references/light-color.md) |
+| 复合请求、工具目录、区域或对象目标、可复用蒙版 | [工具组合](references/tool-composition.md) |
 | 锐化/降噪、羽化/渐变、裁剪/拉直、导出 | [细节与局部工艺](references/detail-local-crop.md) |
 | 大师参考、风格选择、强度与自适应 | [风格图谱](references/style-atlas.md) |
 | 照片加字、可爱短句、贴纸标题、图文封面 | [文字点缀](references/lettering.md) |
@@ -76,7 +77,7 @@ description: 摄影审片、选片与精修：单张诊断，或从一批照片�
 - 可以没有调整。说明值得保留的关系；不机械提亮、增色或裁剪。必要时用 `review` 保存观察与保留依据，来源写作宿主 Agent，不编造另一个模型调用。
 - 首次调参读 `controls`：范围与灰卡响应来自真实引擎。曝光是 EV；色温/色调为相对增益，不是 Lightroom 开尔文。统计值不证明主体曝光错误，剪切掉的高光无法恢复。
 - `candidate` 的 `settings` 是当前手动层的**绝对目标值**，不是累加量。`style` 是独立风格层；不要再把其配方写进 settings。局部 settings 是该标记局部层的绝对目标；保留其他已接受的局部。
-- 新方案优先用结构化 `items`：一项说明一个可独立取舍的改动，填写 `id`、`title`、`patch` 和可选 `dependsOn`。同一写入路径不要拆成两项。`selectedItemIds` 从固定基础版本重算，不在上次预览上累加。`tool-schema` 输出可交给宿主的函数工具定义，`tool --input` 仅分派允许的 JSON 操作；当前运行时仍不调用模型 API。
+- 复合请求优先发现 `photo-tools` 目录，用 `compose` 的 `operations` 表达工具、目标、参数和依赖；每个被选中步骤在独立子进程执行，返回实际中间预览。见 [工具组合](references/tool-composition.md)。旧结构化 `items` 仍兼容，每项说明一个可独立取舍的 patch。`selectedItemIds` 始终从固定基础版本重算，不在上次预览上累加。`tool-schema` 输出可交给宿主的函数工具定义，`tool --input` 仅分派允许的 JSON 操作；运行时不调用模型 API。
 - 每个方案填写刚读取的 `revision` 和 `baseVersion`。继续精调尚未接受的试片时，旧整组格式可填写 `fromCandidate`，继承所选试片的全部层并固化为相对已保存基础版本的一项；不要与 `items` 混用。用当前效果为基础，填写目标、主要取舍及自然易辨认的名称。候选不会改变当前版本。
 - 查看候选实际预览，并用 `compare` 与基础版本共享范围对照。对眼睛、头发、肤色、高光与蒙版边缘，用 `preview --region --max-side 8192` 查看指定完整输出帧的准确裁片。region 不会重新渲染小区域；先核对返回的整帧尺寸、regionPixels 与 limited，不能无条件称为源图 100%。不能以工具执行成功、指标升高替代画质判断。
 - 风格从当前光线和意图选择，解释成立条件与回退现象；大师名称是学习线索，不是官方配方。拍摄距离、时机、景深、长曝光等不能由调参补齐。精准参考要求实际看参考图。

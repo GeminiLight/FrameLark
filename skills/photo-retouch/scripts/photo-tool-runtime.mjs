@@ -19,9 +19,10 @@ export class PhotoToolExecutor {
       child.stderr?.on('data',()=>{});child.once('error',()=>{const error=new PhotoToolError('TOOL_PROCESS_FAILED','工具子进程无法启动。');stop(error);if(!child.pid)finish(error);});
       child.on('message',message=>{
         if(result||failure)return;
+        if(message.type==='progress'){if(message.operationId===job.operation.id&&message.stage==='processing')onEvent({type:'tool',stage:'processing',operationId:job.operation.id,tool:job.operation.tool,title:job.operation.title});return;}
         if(Buffer.byteLength(JSON.stringify(message))>maxOutput){stop(new PhotoToolError('TOOL_OUTPUT_SIZE','工具返回的数据超过大小限制。'));return;}
         if(!message.ok){stop(new PhotoToolError(message.error?.code||'TOOL_EXECUTION_FAILED',message.error?.message||'工具执行失败。'));return;}
-        try{validateEffect(message.result?.effect);result={...message,execution:{adapter:'subprocess',pid:message.pid,tool:job.operation.tool,version:job.operation.version,inputHash:hash(job)}};}catch{stop(new PhotoToolError('TOOL_RESULT_INVALID','工具返回结果未通过校验。'));}
+        try{validateEffect(message.result?.effect);result={...message,execution:{adapter:'subprocess',pid:child.pid,tool:job.operation.tool,version:job.operation.version,inputHash:hash(job)}};}catch{stop(new PhotoToolError('TOOL_RESULT_INVALID','工具返回结果未通过校验。'));}
       });
       child.once('close',code=>finish(failure||(!result||code!==0?new PhotoToolError('TOOL_PROCESS_FAILED','工具子进程未能完成。'):null)));
       signal?.addEventListener('abort',cancel,{once:true});timer=setTimeout(()=>stop(new PhotoToolError('TOOL_TIMEOUT','工具执行超时，已停止子进程。')),this.timeoutMs);
@@ -43,7 +44,7 @@ export async function runPhotoToolPlan({operations,state,source,notes=[],namespa
     const result=await executor.execute({operation,context,preview},{signal:combined,onEvent});
     if(hash(result.result.effect)!==hash(record.effect)||hash(result.result.outputs||{})!==hash(record.outputs))fail('TOOL_RESULT_MISMATCH','子进程与工具定义的结果不一致。');
     outputs.set(record.id,result.result.outputs||{});
-    const receipt={...record,execution:result.execution,...(result.preview?{preview:{...result.preview,png:undefined,image:`data:image/png;base64,${result.preview.png}`}}:{})};records.push(receipt);
+    const receipt={...record,...(result.result.measurements?{measurements:result.result.measurements}:{}),execution:result.execution,...(result.preview?{preview:{...result.preview,png:undefined,image:`data:image/png;base64,${result.preview.png}`}}:{})};records.push(receipt);
     onEvent({type:'tool',stage:'completed',operationId:record.id,tool:operation.tool,title:operation.title,index:records.length,total:compiled.records.length,preview:receipt.preview});
   }
   return {...compiled,operations:normalized,records,namespace};

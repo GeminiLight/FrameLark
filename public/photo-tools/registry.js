@@ -16,7 +16,7 @@ const stable=value=>JSON.stringify(value,(_key,item)=>item&&typeof item==='objec
 export function createPhotoToolRegistry(definitions=[]){
   const entries=new Map();
   function register(tool){
-    if(!tool||!/^[-a-zA-Z0-9_]{1,60}$/.test(tool.id)||!Number.isSafeInteger(tool.version)||tool.version<1||!Array.isArray(tool.targets)||typeof tool.execute!=='function'||!tool.parameters)fail('TOOL_DEFINITION_INVALID','工具定义不完整。');
+    if(!tool||!/^[-a-zA-Z0-9_]{1,60}$/.test(tool.id)||!Number.isSafeInteger(tool.version)||tool.version<1||!Array.isArray(tool.targets)||(typeof tool.execute!=='function'&&typeof tool.prepare!=='function')||!tool.parameters)fail('TOOL_DEFINITION_INVALID','工具定义不完整。');
     if(entries.has(tool.id))fail('TOOL_DUPLICATE','工具名称已注册。');entries.set(tool.id,tool);return tool;
   }
   definitions.forEach(register);
@@ -37,12 +37,21 @@ export function createPhotoToolRegistry(definitions=[]){
     const target=resolveTarget(prepared,context.outputs||new Map());
     if(target.kind!=='image')normalizeMask(target.mask);
     if(!tool.targets.includes(target.kind)&&!tool.targets.includes('output'))fail('TOOL_TARGET_UNSUPPORTED','这个工具不支持所选目标。');
-    const result=tool.execute(operation,{...context,target});
+    const result=(tool.prepare||tool.execute)(operation,{...context,target});
     if(result?.then)fail('TOOL_ASYNC_EFFECT','纯编辑 Adapter 应返回可重放的同步效果；外部工作使用执行器。');
     if(!result||typeof result!=='object'||!result.effect)fail('TOOL_RESULT_INVALID','工具未返回有效效果。');
     const effect=validateEffect(result.effect);return {...result,effect};
   }
-  return {register,describe:()=>[...entries.values()].map(descriptor),operationSchema,schemaDefinitions:()=>({photoTarget:copy(targetSchema)}),normalize,execute};
+  async function run(operation,context){
+    const prepared=execute(operation,context),tool=entries.get(operation.tool);
+    if(!tool.prepare||!tool.execute)return prepared;
+    const preparedTarget=operation.target.kind==='annotation'?normalizeTarget(operation.target,{...context,state:context.inputState||context.state}):operation.target;
+    const target=resolveTarget(preparedTarget,context.outputs||new Map());
+    const result=await tool.execute(operation,{...context,target,prepared});
+    if(!result?.effect)fail('TOOL_RESULT_INVALID','异步工具未返回可保存的效果。');
+    return {...result,effect:validateEffect(result.effect)};
+  }
+  return {register,describe:()=>[...entries.values()].map(descriptor),operationSchema,schemaDefinitions:()=>({photoTarget:copy(targetSchema)}),normalize,execute,run};
 }
 export const photoTools=createPhotoToolRegistry([tone,color,detail,finish,style,rotate,crop,mask]);
 export function validateToolState(value){

@@ -1,4 +1,5 @@
 import {drawPhotoSource,viewToOriginalPoint,originalToViewPoint} from './photo-geometry.js';
+import {maskWeight} from './local-masks.js';
 import {createPhotoRenderer} from './photo-rendering.js';
 import {shortcutAction,editableTarget,pinchTransform} from './editor-navigation.js';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -6,7 +7,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export function createPhotoViewer(dialog,{prefix="viewer",onState=()=>{}}={}) {
   const element=name=>dialog.querySelector(`#${prefix}-${name}`);
   const renderer=createPhotoRenderer(),panes=[...dialog.querySelectorAll('.viewer-pane')];
-  let busy=false,requested=false,single=false;
+  let busy=false,requested=false,single=false,showMasks=false;
   let image,choices=[],zoom=1,center={x:.5,y:.5},generation=0,drag=null,fitZoom=1;
   const pointers=new Map();
   const select=[element('a'),element('b')];
@@ -45,6 +46,13 @@ export function createPhotoViewer(dialog,{prefix="viewer",onState=()=>{}}={}) {
         const output=await renderer.render({pixels:ctx.getImageData(0,0,rw,rh).data,width:rw,height:rh,settings:version.settings,annotations:version.annotations,
           crop:{x:rect.x/W,y:rect.y/H,width:rect.width/W,height:rect.height/H,angle:version.crop?.angle || 0},frame:{fullWidth:W,fullHeight:H,sourceRect:rect,angle:version.crop?.angle || 0}});
         if(token!==generation||!dialog.open)return;
+        if(showMasks && version.annotations?.length){
+          for(let y=0;y<rh;y++)for(let x=0;x<rw;x++){
+            const p=viewToOriginalPoint({x:(x+.5)/rw,y:(y+.5)/rh},{x:rect.x/W,y:rect.y/H,width:rect.width/W,height:rect.height/H,angle:version.crop?.angle || 0},W,H);
+            const weight=Math.max(...version.annotations.filter(a=>a.localEnabled!==false).map(a=>maskWeight(a,p,W,H)),0)*.3,at=(y*rw+x)*4;
+            if(weight){output[at]=output[at]*(1-weight)+72*weight;output[at+1]=output[at+1]*(1-weight)+210*weight;output[at+2]=output[at+2]*(1-weight)+160*weight;}
+          }
+        }
         ctx.putImageData(new ImageData(output,rw,rh),0,0);
         canvas.width=width;canvas.height=height;
         const out=canvas.getContext('2d');out.fillStyle='#161a1c';out.fillRect(0,0,width,height);
@@ -109,8 +117,8 @@ export function createPhotoViewer(dialog,{prefix="viewer",onState=()=>{}}={}) {
   element('close').addEventListener('click',()=>dialog.close());
   dialog.addEventListener('close',()=>{generation++;image=null;choices=[];pointers.clear();drag=null;onState('closed');});
   window.addEventListener('resize',()=>{if(dialog.open)fit();});
-  return {updateVersion(id,version) {choices=choices.map(item=>item.id===id ? {...version,id}:item);render();},open(source,versions,a='original',b='current',options={}) {
-    image=source;choices=versions;single=options.single===true;
+  return {showMasks(value){showMasks=Boolean(value);render();},updateVersion(id,version) {choices=choices.map(item=>item.id===id ? {...version,id}:item);render();},open(source,versions,a='original',b='current',options={}) {
+    showMasks=false;image=source;choices=versions;single=options.single===true;
     dialog.classList.toggle('single-view',single);panes[1].hidden=single;dialog.querySelector('.viewer-choices').hidden=single;
     select.forEach((el,i)=>{el.replaceChildren(...versions.map(version=>{const option=document.createElement('option');option.value=version.id;option.textContent=version.label;return option;}));el.value=i?b:a;});
     dialog.showModal();fit();

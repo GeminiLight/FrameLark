@@ -156,7 +156,7 @@ export async function createCandidate(folder,plan,{toolExecution,toolNamespace,s
     const executable={...plan};delete executable.actorId;delete executable.diagnosisId;
     const namespace=toolNamespace||id();
     const normalized=normalizePlan(executable,{base:source.state,notes:p.notes,source:p.source,toolNamespace:namespace,cleanText:cleanTextOverlays});
-    if(toolExecution)for(const item of normalized.items){const receipt=toolExecution.find(r=>r.id===item.id);if(receipt)item.execution={...structuredClone(receipt.execution),preview:receipt.preview?Object.fromEntries(['width','height','pixelHash','frameSpecHash'].map(k=>[k,receipt.preview[k]])):undefined};}
+    if(toolExecution)for(const item of normalized.items){const receipt=toolExecution.find(r=>r.id===item.id);if(receipt)item.execution={...structuredClone(receipt.execution),preview:receipt.preview?Object.fromEntries(['path','width','height','pixelHash','frameSpecHash'].map(k=>[k,receipt.preview[k]])):undefined};}
     if(plan.fromCandidate!==undefined){
       const result=compileSelection(source.state,normalized.items,normalized.selectedItemIds);
       if(result.noChange)fail('NO_CHANGE','这份方案与所选效果一致，可以保留这版，不必重复试片。');
@@ -329,8 +329,16 @@ export async function saveWorkspaceSnapshot(folder,value) {
       p.versions.push(version);p.currentId=version.id;p.acceptedId=version.id;
     }
     if(value.conversation!==undefined){
-      if(!Array.isArray(value.conversation)||value.conversation.length>24||JSON.stringify(value.conversation).length>60000)fail('INVALID_CONVERSATION','对话记录过长。');
-      p.workspaceConversation=value.conversation.map(m=>({role:['user','assistant','status'].includes(m.role)?m.role:'status',text:text(m.text,1600),source:['ai','local'].includes(m.source)?m.source:undefined,provenance:m.provenance&&typeof m.provenance.model==='string'?{model:text(m.provenance.model,120),tier:['fast','standard','deep'].includes(m.provenance.tier)?m.provenance.tier:'standard'}:undefined}));
+      if(!Array.isArray(value.conversation)||value.conversation.length>24||JSON.stringify(value.conversation).length>256000)fail('INVALID_CONVERSATION','对话记录过长。');
+      p.workspaceConversation=value.conversation.map(m=>{
+        let proposal={};
+        if(m.action?.kind==='tools'){
+          const operations=m.action.operations;
+          cleanToolRuns([{namespace:text(m.id,80)||'archived',label:text(m.action.label,120)||'工具方案',operations,selectedItemIds:operations.map(op=>op.id),records:[]}]);
+          proposal={id:text(m.id,80),action:{kind:'tools',label:text(m.action.label,120),goal:text(m.action.goal,300),tradeoff:text(m.action.tradeoff,300),operations:structuredClone(operations)},applied:Boolean(m.applied),baseSignature:text(m.baseSignature,30000),baseIntent:text(m.baseIntent,180),baseAnnotations:text(m.baseAnnotations,30000)};
+        }
+        return {role:['user','assistant','status'].includes(m.role)?m.role:'status',text:text(m.text,1600),source:['ai','local'].includes(m.source)?m.source:undefined,...proposal,provenance:m.provenance&&typeof m.provenance.model==='string'?{model:text(m.provenance.model,120),tier:['fast','standard','deep'].includes(m.provenance.tier)?m.provenance.tier:'standard'}:undefined};
+      });
     }
     p.revision++;p.updatedAt=now();if(importing)p.workspaceImports.at(-1).revision=p.revision;await atomicWrite(root,p);
     return {project:p,version:currentVersion(p)};

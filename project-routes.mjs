@@ -38,6 +38,14 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
     if(operation==='save'&&request.method==='POST'){json(response,200,await bridge.save(id,await body(4*1024*1024)));return true;}
     if(operation==='versions'&&request.method==='POST'){json(response,200,await bridge.edition(id,await body()));return true;}
     if(operation==='versions/rename'&&request.method==='POST'){json(response,200,await bridge.renameVersion(id,await body()));return true;}
+    if(operation==='tools'&&request.method==='POST'){
+      const value=await body(2*1024*1024),stream=request.headers.accept?.includes('application/x-ndjson');
+      const emit=event=>{if(!response.destroyed&&!response.writableEnded)response.write(JSON.stringify(event)+'\n');};
+      if(stream)response.writeHead(200,{'Content-Type':'application/x-ndjson; charset=utf-8','Cache-Control':'no-store'});
+      try{const result=await bridge.proposeTools(id,value,{signal:controller.signal,onEvent:stream?event=>emit({...event,preview:event.preview?{width:event.preview.width,height:event.preview.height,pixelHash:event.preview.pixelHash}:undefined}):undefined});if(stream){emit({type:'result',value:result});response.end();}else json(response,200,result);}
+      catch(error){if(stream){emit({type:'error',error:{code:error.code||'TOOL_FAILED',message:error.code?error.message:'工具方案未完成。'}});response.end();}else throw error;}
+      return true;
+    }
     if(operation==='candidate'&&request.method==='POST'){json(response,200,await bridge.propose(id,await body()));return true;}
     if(['select','accept','discard','restore'].includes(operation)&&request.method==='POST'){json(response,200,await bridge.candidate(id,operation,await body()));return true;}
     if(operation==='preview'&&request.method==='GET'){

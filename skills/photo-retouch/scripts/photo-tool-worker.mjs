@@ -5,7 +5,8 @@ process.once('disconnect',()=>process.exit(0));
 process.once('message',async job=>{
   try{
     const {operation,context,preview}=job;
-    const result=photoTools.execute(operation,{...context,outputs:new Map(context.outputs)}),state=applyToolEffect(context.state,result.effect);
+    process.send({type:'progress',operationId:operation.id,stage:'processing'});
+    const result=await photoTools.run(operation,{...context,outputs:new Map(context.outputs),preview}),state=applyToolEffect(context.state,result.effect);
     let rendered;
     if(preview?.project){
       const {createRenderSession}=await import('./render.mjs'),p=structuredClone(preview.project),key='tool-stage-preview';

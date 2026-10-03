@@ -2,7 +2,7 @@
 export function snapshotAnnotations(annotations=[],focusId=null) {
   const items=annotations.slice(0,8).map((item,index)=>({
     id:String(item.id),number:index+1,note:String(item.note || '').slice(0,300),
-    rect:{...item.rect},maskType:item.maskType || 'rectangle',feather:item.feather ?? .36,
+    rect:{...item.rect},...(item.exclude?.length?{exclude:item.exclude.map(r=>({...r}))}:{}),maskType:item.maskType || 'rectangle',feather:item.feather ?? .36,
     localEnabled:item.localEnabled!==false,currentAdjustments:{...item.localSettings},amount:item.localAmount ?? 100
   }));
   const focus=items.find(item=>item.id===focusId);

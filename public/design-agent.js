@@ -1,3 +1,4 @@
+import {normalizeToolPlan} from './photo-tools/registry.js';
 import {assertTintCorrectionDirection} from './control-reference.js';
 import {remainingAdjustments} from './adjustment-layers.js';
 import { presetById } from './presets.js';
@@ -11,6 +12,7 @@ export const agentAdjustmentKeys = [
 ];
 
 const concise = (value, limit) => String(value || '').trim().slice(0, limit);
+const maskRect=r=>r&&['x','y','width','height'].every(k=>Number.isFinite(r[k]))&&r.x>=0&&r.y>=0&&r.width>=.005&&r.height>=.005&&r.x+r.width<=1.0001&&r.y+r.height<=1.0001 ? {x:r.x,y:r.y,width:r.width,height:r.height}:null;
 const emptyAction = () => ({kind:'none',label:'',presetId:null,changes:[],crop:null});
 const regionKeys = ['exposure','highlights','shadows','whites','blacks','warmth','tint','vibrance','saturation'];
 
@@ -19,7 +21,23 @@ export function normalizeDesignReply(value) {
   const principle = concise(value?.principle, 240);
   const raw = value?.action || {};
   const action = emptyAction();
-  if (raw.kind === 'style' && presetById(raw.presetId)) {
+  if(raw.kind==='tools'){
+    action.kind='tools';action.operations=normalizeToolPlan(raw.operations,{}, {resolveGeometry:false});action.label=concise(raw.label,60)||'工具编辑方案';
+  } else if(raw.kind==='plan' && Array.isArray(raw.steps) && raw.steps.length<=8) {
+    const steps=raw.steps.slice(0,8).map(step=>{
+      if(step.kind==='rotate' && Number.isFinite(step.angle) && Math.abs(step.angle)<=5 && Math.abs(step.angle)>.001)return {kind:'rotate',angle:step.angle,label:concise(step.label,60)};
+      const normalized=normalizeDesignReply({reply:'step',action:{...step,kind:step.kind==='masked'?'adjustment':step.kind}}).action;
+      if(!['adjustment','crop','style'].includes(normalized.kind))return null;
+      if(step.kind==='masked'){
+        const rect=maskRect(step.rect),excluded=Array.isArray(step.exclude)?step.exclude.map(maskRect):[];
+        if(!rect||excluded.some(r=>!r)||excluded.length>8)return null;
+        return {...normalized,kind:'masked',rect,exclude:excluded,feather:Number.isFinite(step.feather)?Math.max(0,Math.min(.8,step.feather)):.2};
+      }
+      return normalized;
+    });
+    // A malformed sub-edit invalidates the whole plan; never silently drop a constraint.
+    if(steps.length && steps.every(Boolean)){action.kind='plan';action.steps=steps;action.label=concise(raw.label,60)||'分步修图方案';}
+  } else if (raw.kind === 'style' && presetById(raw.presetId)) {
     action.kind = 'style';
     action.presetId = raw.presetId;
     action.label = concise(raw.label, 36) || `试用「${presetById(raw.presetId).name}」`;

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createVisionService, invalidStructuredPaths } from '../../vision-service.mjs';
+import {validateStructured, createVisionService, invalidStructuredPaths } from '../../vision-service.mjs';
 
 const schema = {type:'object',additionalProperties:false,properties:{finding:{type:'string',minLength:1}},required:['finding']};
 const payload = {input:[],text:{format:{schema}}};
@@ -246,4 +246,11 @@ test('schema mismatch diagnostics identify missing fields without reflecting mod
  assert.deepEqual(paths,['$.finding','$.score','$.unexpectedField']);
  assert.doesNotMatch(JSON.stringify(paths),/secret-user-text|credential/);
  assert.deepEqual(invalidStructuredPaths({finding:'evidence'},schema),['$.score']);
+});
+
+
+test('structured validation resolves shared local definitions without accepting unknown references',()=>{
+ const schema={type:'object',properties:{target:{$ref:'#/$defs/target'}},required:['target'],additionalProperties:false,$defs:{target:{type:'object',properties:{x:{type:'number',minimum:0,maximum:1}},required:['x'],additionalProperties:false}}};
+ assert.equal(validateStructured({target:{x:.4}},schema),true);assert.equal(validateStructured({target:{x:2}},schema),false);assert.equal(validateStructured({target:{x:.4,command:'bad'}},schema),false);
+ assert.equal(validateStructured({target:{}},{...schema,properties:{target:{$ref:'#/$defs/missing'}}}),false);
 });

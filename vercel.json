@@ -8,6 +8,10 @@
     "api/*.mjs": {
       "maxDuration": 120,
       "includeFiles": "public/assets/vision-probe.png"
+    },
+    "api/photo-tools/*.mjs": {
+      "maxDuration": 120,
+      "includeFiles": "public/assets/vision-probe.png"
     }
   }
 }

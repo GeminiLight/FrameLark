@@ -1,3 +1,5 @@
+import {toolStateFromSnapshot,toolRunCandidate,requestToolRun} from './photo-tool-client.js';
+import {photoTools} from './photo-tools/registry.js';
 import {exchangeSchema,validateExchange,restoreWebExchange} from './project-exchange.js';
 import {onDemandReview,canPreviewAdvisorResult} from './photo-first-policy.js';
 import {preparePhotoFile} from './import-conversion.js';
@@ -102,7 +104,7 @@ let cachedCropPreview=null,thumbnailSignature=null;
 const draftStore=createDraftStore();
 const photoViewer=createPhotoViewer($('#viewer-dialog'));
 let advisorPreviewReady=false;
-const advisorViewer=createPhotoViewer($('#advisor-preview-dialog'),{prefix:'advisor-preview',onState:status=>{advisorPreviewReady=status==='ready';updateAdvisorAccept();}});
+const advisorViewer=createPhotoViewer($('#advisor-preview-dialog'),{prefix:'advisor-preview',onState:status=>{advisorPreviewReady=status==='ready';if(status==='ready'&&pendingAdvisorPreview?.toolRun&&!pendingAdvisorPreview.toolPending){const label=$('#advisor-tool-status');if(label)label.textContent=`${pendingAdvisorPreview.toolRun.records.length} 个工具步骤已完成，可以比较后应用。`;}updateAdvisorAccept();}});
 const advisorRequests=createPhotoRequests(),reassessmentRequests=createPhotoRequests();
 let reassessmentRequest=null;
 let exportAfterPreview=null;
@@ -233,7 +235,7 @@ const fileInput = $('#file-input');
 const toast = $('#toast');
 let toastTimer;
 const photoSessions = [];
-const photoStateKeys = ['creativeIntent','analysisIntent','image','imageName','isDemo','previewSource','previewData','analysis','advisorLayers','active','manual','crop','compare','annotations','presetId','presetAmount','presetThumbs','analysisSource','analysisStatus','analysisError','analysisProvenance','originalInspection','originalRecommendations','assessment','exported'];
+const photoStateKeys = ['toolRuns','creativeIntent','analysisIntent','image','imageName','isDemo','previewSource','previewData','analysis','advisorLayers','active','manual','crop','compare','annotations','presetId','presetAmount','presetThumbs','analysisSource','analysisStatus','analysisError','analysisProvenance','originalInspection','originalRecommendations','assessment','exported'];
 let currentPhotoId = null;
 let analysisController = null;
 let selectedEvidenceKey = null;
@@ -302,13 +304,13 @@ function applySharedProject(photo,data,{force=false}={}) {
   syncSharedEditions(photo,data);
   const meaningful=value=>JSON.stringify([value.currentId,value.current,value.intent,value.notes.map(({id,note,rect,protect})=>({id,note,rect,protect}))]);
   if(!force&&photo.projectData&&meaningful(photo.projectData)===meaningful(data)){
-    if(JSON.stringify(data.conversation)!==JSON.stringify(photo.projectData.conversation)){photo.conversation=data.conversation.map(m=>({...m,id:crypto.randomUUID()}));if(currentPhotoId===photo.id)renderAgent();}
+    if(JSON.stringify(data.conversation)!==JSON.stringify(photo.projectData.conversation)){photo.conversation=data.conversation.map(m=>({...m,id:m.id||crypto.randomUUID()}));if(currentPhotoId===photo.id)renderAgent();}
     photo.projectData=data;return;
   }
   const snapshot=snapshotFromProject(data);
   advisorRequests.cancel(photo.id,'project-updated');photo.agentBusy=false;
-  Object.assign(photo,{manual:snapshot.manual,active:new Set(),advisorLayers:[],crop:snapshot.crop,presetId:snapshot.presetId,presetAmount:snapshot.presetAmount,annotations:snapshot.annotations,
-    creativeIntent:data.intent,conversation:data.conversation.map(m=>({...m,id:crypto.randomUUID()})),history:{past:[],future:[]},projectId:data.id,projectPath:data.path,projectRevision:data.revision,projectCurrentId:data.currentId,originalFileName:data.name,projectData:data});
+  Object.assign(photo,{toolRuns:snapshot.toolRuns,manual:snapshot.manual,active:new Set(),advisorLayers:[],crop:snapshot.crop,presetId:snapshot.presetId,presetAmount:snapshot.presetAmount,annotations:snapshot.annotations,
+    creativeIntent:data.intent,conversation:data.conversation.map(m=>({...m,id:m.id||crypto.randomUUID()})),history:{past:[],future:[]},projectId:data.id,projectPath:data.path,projectRevision:data.revision,projectCurrentId:data.currentId,originalFileName:data.name,projectData:data});
   preparePhotoPreview(photo);photo.analysis=analyzeLocal(photo);photo.analysisSource='local';photo.analysisStatus='idle';photo.analysisProvenance=null;photo.originalRecommendations=null;photo.analysisIntent=data.intent;photo.assessment=null;photo.exported=data.exports.some(e=>e.versionId===data.currentId);photo.lastExportSignature=photo.exported?snapshotAcceptanceSignature(photoSnapshot(photo)):'';
   nextAnnotationId=Math.max(nextAnnotationId,...photo.annotations.map(a=>Number(String(a.id).replace('note-',''))+1).filter(Number.isFinite));
   if(currentPhotoId===photo.id){
@@ -713,7 +715,7 @@ function requestClosePhoto(id) {
 
 function editSnapshot() {
   return {
-    advisorLayers:structuredClone(state.advisorLayers),active:[...state.active],manual:{...state.manual},crop:state.crop ? {...state.crop} : null,presetId:state.presetId,presetAmount:state.presetAmount,
+    toolRuns:structuredClone(state.toolRuns||[]),advisorLayers:structuredClone(state.advisorLayers),active:[...state.active],manual:{...state.manual},crop:state.crop ? {...state.crop} : null,presetId:state.presetId,presetAmount:state.presetAmount,
     recommendations:state.analysis ? structuredClone(state.analysis.recommendations) : null,
     annotations:structuredClone(state.annotations),
     agentApplied:currentPhoto()?.conversation.map(message => Boolean(message.applied)) || [],
@@ -748,6 +750,7 @@ function beforeEdit() { endStyleAudition();finishRangeEdit(); return editSnapsho
 function restoreEdit(snapshot) {
   const previousCrop = JSON.stringify(state.crop);
   state.active = new Set(snapshot.active);
+  state.toolRuns=structuredClone(snapshot.toolRuns||[]);
   state.advisorLayers = structuredClone(snapshot.advisorLayers || []);
   state.manual = {...defaults,...snapshot.manual};
   state.crop = snapshot.crop ? {...snapshot.crop} : null;
@@ -1171,7 +1174,7 @@ async function addPhotoSource(src,name,isDemo=false,activate=true,originalBlob=n
   try {
     const image=await loadPhotoImage(src,{metadata,signal});
   const photo = {
-    id:`photo-${nextPhotoId++}`,src,image,originalBlob,imageName:name,isDemo,subject:isDemo ? 'landscape' : 'unclassified',subjectSource:isDemo ? 'demo' : 'unclassified',
+    id:`photo-${nextPhotoId++}`,toolRuns:[],src,image,originalBlob,imageName:name,isDemo,subject:isDemo ? 'landscape' : 'unclassified',subjectSource:isDemo ? 'demo' : 'unclassified',
     creativeIntent:'',analysisIntent:'',previewSource:null,previewData:null,analysis:null,advisorLayers:[],active:new Set(),manual:{...defaults},crop:null,compare:50,annotations:[],
     presetId:null,presetAmount:75,presetThumbs:{},analysisSource:'local',analysisStatus:'idle',analysisError:null,analysisProvenance:null,originalInspection:null,
     originalRecommendations:null,assessment:null,exported:false,history:{past:[],future:[]},conversation:[],versions:[],agentBusy:false,agentFallback:false,agentDraft:'',agentFocusId:null
@@ -1674,15 +1677,28 @@ function renderToneCurve() {
 
 function agentActionMarkup(message,index) {
   const action=message.action;if(!action || action.kind==='none')return '';
-  const applied=action.kind==='style' ? state.presetId===action.presetId:action.kind==='crop' ? Boolean(state.crop && ['x','y','width','height'].every(key=>Math.abs(state.crop[key]-action.crop[key])<.001)):state.advisorLayers.some(item=>item.id===message.id);
+  const applied=message.applied || (action.kind==='style' ? state.presetId===action.presetId:action.kind==='crop' ? Boolean(state.crop && ['x','y','width','height'].every(key=>Math.abs(state.crop[key]-action.crop[key])<.001)):state.advisorLayers.some(item=>item.id===message.id));
   const notesChanged=annotationsChanged(message,renderedAnnotations());
   const stale=!applied && (notesChanged || (message.baseSignature && message.baseSignature!==currentEffectSignature()) || cleanIntent(message.baseIntent)!==cleanIntent(state.creativeIntent));
   const unavailable=action.kind==='region' && !state.annotations.some(item=>item.id===action.annotationId);
   const explanation=actionExplanation(action);
   return `<div class="agent-action staged-action"><div class="agent-action-copy"><strong>${escapeHtml(explanation.goal)}</strong><small>${escapeHtml(explanation.scope)}</small><small>${escapeHtml(agentChanges(action))}</small></div><button type="button" data-agent-apply="${index}" ${applied || unavailable || stale ? 'disabled':''}>${unavailable ? '标记已删除':stale ? notesChanged ? '批注已更新 · 请重新提问':'目标或画面已变化 · 请重问':applied ? '已应用':'先预览'}</button></div>`;
 }
+function toolInputSummary(operation,operations){
+  const target=operation.target;
+  const scope=target.kind==='image'?'整张':target.kind==='object'?`对象「${target.name}」`:target.kind==='annotation'?'已有标记':target.kind==='output'?`沿用「${operations.find(op=>op.id===target.operationId)?.title||target.operationId}」`:'蒙版范围';
+  const params=Object.entries(operation.parameters).map(([key,value])=>{
+    if(key==='changes')return value.map(change=>`${settingLabels[change.key]||change.key} ${change.value>0?'+':''}${change.value}${change.key==='exposure'?' EV':''}`).join('、');
+    if(key==='mode')return value==='delta'?'增量':'目标值';
+    if(key==='angle')return `角度 ${value}°`;
+    if(key==='amount')return `强度 ${value}%`;
+    if(key==='id')return presetById(value)?.name||value;
+    return value===null?'':`${key} ${typeof value==='object'?JSON.stringify(value):value}`;
+  }).filter(Boolean).join(' · ');
+  return [scope,params,target.mask?.exclude?.length?`排除 ${target.mask.exclude.length} 处`:null].filter(Boolean).join(' · ');
+}
 function agentChanges(action) {
-  return action.kind==='style' ? `替换当前风格为「${presetById(action.presetId)?.name}」；其他调整保留`:action.kind==='crop' ? `保留约 ${Math.round(action.crop.width*action.crop.height*100)}% 原画幅；光色参数保持`:action.changes.map(item=>`${settingLabels[item.key] || item.key} ${item.value>0 ? '+':''}${Number(item.value.toFixed(2))}${item.key==='exposure' ? ' EV':''}`).join(' · ');
+  return action.kind==='tools' ? action.operations.map((operation,index)=>`${index+1}. ${operation.title} · ${toolInputSummary(operation,action.operations)}`).join('；'):action.kind==='plan' ? action.steps.map((step,i)=>`${i+1}. ${step.label}${step.kind==='rotate' ? ` ${step.angle>0?'+':''}${step.angle}°`:step.kind==='masked' ? ` · 蒙版${step.exclude.length ? `，排除 ${step.exclude.length} 处`:''}`:''}`).join('；'):action.kind==='style' ? `替换当前风格为「${presetById(action.presetId)?.name}」；其他调整保留`:action.kind==='crop' ? `保留约 ${Math.round(action.crop.width*action.crop.height*100)}% 原画幅；光色参数保持`:action.changes.map(item=>`${settingLabels[item.key] || item.key} ${item.value>0 ? '+':''}${Number(item.value.toFixed(2))}${item.key==='exposure' ? ' EV':''}`).join(' · ');
 }
 
 function selectedAnnotation() { return state.annotations.find(item => item.id === selectedAnnotationId); }
@@ -2051,35 +2067,58 @@ function cancelAdvisor() {
 }
 function updateAdvisorAccept(){
   const pending=pendingAdvisorPreview,photo=photoSessions.find(p=>p.id===pending?.photoId);
-  const disabled=!advisorPreviewReady||Boolean(pending?.accepting)||Boolean(photo?.projectId&&(!pending?.projectCandidate||pending?.projectBusy));
+  const disabled=!advisorPreviewReady||Boolean(pending?.toolPending)||Boolean(pending?.toolFailed)||Boolean(pending?.noSteps)||Boolean(pending?.accepting)||Boolean(photo?.projectId&&(!pending?.projectCandidate||pending?.projectBusy));
   $('#advisor-preview-accept').disabled=disabled;$('#advisor-preview-export').disabled=disabled;
 }
 async function syncProjectPreview(pending){
   const photo=photoSessions.find(p=>p.id===pending.photoId);if(!photo?.projectId)return;
-  const generation=++pending.projectGeneration,candidate=structuredClone(pending.candidate);
+  const generation=++pending.projectGeneration,previous=pending.projectSync;
   pending.projectBusy=true;updateAdvisorAccept();
-  try{
-    if(pending.projectCandidate){await projectWorkspace.discard(photo,pending.projectCandidate);pending.projectCandidate=null;}
-    const patch=workspacePatch(candidate,{intent:photo.creativeIntent,conversation:photo.conversation});
-    const token=await projectWorkspace.propose(photo,patch,pending.explanation);
-    if(pending!==pendingAdvisorPreview||generation!==pending.projectGeneration){await projectWorkspace.discard(photo,token);return;}
-    pending.projectCandidate=token;pending.projectPatch=patch;
-  }catch(error){if(pending===pendingAdvisorPreview)$('#advisor-preview-progress').textContent=error.message;}
-  finally{if(generation===pending.projectGeneration){pending.projectBusy=false;updateAdvisorAccept();}}
+  const work=(async()=>{
+    await previous?.catch(()=>{});
+    if(pending!==pendingAdvisorPreview||generation!==pending.projectGeneration)return;
+    try{
+      if(pending.projectCandidate){await projectWorkspace.discard(photo,pending.projectCandidate);pending.projectCandidate=null;}
+      if(pending!==pendingAdvisorPreview||generation!==pending.projectGeneration||pending.noSteps)return;
+      const patch=workspacePatch(structuredClone(pending.candidate),{intent:photo.creativeIntent,conversation:photo.conversation});
+      const token=await projectWorkspace.propose(photo,patch,pending.explanation);
+      if(pending!==pendingAdvisorPreview||generation!==pending.projectGeneration){await projectWorkspace.discard(photo,token);return;}
+      pending.projectCandidate=token;pending.projectPatch=patch;
+    }catch(error){if(pending===pendingAdvisorPreview&&generation===pending.projectGeneration)$('#advisor-preview-progress').textContent=error.message;}
+    finally{if(generation===pending.projectGeneration){pending.projectBusy=false;updateAdvisorAccept();}}
+  })();
+  pending.projectSync=work;return work;
 }
 
 function openAdjustmentPreview(before,candidate,explanation,metadata={}) {
-  if(!candidate)return;
+  if(!candidate){showToast('这份方案的范围无法完整执行，请重新生成建议。');return;}
   pendingAdvisorPreview={photoId:currentPhotoId,signature:currentEffectSignature(),intent:cleanIntent(state.creativeIntent),before,candidate,fullCandidate:structuredClone(candidate),review:state.analysis,explanation,projectGeneration:0,...metadata};
+  const steps=$('#advisor-plan-steps');steps.replaceChildren();steps.hidden=!metadata.planMessage&&!metadata.toolMessage;
+  $('#advisor-tool-status').hidden=!metadata.toolMessage;$('#advisor-tool-status').textContent='';$('#advisor-tool-retry').hidden=true;
+  if(metadata.toolMessage){
+    pendingAdvisorPreview.toolMessage=metadata.toolMessage;pendingAdvisorPreview.toolPending=true;
+    metadata.toolMessage.action.operations.forEach(operation=>{
+      const label=document.createElement('label'),input=document.createElement('input'),status=document.createElement('small');input.type='checkbox';input.checked=true;input.dataset.operationId=operation.id;input.setAttribute('aria-label',operation.title);status.dataset.operationStatus=operation.id;status.textContent='待执行';
+      label.append(input,document.createTextNode(operation.title),status);steps.append(label);
+    });
+  }
+  $('#advisor-mask-toggle').hidden=!metadata.planMessage?.action.steps.some(s=>s.kind==='masked')&&!metadata.toolMessage?.action.operations.some(op=>op.target.kind!=='image');$('#advisor-mask-toggle').textContent='查看蒙版';$('#advisor-mask-toggle').setAttribute('aria-pressed','false');
+  if(metadata.planMessage){
+    pendingAdvisorPreview.planMessage=metadata.planMessage;
+    metadata.planMessage.action.steps.forEach((step,index)=>{
+      const label=document.createElement('label'),input=document.createElement('input');input.type='checkbox';input.checked=true;input.dataset.step=index;
+      label.append(input,document.createTextNode(step.label+(step.kind==='masked'&&step.exclude.length?` · 排除 ${step.exclude.length} 处`:'')));steps.append(label);
+    });
+  }
   $('#advisor-preview-goal').textContent=explanation.goal;
   $('#advisor-preview-scope').textContent=`范围 · ${explanation.scope}`;
   $('#advisor-preview-changes').textContent=`变化 · ${explanation.changes}`;
   $('#advisor-preview-tradeoff').textContent=`留意 · ${explanation.tradeoff}`;
   $('#advisor-preview-accept').textContent='应用调整';
-  $('#advisor-preview-strength-row').hidden=!scalablePreview(before,candidate);
+  $('#advisor-preview-strength-row').hidden=Boolean(metadata.planMessage||metadata.toolMessage)||!scalablePreview(before,candidate);
   $('#advisor-preview-strength').value=100;$('#advisor-preview-strength-value').textContent='100%';
   advisorViewer.open(state.image,[viewerVersion(before,'before','当前版本'),viewerVersion(candidate,'candidate','建议预览')],'before','candidate');
-  syncProjectPreview(pendingAdvisorPreview);
+  if(!metadata.toolMessage)syncProjectPreview(pendingAdvisorPreview);
 }
 function previewSuggestions(ids,{crop=false}={}) {
   if(!state.analysis || state.loading)return;
@@ -2091,17 +2130,74 @@ function previewSuggestions(ids,{crop=false}={}) {
   if(suggestedCrop)details.push(`裁剪保留约 ${Math.round(suggestedCrop.rect.width*suggestedCrop.rect.height*100)}% 画面`);
   openAdjustmentPreview(before,candidate,{goal:names.join(' · '),scope:suggestedCrop ? '整张光色与画幅；保留已有调整':'整张光色；保留手动裁剪、风格与局部调整',changes:details.join('；'),tradeoff:[...new Set(items.map(item=>item.caution).filter(Boolean)),...(suggestedCrop ? ['裁剪会减少场景信息，请检查主体、光源与边缘。']:[])].join(' ') || '请放大检查细节与亮暗关系，满意后再应用。'});
 }
-function applyAgentAction(index) {
+async function applyAgentAction(index) {
   const photo=currentPhoto(),message=photo?.conversation[index];
   if(!message?.action || state.loading)return;
   if(annotationsChanged(message,renderedAnnotations())){showToast('批注已更新，请重新向顾问提问以获取建议。');return;}
   const preview={photoId:photo.id,signature:message.baseSignature,intent:cleanIntent(message.baseIntent)};
   if(!previewStillValid(preview,{photoId:currentPhotoId,signature:currentEffectSignature(),intent:state.creativeIntent})){showToast('目标或画面已变化，请顾问根据当前效果重新建议。');return;}
   finishRangeEdit();finishAnnotationNote();
-  const before=editSnapshot(),candidate=advisorCandidate(before,message,{amount:rememberedStyleAmount(tasteRecords,message.action.presetId,photo.subject) ?? state.presetAmount});
+  const before=editSnapshot();
+  if(message.action.kind==='tools'){
+    openAdjustmentPreview(before,structuredClone(before),{...actionExplanation(message.action),changes:agentChanges(message.action)},{messageId:message.id,toolMessage:message,toolPending:true});
+    runAdvisorTools(pendingAdvisorPreview);return;
+  }
+  const candidate=advisorCandidate(before,message,{width:state.image.naturalWidth,height:state.image.naturalHeight,amount:rememberedStyleAmount(tasteRecords,message.action.presetId,photo.subject) ?? state.presetAmount});
   const explanation=actionExplanation(message.action);
-  openAdjustmentPreview(before,candidate,{...explanation,changes:agentChanges(message.action)+(message.action.kind==='style' ? ` · 强度 ${candidate?.presetAmount}%`:'')},{messageId:message.id});
+  openAdjustmentPreview(before,candidate,{...explanation,changes:agentChanges(message.action)+(message.action.kind==='style' ? ` · 强度 ${candidate?.presetAmount}%`:'')},{messageId:message.id,...(message.action.kind==='plan'?{planMessage:message}:{})});
 }
+const advisorSteps=document.createElement('div');advisorSteps.id='advisor-plan-steps';advisorSteps.className='advisor-steps';advisorSteps.hidden=true;$('#advisor-preview-goal').after(advisorSteps);
+const maskToggle=document.createElement('button');maskToggle.type='button';maskToggle.id='advisor-mask-toggle';maskToggle.hidden=true;maskToggle.textContent='查看蒙版';$('#advisor-preview-dialog .viewer-controls').append(maskToggle);maskToggle.addEventListener('click',()=>{const on=maskToggle.getAttribute('aria-pressed')!=='true';maskToggle.setAttribute('aria-pressed',String(on));maskToggle.textContent=on?'隐藏蒙版':'查看蒙版';advisorViewer.showMasks(on);});
+const toolStatus=document.createElement('p');toolStatus.id='advisor-tool-status';toolStatus.setAttribute('role','status');toolStatus.hidden=true;advisorSteps.after(toolStatus);
+const toolRetry=document.createElement('button');toolRetry.id='advisor-tool-retry';toolRetry.type='button';toolRetry.textContent='重试执行';toolRetry.hidden=true;toolStatus.after(toolRetry);toolRetry.addEventListener('click',()=>{if(pendingAdvisorPreview?.toolMessage)runAdvisorTools(pendingAdvisorPreview);});
+async function runAdvisorTools(pending){
+  if(!pending?.toolMessage)return;
+  const generation=(pending.toolGeneration||0)+1;pending.toolGeneration=generation;pending.toolController?.abort();
+  const controller=new AbortController();pending.toolController=controller;pending.toolPending=true;pending.toolFailed=false;toolRetry.hidden=true;
+  const photo=photoSessions.find(p=>p.id===pending.photoId),operations=pending.toolMessage.action.operations;
+  const selectedItemIds=[...advisorSteps.querySelectorAll('input[data-operation-id]:checked')].map(i=>i.dataset.operationId);
+  pending.noSteps=!selectedItemIds.length;updateAdvisorAccept();toolStatus.textContent=selectedItemIds.length?'正在准备工具组合…':'未选择编辑步骤。';
+  const current=()=>pending===pendingAdvisorPreview&&generation===pending.toolGeneration&&!controller.signal.aborted;
+  try{
+    if(pending.projectCandidate){const old=pending.projectCandidate;pending.projectCandidate=null;await projectWorkspace.discard(photo,old);}
+    if(!current())return;
+    if(!selectedItemIds.length){pending.candidate=structuredClone(pending.before);advisorViewer.updateVersion('candidate',viewerVersion(pending.candidate,'candidate','建议预览'));return;}
+    const onEvent=event=>{if(!current()||event.type!=='tool')return;
+      const label=[...advisorSteps.querySelectorAll('[data-operation-status]')].find(el=>el.dataset.operationStatus===event.operationId);if(label)label.textContent=event.stage==='completed'?'已准备':'执行中';
+      toolStatus.textContent=event.stage==='completed'?`${event.title}已完成 · ${event.index}/${event.total}`:`正在执行：${event.title}`;
+    };
+    let run,token;
+    const namespace=pending.toolMessage.id||crypto.randomUUID();
+    if(photo.projectId){const made=await projectWorkspace.proposeTools(photo,{operations,namespace,selectedItemIds,name:pending.toolMessage.action.label,goal:pending.explanation.goal,tradeoff:pending.explanation.tradeoff},{signal:controller.signal,onEvent});run=made.run;token=made.token;}
+    else run=await requestToolRun({operations,namespace,selectedItemIds,state:toolStateFromSnapshot(pending.before),source:{width:photo.image.naturalWidth,height:photo.image.naturalHeight},notes:pending.before.annotations,image:photo.previewSource.toDataURL('image/jpeg',.9)},{signal:controller.signal,onEvent});
+    if(!current()){if(token)await projectWorkspace.discard(photo,token);return;}
+    if(!previewStillValid(pending,{photoId:currentPhotoId,signature:currentEffectSignature(),intent:state.creativeIntent}))throw new Error('照片或目标已变化，请重新生成工具方案。');
+    for(const record of run.records){const status=[...advisorSteps.querySelectorAll('[data-operation-status]')].find(el=>el.dataset.operationStatus===record.id);if(status)status.textContent='已准备';}
+    pending.candidate=toolRunCandidate(pending.before,run,{label:run.label||pending.toolMessage.action.label});pending.fullCandidate=structuredClone(pending.candidate);pending.toolRun=run;pending.noSteps=run.noChange;
+    pending.projectCandidate=token||null;pending.projectPatch=workspacePatch(pending.candidate,{intent:photo.creativeIntent,conversation:photo.conversation});
+    toolStatus.textContent=run.noChange?'所选步骤没有改变画面。':`${run.records.length} 个工具步骤已完成，正在生成比较预览。`;
+    advisorViewer.updateVersion('candidate',viewerVersion(pending.candidate,'candidate','建议预览'));
+  }catch(error){if(current()){pending.toolFailed=true;toolStatus.textContent=error.message;toolRetry.hidden=false;}}
+  finally{if(current()){pending.toolPending=false;updateAdvisorAccept();}}
+}
+advisorSteps.addEventListener('change',event=>{
+  const pending=pendingAdvisorPreview;
+  if(pending?.toolMessage){
+    const inputs=[...advisorSteps.querySelectorAll('input[data-operation-id]')],operations=pending.toolMessage.action.operations,chosen=new Map(inputs.map(i=>[i.dataset.operationId,i]));
+    const changed=event.target.dataset.operationId,operation=operations.find(op=>op.id===changed);
+    if(event.target.checked){const include=op=>{for(const id of op.dependsOn){chosen.get(id).checked=true;include(operations.find(x=>x.id===id));}};include(operation);}
+    else{let updated;do{updated=false;for(const op of operations)if(chosen.get(op.id).checked&&op.dependsOn.some(id=>!chosen.get(id).checked)){chosen.get(op.id).checked=false;updated=true;}}while(updated);}
+    for(const i of inputs){const label=[...advisorSteps.querySelectorAll('[data-operation-status]')].find(el=>el.dataset.operationStatus===i.dataset.operationId);if(label)label.textContent=i.checked?'待执行':'未选';}
+    runAdvisorTools(pending);return;
+  }
+  if(!pending?.planMessage)return;
+  const selectedSteps=[...advisorSteps.querySelectorAll('input:checked')].map(i=>Number(i.dataset.step));
+  pending.noSteps=!selectedSteps.length;
+  pending.candidate=advisorCandidate(pending.before,pending.planMessage,{selectedSteps,width:state.image.naturalWidth,height:state.image.naturalHeight});
+  pending.fullCandidate=structuredClone(pending.candidate);
+  advisorViewer.updateVersion('candidate',viewerVersion(pending.candidate,'candidate','建议预览'));
+  if(currentPhoto()?.projectId){pending.projectGeneration++;pending.projectBusy=true;clearTimeout(pending.projectTimer);pending.projectTimer=setTimeout(()=>syncProjectPreview(pending),250);}updateAdvisorAccept();
+});
 $('#advisor-preview-strength').addEventListener('input',()=>{
   const pending=pendingAdvisorPreview;if(!pending)return;
   const amount=Number($('#advisor-preview-strength').value);
@@ -2110,12 +2206,12 @@ $('#advisor-preview-strength').addEventListener('input',()=>{
   const a=snapshotSettings(pending.before),b=snapshotSettings(pending.candidate);
   $('#advisor-preview-changes').textContent='变化 · '+sliderSpecs.filter(spec=>Math.abs(b[spec.key]-a[spec.key])>.001).map(spec=>`${spec.label} ${formatSlider(b[spec.key]-a[spec.key],spec)}`).join('、');
   advisorViewer.updateVersion('candidate',viewerVersion(pending.candidate,'candidate','建议预览'));
-  if(currentPhoto()?.projectId){pending.projectBusy=true;clearTimeout(pending.projectTimer);pending.projectTimer=setTimeout(()=>syncProjectPreview(pending),200);updateAdvisorAccept();}
+  if(currentPhoto()?.projectId){pending.projectGeneration++;pending.projectBusy=true;clearTimeout(pending.projectTimer);pending.projectTimer=setTimeout(()=>syncProjectPreview(pending),200);updateAdvisorAccept();}
 });
 $('#advisor-preview-cancel').addEventListener('click',()=>$('#advisor-preview-dialog').close());
-$('#advisor-preview-dialog').addEventListener('close',()=>{const pending=pendingAdvisorPreview;if(pending){clearTimeout(pending.projectTimer);if(!pending.projectAccepted&&!pending.projectAccepting)projectWorkspace.discard(photoSessions.find(p=>p.id===pending.photoId),pending.projectCandidate);}pendingAdvisorPreview=null;});
+$('#advisor-preview-dialog').addEventListener('close',()=>{const pending=pendingAdvisorPreview;if(pending){pending.toolController?.abort();clearTimeout(pending.projectTimer);if(!pending.projectAccepted&&!pending.projectAccepting)projectWorkspace.discard(photoSessions.find(p=>p.id===pending.photoId),pending.projectCandidate);}pendingAdvisorPreview=null;});
 async function acceptAdvisorPreview(exportAfter=false){
-  const pending=pendingAdvisorPreview;if(!pending||pending.accepting)return;
+  const pending=pendingAdvisorPreview;if(!pending||pending.accepting||pending.toolPending||pending.toolFailed||pending.noSteps||!advisorPreviewReady)return;
   if(pending?.review!==state.analysis || !previewStillValid(pending,{photoId:currentPhotoId,signature:currentEffectSignature(),intent:state.creativeIntent})){showToast('照片或目标已变化，请重新预览。');$('#advisor-preview-dialog').close();return;}
   const message=pending.messageId ? currentPhoto().conversation.find(item=>item.id===pending.messageId):null;
   if(pending.messageId && !message)return;

@@ -49,12 +49,12 @@ test('registered tool runs in an actual separate process and renders an image ch
  const events=[],result=await runPhotoToolPlan({state:state(),source,namespace:'run-test',operations:[op('light')],preview:{image}},{onEvent:e=>events.push(e)});
  assert.notEqual(result.records[0].execution.pid,process.pid);assert.equal(result.records[0].execution.adapter,'subprocess');
  assert.match(result.records[0].preview.pixelHash,/^[a-f0-9]{64}$/);assert.ok(result.records[0].preview.image.startsWith('data:image/png;base64,'));
- assert.deepEqual(events.map(e=>e.stage),['running','completed']);
+ assert.deepEqual(events.map(e=>e.stage),['running','processing','completed']);
 });
 test('cancellation terminates the actual tool process and leaves no active process',async()=>{
  const controller=new AbortController(),executor=new PhotoToolExecutor(),events=[];
- const request=runPhotoToolPlan({state:state(),source,namespace:'cancel',operations:[op('a')]},{executor,signal:controller.signal,onEvent:e=>{events.push(e);if(e.stage==='running')controller.abort();}});
- await assert.rejects(request,{code:'CANCELLED'});assert.equal(executor.active.size,0);assert.equal(events.length,1);
+ const request=runPhotoToolPlan({state:state(),source,namespace:'cancel',operations:[op('a')]},{executor,signal:controller.signal,onEvent:e=>{events.push(e);if(e.stage==='processing')controller.abort();}});
+ await assert.rejects(request,{code:'CANCELLED'});assert.equal(executor.active.size,0);assert.deepEqual(events.map(e=>e.stage),['running','processing']);
 });
 test('native tool candidates retain tool versions, select independently, and preserve source bytes',async t=>{
  const root=await mkdtemp(join(tmpdir(),'frameyn-tool-project-'));t.after(()=>rm(root,{recursive:true,force:true}));const bytes=await sharp({create:{...source,channels:4,background:'#566778'}}).png().toBuffer(),image=join(root,'source.png');await writeFile(image,bytes);
@@ -66,4 +66,19 @@ test('native tool candidates retain tool versions, select independently, and pre
  const accepted=await acceptCandidate(folder,{id:made.candidate.id,revision:chosen.project.revision,selectionHash:chosen.candidate.selectionHash});
  assert.equal(currentVersion(accepted.project).items[0].operation.version,1);assert.deepEqual(await readFile(join(folder,'source/original.bin')),bytes);
  assert.equal(currentVersion(await loadProject(folder)).state.settings.exposure,.2);
+});
+
+
+test('an async execution Adapter keeps a deterministic preparation contract',async()=>{
+ let executed=false;
+ const tool={id:'async-test',title:'Async',description:'Registered runtime adapter',version:1,targets:['image'],parameters:{type:'object',properties:{},required:[],additionalProperties:false},prepare(){return {effect:{settings:{warmth:4}}};},async execute(_operation,{prepared}){await Promise.resolve();executed=true;return {...prepared,measurements:{value:12}};}};
+ const registry=createPhotoToolRegistry([tool]),operation=op('a','async-test',{kind:'image'},{});
+ assert.equal(compileToolPlan(state(),normalizeToolPlan([operation],{state:state(),source},{registry}),{source,registry}).state.settings.warmth,4);
+ const result=await registry.run(operation,{state:state(),source,outputs:new Map()});assert.equal(executed,true);assert.equal(result.measurements.value,12);
+});
+
+
+test('color tools retain calibrated tint direction when their declared goal reduces green',()=>{
+ assert.throws(()=>compile([{...op('green','color',{kind:'image'},{mode:'delta',changes:[{key:'tint',value:-5}]}),title:'减轻偏绿'}]),{code:'TOOL_PARAMETER_DIRECTION'});
+ assert.equal(compile([{...op('green','color',{kind:'image'},{mode:'delta',changes:[{key:'tint',value:5}]}),title:'减轻偏绿'}]).state.settings.tint,5);
 });
