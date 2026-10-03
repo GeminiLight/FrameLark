@@ -129,6 +129,12 @@ node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
 
 本地工具不请求模型 API，预览只监听 `127.0.0.1`。已接受的选择仅在当前照片项目中记录为偏好。
 
+## 逐项采纳与保留
+
+候选支持按项勾选、组合预览与一次接受。可以锁定手动和风格后的有效参数，或在已保存画面圈选需要保留的硬核心，外侧过渡带连接后续调整。解除保护先试片，保护期间裁剪与拉直会锁定。CLI、宿主 JSON 工具和 Web UI 使用同一套校验。
+
+详见 [受控编辑说明](docs/CONTROLLED_EDITS.md) 与 [验证范围](docs/VALIDATION.md)。
+
 ## 界面
 
 **手动精调**
@@ -204,6 +210,6 @@ npm run knowledge:check
 npm test
 ```
 
-15 项测试覆盖项目、像素处理、本地会话与知识检索。技术测试使用生成图，实际照片观察另有记录，见 [验证范围](docs/VALIDATION.md)。
+自动测试覆盖项目、像素处理、本地会话、逐项选择、保护与知识检索。技术测试使用生成图，实际照片观察另有记录，见 [验证范围](docs/VALIDATION.md)。
 
 [维护指南](CONTRIBUTING.md) · [Skill 入口](skills/guangjian-retouch/SKILL.md) · [CLI 与 JSON 参考](skills/guangjian-retouch/references/tools.md)

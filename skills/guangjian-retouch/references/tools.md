@@ -20,13 +20,27 @@
 }
 ```
 
-继续改一份未接受的试片时加 `"fromCandidate":"最新 inspect 返回的候选 ID"`，其余 `revision` / `baseVersion` 仍用最新项目值。工具继承该试片的全部层，再更新指定目标；基础版本、意图或批注改变会拒绝过期试片。原候选保留，可取消或比较；不会自动接受。
+继续改一份未接受的试片时加 `"fromCandidate":"最新 inspect 返回的候选 ID"`，其余 `revision` / `baseVersion` 仍用最新项目值。工具继承该试片的全部层，再更新指定目标；基础版本、意图或批注改变会拒绝过期试片。原候选保留，可取消或比较；不会自动接受。此兼容入口仅接受旧整组格式，不能与 `items` 混用；它把继承后的完整结果固化为已保存基础版本上的一个 `whole-plan` 项，之后父候选的勾选或删除不会改变它。解除保护试片必须先单独接受，不能用此入口绕过。
 
 值为示例，不是通用修片配方。settings 未出现的参数和未出现的局部保留；style/crop 字段不出现则保持，null 则移除该层。已存在参数设为 0 可清除，局部 `remove:true` 可移除该处效果。requestId 相同且计划相同会返回已有候选，避免重试重复生成；不同计划不得复用同一个 requestId。
 
 裁剪：`crop:{x:0.05,y:0,width:0.9,height:1,angle:0}`。长宽至少 .05，原片内范围，角度 ±15°。保留标记被切到时拒绝方案；用户明确授权该处裁剪后方可 `allowProtectedCrop:true`。
 
 局部渐变：maskType 为 linear，start/end 为原片归一化端点。rectangle/radial 使用批注 rect。enabled:false 暂停该局部效果；所有局部均以版本中的历史范围渲染。
+
+### 逐项方案与宿主工具契约
+
+新方案优先使用 `items`，顶层不再同时放 settings/style/crop/locals/textOverlays。每项的 patch 复用上面的绝对目标语义；style、crop、一个局部层、文字层数组分别是原子操作。项目与依赖 id 唯一，同路径重复写入和依赖环会拒绝，依赖缺失不能接受。
+
+```json
+{"revision":12,"baseVersion":"真实当前版本ID","requestId":"trial-12","items":[{"id":"lift-person","title":"人物稍提亮","patch":{"locals":[{"annotationId":"真实批注ID","settings":{"exposure":0.15}}]}},{"id":"blue","title":"降低蓝色饱和度","dependsOn":[],"patch":{"settings":{"blueSaturation":-8}}}],"selectedItemIds":["blue"]}
+```
+
+`candidate --input` 返回 items、selectedItemIds、selectionHash、baseRevision 和 noChange。勾选变更使用 `select --input`，输入 `{id,revision,selectionHash,selectedItemIds}`；服务端从不可变 parentId 基础重算，点击顺序不改变合成顺序。全不选回到基础效果，不能接受空修改。
+
+接受使用 `accept --id <candidate> --revision <latest> --selection-hash <preview-hash>`。hash 是组合身份，不证明人看过图；宿主仍须实际检查预览。choices 只记录选中项。旧单组格式仍映射为一个项目，可沿用旧 accept 调用。
+
+`tool-schema` 返回提供给宿主 Agent 的 provider-neutral function 定义；完整输入 schema 在 `schemas/edit-plan.schema.json`。`tool --project <project> --input <call.json>` 接受 `{name,arguments}`，仅允许 `frameyn_propose_edits`、`frameyn_select_edits`、`frameyn_change_guards`。自然语言解析和模型 function calling 由宿主完成；这些定义不会自动注册到模型，也不会启动新的模型服务。不传代码，不使用 eval，不将模型文字拼成 shell。
 
 ## 批注 JSON
 
@@ -54,7 +68,7 @@ node <skill>/scripts/cli.mjs compare --project <project> --a <base-id> --b <cand
 node <skill>/scripts/cli.mjs preview --project <project> --version <id> --region '{"x":0.3,"y":0.1,"width":0.2,"height":0.3}' --max-side 1600
 ```
 
-compare 两侧使用 B 版相同裁剪范围和倍率；另外查看 original 才能评价完整原构图。region 是原片范围，裁剪后仍可检查源图上的这处；拉直时返回包含该范围的外接框。区域结果不会做语义分割。
+compare 两侧使用 B 版相同裁剪范围和倍率；另外查看 original 才能评价完整原构图。region 是原片范围；先渲染指定 max-side 的完整最终帧，再提取与当前画幅相交的整像素区域。返回 regionPixels（left/top/width/height）、frameSpec 和 regionMode: crop-final-frame。拉直时取投影外接框，不做语义分割；在当前裁剪外的范围报 REGION_OUTSIDE。区域图不会重新居中暗角或重跑边缘滤镜。
 
 ## 版本与导出
 
@@ -69,6 +83,34 @@ node <skill>/scripts/cli.mjs serve --project <project> --port 0 --session-file <
 
 服务仅绑定本机；新启动会生成新预览会话。页面刷新保留项目，服务关闭后重新启动恢复项目。单张输入最多 30 MB / 5000 万像素 / 最长边 16384；支持静态 JPEG/PNG/WebP/AVIF。HEIC、RAW、TIFF 转换后加入。
 
+
+### 参数锁与画面保护
+
+`guards --input <JSON>` 与 HTTP `POST /api/guards` 共用实现。每次使用最新 revision。
+
+```json
+{"revision":15,"operation":"lock","parameters":["exposure","warmth"],"localIds":[]}
+```
+
+参数锁同时保存手动值和 style 合成后的有效值；会改变有效值的风格也拒绝。局部锁保存整层参数、蒙版、位置、强度、启用状态、层顺序，不能删除/换层绕过。参数锁不保证这块画面像素不变。
+
+```json
+{"revision":16,"operation":"protect","name":"保留人物效果","coordinateSpace":"view","rect":{"x":0.25,"y":0.2,"width":0.3,"height":0.4},"maskType":"radial","feather":0.12}
+```
+
+先查看已保存画面，再选择核心。view 坐标相对当前实际裁剪画面；original 相对正向原片（默认）。形状为 rectangle/radial，feather 为核心局部坐标向外扩展的 0～0.25，实线内 RGBA 完整复制参考，外带线性光/alpha 混合。保护绑定不可变参考版、源校验、管线、构图及独立仿射蒙版，与讨论批注无关。参考 PNG 保存在项目 references 目录；移动项目时须一起保留。
+
+存在区域保护时禁止改变 crop/angle；不同参考版本的区域或外带不能重叠（使用保守外接框判断）。最多 8 个区域，参考依赖最多 4 层/8 个历史版本，以限制重放成本。新增锁或保护保存不改变像素的版本。
+
+```json
+{"revision":17,"operation":"unlock","parameterKeys":[],"localIds":[],"regionIds":["真实保护ID"]}
+```
+
+解除返回候选，检查预览并用 selectionHash 接受后生效。解除区域可能显露原来被覆盖的光色；取消解除试片会保留原保护。CLI/HTTP 允许一起解除多项。历史恢复合并目标保护与当前有效约束，冲突拒绝；不会静默丢掉最终保护合成。
+
+同尺寸同构图的 PNG 最终像素可与参考逐字节验收；JPEG 的 renderPixelHash 是编码前 hash，fileHash 是实际文件 hash，不能据前者声称 JPEG 解码零差异。文字点缀后才做最终保护；无字输出使用无字参考。更换管线或字体无法复现旧参考时拒绝保护输出；inspect 保留项目上下文与预览错误，可显式解除并重建保护。
+
+schema 1 只读时不改文件，第一次实际写入前将原字节备份到 project.schema-1.backup.json，再原子保存 schema 2。旧程序会拒绝 schema 2，避免忽略保护继续写入。
 
 ## 文字点缀
 

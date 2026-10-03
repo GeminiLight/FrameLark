@@ -121,6 +121,12 @@ node scripts/install-photo-skill.mjs /your/skills/guangjian-retouch
 
 Local tools make no model API requests. The preview listens only on `127.0.0.1`. Accepted choices are recorded as preferences within the current photo project only.
 
+## Selective edits and preservation
+
+Select individual proposal items, preview the combined result, and accept one atomic version. Lock manual and effective style-adjusted parameters, or preserve an accepted rectangular/radial pixel core with an outward feather. Unlocking is previewed; crop/rotation changes are blocked while pixel protection is active. CLI, host JSON tools, and Web UI share validation.
+
+See [controlled editing](docs/CONTROLLED_EDITS.md) for guarantees, migration, and verification limits.
+
 ## Optional lettering
 
 Lettering is a separate mode, enabled only when requested. Keep the retouched photograph and preview short captions, cream-colored stickers, or small editorial titles before accepting. The local Web UI supports text, placement, size, color, and small heart or sparkle accents. Export with or without lettering; ordinary photo edits never add text automatically.
@@ -210,6 +216,6 @@ npm run knowledge:check
 npm test
 ```
 
-15 tests cover projects, pixel processing, local sessions, and knowledge retrieval. Technical tests use generated charts; actual photo observations are recorded separately. See [validation scope](docs/VALIDATION.md).
+Tests cover projects, pixel processing, local sessions, selective editing, protections, and knowledge retrieval. Technical tests use generated charts; actual photo observations are recorded separately. See [validation scope](docs/VALIDATION.md).
 
 [Contributing](CONTRIBUTING.md) · [Skill entry point](skills/guangjian-retouch/SKILL.md) · [CLI and JSON reference](skills/guangjian-retouch/references/tools.md)
