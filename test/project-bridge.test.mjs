@@ -7,10 +7,11 @@ import {createRequire} from 'node:module';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {ProjectBridge} from '../project-bridge.mjs';
-import {loadProject,createCandidate,saveNote,changeGuards,initProject} from '../skills/photo-retouch/scripts/project.mjs';
-import {workspacePatch,snapshotFromProject} from '../public/project-snapshot.js';
+import {loadProject,createCandidate,acceptCandidate,saveNote,deleteNote,changeGuards,initProject} from '../skills/photo-retouch/scripts/project.mjs';
+import {workspacePatch,snapshotFromProject,editionsFromProject,workspaceEditions} from '../public/project-snapshot.js';
 import {snapshotSettings} from '../public/batch-edits.js';
 import {effectiveSettings} from '../skills/photo-retouch/scripts/engine/edit-guards.js';
+import {renderFrame} from '../skills/photo-retouch/scripts/render.mjs';
 const sharp=createRequire(new URL('../skills/photo-retouch/package.json',import.meta.url))('sharp');
 async function fixture(t){const root=await mkdtemp(join(tmpdir(),'frameyn-bridge-'));const bridge=new ProjectBridge({root});t.after(async()=>{bridge.close();await rm(root,{recursive:true,force:true});});const bytes=await sharp({create:{width:128,height:96,channels:4,background:'#657884'}}).png().toBuffer();const data=await bridge.create(bytes,'sample.png');return {root,bridge,data,bytes};}
 
@@ -58,12 +59,124 @@ test('shared snapshots preserve effective parameters even when layered sums exce
   const patch=workspacePatch(base);assert.equal(patch.style,null);assert.deepEqual(effectiveSettings(patch),snapshotSettings(base));
 });
 
+test('overlapping locals keep their native order and pixels through a conversation-only Web save',async t=>{
+  const {bridge,data}=await fixture(t),rect={x:.1,y:.1,width:.8,height:.8};
+  const a=await saveNote(data.path,{revision:data.revision,rect,note:'A exposure'}),b=await saveNote(data.path,{revision:a.project.revision,rect,note:'B contrast'});
+  const made=await createCandidate(data.path,{revision:b.project.revision,baseVersion:data.currentId,items:[{id:'b',title:'contrast',patch:{locals:[{annotationId:b.note.id,settings:{contrast:60},feather:0}]}},{id:'a',title:'exposure',patch:{locals:[{annotationId:a.note.id,settings:{exposure:1},feather:0}]}}]});
+  const before=await bridge.candidate(data.id,'accept',{id:made.candidate.id,revision:made.project.revision,selectionHash:made.candidate.selectionHash});
+  const pixelsBefore=await renderFrame(data.path),snapshot=snapshotFromProject(before);
+  assert.deepEqual(snapshot.annotations.map(a=>a.id),before.current.locals.map(l=>l.id));
+  const saved=await bridge.save(data.id,{...workspacePatch(snapshot,{conversation:[{role:'user',text:'conversation only'}]}),revision:before.revision,baseVersion:before.currentId});
+  assert.deepEqual(saved.current.locals,before.current.locals);assert.deepEqual(saved.notes,before.notes);
+  assert.equal(saved.currentId,before.currentId);assert.equal((await renderFrame(data.path)).pixelHash,pixelsBefore.pixelHash);
+});
+
+test('unchanged notes and metadata do not expire a candidate; a real note change does',async t=>{
+  const {bridge,data}=await fixture(t);
+  await saveNote(data.path,{revision:data.revision,rect:{x:.1,y:.1,width:.2,height:.2},note:'keep subject'});
+  let view=await bridge.get(data.id);
+  const made=await createCandidate(data.path,{revision:view.revision,baseVersion:view.currentId,items:[{id:'light',title:'light',patch:{settings:{exposure:.3}}}]});
+  view=await bridge.get(data.id);const snapshot=snapshotFromProject(view);
+  view=await bridge.save(data.id,{...workspacePatch(snapshot,{conversation:[{role:'user',text:'Tell me more'}]}),revision:view.revision,baseVersion:view.currentId});
+  assert.equal(view.candidates[0].stale,false);
+  const currentId=view.currentId,choices=(await loadProject(data.path)).choices;
+  view=await bridge.edition(data.id,{revision:view.revision,baseVersion:view.currentId,name:'自然版'});
+  const edition=view.versions.at(-1);view=await bridge.renameVersion(data.id,{revision:view.revision,id:edition.id,name:'安静版'});
+  assert.equal(view.currentId,currentId);assert.equal(view.candidates[0].stale,false);assert.deepEqual((await loadProject(data.path)).choices,choices);
+  snapshot.annotations[0].note='different intent for subject';
+  view=await bridge.save(data.id,{...workspacePatch(snapshot),revision:view.revision,baseVersion:view.currentId});
+  assert.equal(view.candidates[0].stale,true);assert.equal(view.candidates[0].id,made.candidate.id);
+});
+
+test('Web history migration is atomic, preserves names and notes, and is idempotent after a lost response',async t=>{
+  const {bridge,data,bytes}=await fixture(t),first=snapshotFromProject(data);
+  first.manual.exposure=.2;first.annotations=[{id:'note-web',rect:{x:.1,y:.1,width:.2,height:.2},note:'old note',localSettings:{shadows:10}}];
+  const current=structuredClone(first);current.manual.exposure=0;current.annotations[0].rect.x=.5;current.annotations[0].note='new note';
+  const value={...workspacePatch(current),revision:data.revision,baseVersion:data.currentId,importId:'test-migration',versions:[{id:'web-edition',name:'微亮版',at:'2026-10-04T00:00:00.000Z',kind:'manual',patch:workspacePatch(first)}]};
+  const saved=await bridge.save(data.id,value),replayed=await bridge.save(data.id,value);
+  assert.equal(saved.revision,replayed.revision);assert.equal(saved.versions.length,replayed.versions.length);
+  const historical=saved.versions.find(v=>v.id==='web-edition');assert.equal(historical.name,'微亮版');assert.equal(historical.state.settings.exposure,.2);assert.equal(historical.notes[0].note,'old note');
+  assert.deepEqual(await readFile(join(data.path,'source/original.bin')),bytes);
+  const restored=await bridge.candidate(data.id,'restore',{revision:saved.revision,id:historical.id});
+  assert.equal(restored.supported,true);assert.equal(restored.notes[0].rect.x,.1);assert.equal(restored.current.settings.exposure,.2);
+  const original=await bridge.candidate(data.id,'restore',{revision:restored.revision,id:data.currentId});assert.equal(original.current.settings.exposure,0);
+});
+
+test('an invalid historical version leaves the complete pre-migration project untouched',async t=>{
+  const {bridge,data}=await fixture(t),snapshot=snapshotFromProject(data),before=await readFile(join(data.path,'project.json'));
+  const versions=[{id:'valid',name:'自然版',at:'2026-10-04T00:00:00.000Z',patch:workspacePatch(snapshot)},{id:'invalid',name:'',at:'2026-10-04T00:00:00.000Z',patch:workspacePatch(snapshot)}];
+  await assert.rejects(bridge.save(data.id,{...workspacePatch(snapshot),versions,importId:'failed-migration',revision:data.revision,baseVersion:data.currentId}),{code:'INVALID_VERSION_NAME'});
+  assert.deepEqual(await readFile(join(data.path,'project.json')),before);
+});
+
+test('migration preserves all 40 editions and protected note metadata',async t=>{
+  const {bridge,data}=await fixture(t),snapshot=snapshotFromProject(data);
+  snapshot.annotations=[{id:'kept-note',number:5,updatedAt:'2026-10-01T00:00:00.000Z',rect:{x:.1,y:.1,width:.2,height:.2},note:'保留主体',protect:true}];
+  const versions=Array.from({length:40},(_,i)=>({id:`edition-${i}`,name:`方案${i}`,at:'2026-10-04T00:00:00.000Z',patch:workspacePatch(snapshot)}));
+  const saved=await bridge.save(data.id,{...workspacePatch(snapshot),versions,importId:'forty-editions',revision:data.revision,baseVersion:data.currentId});
+  assert.equal(saved.versions.filter(v=>v.mode==='edition').length,40);
+  assert.equal(saved.notes[0].protect,true);assert.equal(saved.notes[0].number,5);assert.equal(saved.notes[0].updatedAt,'2026-10-01T00:00:00.000Z');
+  const patch=workspacePatch(snapshotFromProject(saved));patch.annotations[0].protect=false;
+  const unchanged=await bridge.save(data.id,{...patch,revision:saved.revision,baseVersion:saved.currentId});assert.equal(unchanged.notes[0].protect,true);
+});
+
+test('conversation save preserves a local whose annotation was deleted, without expiring a candidate',async t=>{
+  const {bridge,data}=await fixture(t),note=await saveNote(data.path,{revision:data.revision,rect:{x:.1,y:.1,width:.2,height:.2},note:'local context'});
+  let candidate=await createCandidate(data.path,{revision:note.project.revision,baseVersion:data.currentId,items:[{id:'local',title:'local',patch:{locals:[{annotationId:note.note.id,settings:{exposure:.2}}]}}]});
+  let view=await bridge.candidate(data.id,'accept',{revision:candidate.project.revision,id:candidate.candidate.id,selectionHash:candidate.candidate.selectionHash});
+  await deleteNote(data.path,{revision:view.revision,id:note.note.id});view=await bridge.get(data.id);
+  candidate=await createCandidate(data.path,{revision:view.revision,baseVersion:view.currentId,items:[{id:'light',title:'light',patch:{settings:{exposure:.2}}}]});
+  view=await bridge.get(data.id);const currentId=view.currentId;
+  const saved=await bridge.save(data.id,{...workspacePatch(snapshotFromProject(view),{conversation:[{role:'user',text:'hello'}]}),revision:view.revision,baseVersion:view.currentId});
+  assert.equal(saved.currentId,currentId);assert.deepEqual(saved.current.locals,view.current.locals);assert.deepEqual(saved.notes,[]);assert.equal(saved.candidates[0].stale,false);
+});
+
+test('old native masks with moved notes cannot be restored or saved through Web',async t=>{
+  const {bridge,data}=await fixture(t),note=await saveNote(data.path,{revision:data.revision,rect:{x:.1,y:.1,width:.2,height:.2},note:'subject'});
+  const made=await createCandidate(data.path,{revision:note.project.revision,baseVersion:data.currentId,items:[{id:'local',title:'local',patch:{locals:[{annotationId:note.note.id,settings:{exposure:.2}}]}}]});
+  const old=await bridge.candidate(data.id,'accept',{revision:made.project.revision,id:made.candidate.id,selectionHash:made.candidate.selectionHash});
+  await saveNote(data.path,{revision:old.revision,id:note.note.id,rect:{x:.5,y:.1,width:.2,height:.2}});
+  const moved=await bridge.get(data.id);assert.equal(moved.supported,false);assert.equal(moved.versions.find(v=>v.id===old.currentId).supported,false);
+  await assert.rejects(bridge.candidate(data.id,'restore',{revision:moved.revision,id:old.currentId}),{code:'WORKSPACE_UNSUPPORTED'});
+  await assert.rejects(bridge.save(data.id,{...workspacePatch(snapshotFromProject(moved)),revision:moved.revision,baseVersion:moved.currentId}),{code:'WORKSPACE_UNSUPPORTED'});
+  assert.equal((await loadProject(data.path)).notes[0].rect.x,.5);
+});
+
+test('mutation responses are the committed snapshot, not a later external head',async t=>{
+  const {bridge,data}=await fixture(t),runtime=await bridge.runtime(),patch=workspacePatch(snapshotFromProject(data));patch.settings.exposure=.1;
+  const wrapped={...runtime,async saveWorkspaceSnapshot(folder,value){const result=await runtime.saveWorkspaceSnapshot(folder,value);await saveNote(folder,{revision:result.project.revision,rect:{x:.1,y:.1,width:.2,height:.2},note:'later CLI change'});return result;}};
+  bridge.runtime=async()=>wrapped;
+  const saved=await bridge.save(data.id,{...patch,revision:data.revision,baseVersion:data.currentId});
+  assert.equal(saved.revision,2);assert.deepEqual(saved.notes,[]);assert.equal((await bridge.get(data.id)).revision,3);
+});
+
+test('malformed export dimensions are rejected at the project boundary, while 1px records remain valid',async t=>{
+  const {bridge,data}=await fixture(t),file=join(data.path,'project.json'),p=await loadProject(data.path);
+  p.exports=[{path:join(data.path,'exports/test.png'),versionId:p.currentId,width:1,height:1}];await writeFile(file,JSON.stringify(p));assert.equal((await bridge.get(data.id)).exports[0].width,1);
+  for(const width of ['<img src=x onerror="window.bad=true">',0,-1,.5,null]){
+    p.exports[0].width=width;await writeFile(file,JSON.stringify(p));await assert.rejects(bridge.get(data.id),{code:'INVALID_PROJECT'});
+  }
+});
+
 test('protected versions cannot be silently replaced by the simpler Web workspace',async t=>{
   const {bridge,data}=await fixture(t);
   await changeGuards(data.path,{revision:data.revision,operation:'lock',parameters:['exposure']});
   const view=await bridge.get(data.id);assert.equal(view.supported,false);
   const snapshot=snapshotFromProject(view);snapshot.manual.exposure=.3;
   await assert.rejects(bridge.save(data.id,{...workspacePatch(snapshot),revision:view.revision,baseVersion:view.currentId}),{code:'WORKSPACE_UNSUPPORTED'});
+});
+
+test('Save As refuses unsupported historical effects even when the current version is editable',async t=>{
+  const {bridge,data}=await fixture(t);
+  const locked=await changeGuards(data.path,{revision:data.revision,operation:'lock',parameters:['exposure']});
+  const unlocked=await changeGuards(data.path,{revision:locked.project.revision,operation:'unlock',parameterKeys:['exposure']});
+  await acceptCandidate(data.path,{revision:unlocked.project.revision,id:unlocked.candidate.id,selectionHash:unlocked.candidate.selectionHash});
+  const view=await bridge.get(data.id);assert.equal(view.supported,true);
+  const editions=editionsFromProject(view);assert.ok(editions.some(v=>v.supported===false));
+  assert.throws(()=>workspaceEditions(editions,{copy:true}),/历史版本/);
+  // Existing projects can still save current edits without flattening that history.
+  const saved=await bridge.save(data.id,{...workspacePatch(snapshotFromProject(view)),revision:view.revision,baseVersion:view.currentId});
+  assert.equal(saved.versions.find(v=>v.id===locked.version.id).supported,false);
 });
 
 test('Web snapshot saves cannot bypass an explicitly reviewed Skill workflow',async t=>{

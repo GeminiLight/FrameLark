@@ -4,6 +4,8 @@ import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
+import {EventEmitter} from 'node:events';
+import {PassThrough} from 'node:stream';
 import {CodexAppServer} from '../../codex-app-server.mjs';
 import {defaultModelTiers,normalizeModelTiers,routeModel} from '../../public/model-routing.js';
 import {partialReply,readVisionStream} from '../../public/vision-stream.js';
@@ -24,8 +26,113 @@ test('App Server streams, reuses a photo thread, resumes after restart, and isol
   const calls=(await readFile(env.log,'utf8')).trim().split('\n').map(JSON.parse);
   assert.ok(calls.some(c=>c.method==='thread/resume'&&c.params.threadId===a.threadId));
   const started=calls.find(c=>c.method==='thread/start');assert.equal(started.params.sandbox,'read-only');assert.equal(started.params.config['mcp_servers.unrelated.enabled'],false);
+  assert.deepEqual(started.params.environments,[]);
+  for(const call of calls.filter(c=>c.method==='turn/start'))assert.deepEqual(call.params.environments,[]);
   assert.deepEqual(calls.find(c=>c.method==='turn/start').params.outputSchema,schema);
   const saved=await readFile(join(env.root,'.guangjian/codex-sessions.json'),'utf8');assert.ok(!saved.includes('photo-a'));assert.ok(!saved.includes('base64'));
+});
+
+function deferred(){let resolve;const promise=new Promise(r=>{resolve=r;});return {promise,resolve};}
+async function protocolFixture(t,handle){
+  const root=await mkdtemp(join(tmpdir(),'frameyn-protocol-')),children=[],calls=[];
+  const app=new CodexAppServer({root,rpcTimeout:40,spawnImpl:(_command,args)=>{
+    const child=new EventEmitter();child.stdin=new PassThrough();child.stdout=new PassThrough();child.stderr=new PassThrough();
+    child.index=children.length;child.args=args;children.push(child);
+    child.send=value=>child.stdout.write(JSON.stringify(value)+'\n');
+    child.kill=signal=>{child.killedWith=signal;queueMicrotask(()=>child.emit('close'));return true;};
+    child.stdin.on('data',bytes=>{
+      for(const line of bytes.toString().trim().split('\n')){
+        const message=JSON.parse(line);calls.push({child:child.index,...message});
+        const respond=value=>child.send({id:message.id,result:value});
+        if(handle({child,message,respond,app})===true)continue;
+        if(message.method==='initialize')respond({});
+        if(message.method==='config/read')respond({config:{mcp_servers:{}}});
+        if(message.method==='thread/start'||message.method==='thread/resume')respond({thread:{id:message.params.threadId||'photo-thread'}});
+      }
+    });return child;
+  }});
+  t.after(async()=>{app.stop();await app.closing;await rm(root,{recursive:true,force:true});});
+  return {app,children,calls};
+}
+function complete(child,threadId,id,reply){child.send({method:'turn/completed',params:{threadId,turn:{id,status:'completed',items:[{type:'agentMessage',phase:'final_answer',text:JSON.stringify({reply})}]}}});}
+
+test('photo requests disable local image and environment tools, including resumed turns',async t=>{
+  const {app,children}=await protocolFixture(t,({child,message,respond})=>{
+    if(message.method!=='turn/start')return;
+    respond({turn:{id:'safe-turn'}});complete(child,message.params.threadId,'safe-turn','safe');return true;
+  });
+  await app.request(payload(),{model:'test',sessionKey:'photo'});
+  const args=children[0].args;
+  for(const name of ['view_image','shell_tool','sleep_tool','tool_suggest'])assert.ok(args.some((v,i)=>v==='--disable'&&args[i+1]===name));
+});
+
+test('an unknown start timeout retires its transport before retry; old messages cannot complete it',async t=>{
+  const {app,children}=await protocolFixture(t,({child,message,respond})=>{
+    if(message.method!=='turn/start')return;
+    if(child.index===0)return true; // Upstream starts, but no acknowledgement arrives.
+    children[0].send({method:'turn/completed',params:{threadId:'photo-thread',turn:{id:'old-turn',status:'completed',items:[{type:'agentMessage',text:'OLD'}]}}});
+    children[0].send({id:999,method:'item/commandExecution/requestApproval',params:{threadId:'photo-thread'}});
+    children[0].emit('error',new Error('late old process error'));
+    respond({turn:{id:'new-turn'}});complete(child,'photo-thread','new-turn','NEW');return true;
+  });
+  await assert.rejects(app.request(payload('old'),{model:'test',sessionKey:'photo'}),{code:'CODEX_TIMEOUT'});
+  assert.equal(app.active.size,0);assert.equal(children[0].killedWith,'SIGTERM');
+  const retry=await app.request(payload('new'),{model:'test',sessionKey:'photo'});
+  assert.equal(JSON.parse(retry.output_text).reply,'NEW');assert.equal(children.length,2);
+});
+
+test('cancel before start acknowledgement retires immediately and permits a clean retry',async t=>{
+  const waiting=deferred(),controller=new AbortController();
+  const {app,children}=await protocolFixture(t,({child,message,respond})=>{
+    if(message.method!=='turn/start')return;
+    if(child.index===0){waiting.resolve();return true;}
+    respond({turn:{id:'retry'}});complete(child,'photo-thread','retry','fresh');return true;
+  });
+  app.rpcTimeout=5000;
+  const pending=app.request(payload(),{model:'test',sessionKey:'photo',signal:controller.signal});
+  const cancelled=assert.rejects(pending,{code:'CANCELLED'});await waiting.promise;controller.abort();await cancelled;
+  assert.equal(children[0].killedWith,'SIGTERM');assert.equal(app.active.size,0);assert.equal(app.busySessions.size,0);
+  assert.equal(JSON.parse((await app.request(payload(),{model:'test',sessionKey:'photo'})).output_text).reply,'fresh');
+});
+
+test('a known start timeout keeps its photo busy until interrupt settles, without stopping other photos',async t=>{
+  const interrupted=deferred(),settle=deferred();
+  const {app,children}=await protocolFixture(t,({child,message,respond})=>{
+    if(message.method==='turn/start'){
+      const slow=message.params.input.some(i=>i.text==='known slow');
+      if(slow){child.send({method:'turn/started',params:{threadId:'photo-thread',turn:{id:'known-turn',status:'inProgress'}}});return true;}
+      respond({turn:{id:'other-turn'}});complete(child,message.params.threadId,'other-turn','OTHER');return true;
+    }
+    if(message.method==='turn/interrupt'){
+      interrupted.resolve();respond({});
+      settle.promise.then(()=>child.send({method:'turn/completed',params:{threadId:'photo-thread',turn:{id:'known-turn',status:'interrupted',items:[]}}}));return true;
+    }
+    if(message.method==='thread/start'){respond({thread:{id:message.params.ephemeral?'other-thread':'photo-thread'}});return true;}
+  });
+  const first=app.request(payload('known slow'),{model:'test',sessionKey:'photo'}),rejected=assert.rejects(first,{code:'CODEX_TIMEOUT'});
+  await interrupted.promise;
+  await assert.rejects(app.request(payload(),{model:'test',sessionKey:'photo'}),{code:'CODEX_BUSY'});
+  assert.equal(JSON.parse((await app.request(payload(),{model:'test'})).output_text).reply,'OTHER');
+  settle.resolve();await rejected;assert.equal(app.active.size,0);assert.equal(children[0].killedWith,undefined);
+});
+
+test('a retired startup cannot clear or stop the next generation',async t=>{
+  const waiting=deferred();
+  const {app,children}=await protocolFixture(t,({child,message})=>{if(child.index===0&&message.method==='config/read'){waiting.resolve();return true;}});
+  const first=app.start(),rejected=assert.rejects(first,{code:'CODEX_OFFLINE'});await waiting.promise;
+  app.stop();const second=app.start();await rejected;await second;await app.start();
+  assert.equal(children.length,2);assert.equal(app.child,children[1]);assert.ok(app.starting);
+});
+
+test('a request paused while saving its session cannot send a turn on a replacement transport',async t=>{
+  const saving=deferred(),release=deferred();
+  const {app,calls}=await protocolFixture(t,({child,message,respond})=>{if(message.method==='turn/start'){respond({turn:{id:'fresh'}});complete(child,'photo-thread','fresh','NEW');return true;}});
+  app.persistSessions=async()=>{saving.resolve();await release.promise;};
+  const first=app.request(payload(),{model:'test',sessionKey:'photo'}),rejected=assert.rejects(first,{code:'CODEX_OFFLINE'});
+  await saving.promise;app.stop();await app.start();release.resolve();await rejected;
+  assert.equal(calls.filter(c=>c.method==='turn/start').length,0);
+  await app.request(payload(),{model:'test',sessionKey:'photo'});
+  assert.equal(calls.filter(c=>c.method==='turn/start').length,1);
 });
 
 test('cancellation interrupts the actual turn and does not deliver a partial result',async t=>{

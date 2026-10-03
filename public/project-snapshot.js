@@ -9,6 +9,14 @@ export function workspacePatch(snapshot,{intent='',conversation=[]}={}) {
     conversation:conversation.slice(-24).map(m=>({role:m.role,text:m.text,source:m.source,provenance:m.provenance?{model:m.provenance.model,tier:m.provenance.tier}:undefined}))};
 }
 export function snapshotFromProject(data) {
-  const locals=data.current.locals,notes=data.notes,all=[...notes.map(note=>({...note,...locals.find(l=>l.id===note.id),note:note.note,rect:note.rect,hasNote:true,hasLocal:locals.some(l=>l.id===note.id)})),...locals.filter(l=>!notes.some(n=>n.id===l.id)).map(l=>({...l,note:'',hasNote:false,hasLocal:true}))];
+  // Local edits are composited in order. Note numbering must not reorder effects.
+  const locals=data.current.locals,notes=data.notes,all=[...locals.map(local=>{const note=notes.find(n=>n.id===local.id);return {...local,...(note?{number:note.number,updatedAt:note.updatedAt,protect:note.protect}:{}),note:note?.note ?? local.note ?? '',hasNote:Boolean(note),hasLocal:true};}),...notes.filter(note=>!locals.some(l=>l.id===note.id)).map(note=>({...note,hasNote:true,hasLocal:false}))];
   return {manual:{...neutralSettings(),...data.current.settings},active:[],advisorLayers:[],crop:data.current.crop,presetId:data.current.style?.id || null,presetAmount:data.current.style?.amount ?? 75,recommendations:[],annotations:all,agentApplied:[]};
+}
+export function editionsFromProject(data){
+  return data.versions.filter(v=>v.mode!=='workspace').map(v=>({id:v.id,label:v.name,at:v.at,kind:v.kind,supported:v.supported!==false,snapshot:snapshotFromProject({current:v.state,notes:v.notes||[]})}));
+}
+export function workspaceEditions(versions,{copy=false}={}){
+  if(copy&&versions.some(v=>v.supported===false))throw new Error('历史版本含网页不支持的文字或保护设置。请在 Skill 中复制完整项目，原项目和当前编辑仍保留。');
+  return versions.filter(v=>v.kind!=='original').map(v=>({id:v.id,name:v.label,at:v.at,kind:v.kind,patch:workspacePatch(v.snapshot)}));
 }
