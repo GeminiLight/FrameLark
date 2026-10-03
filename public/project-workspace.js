@@ -3,7 +3,7 @@ export async function projectRequest(url,{method='GET',value,body,headers={},sig
   const response=await fetch(url,{method,signal,headers:{...(value?{'Content-Type':'application/json'}:{}),...headers},body:value?JSON.stringify(value):body});
   const result=await response.json();if(!response.ok)throw Object.assign(new Error(result.error?.message || '项目操作未完成。'),{code:result.error?.code,status:response.status});return result;
 }
-export function createProjectWorkspace({getPhoto,getPhotos,getPatch,onLoad,onUpdate,notify}) {
+export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=()=>[],onLoad,onUpdate,onVersions=()=>{},onState=()=>{},notify}) {
   document.querySelector('.heading-actions').insertAdjacentHTML('afterbegin','<button type="button" class="draft-status" id="project-open" hidden>文件项目</button>');
   document.querySelector('.page-heading').insertAdjacentHTML('afterend','<div class="project-sync-status" id="project-sync-status" hidden role="status"></div>');
   document.body.insertAdjacentHTML('beforeend',`<dialog id="project-dialog" class="project-dialog"><header><h2>文件项目</h2><button type="button" id="project-close" aria-label="关闭文件项目">×</button></header><p>照片、批注和版本保存在本机，网页与 Codex Skill 共用同一个项目。</p><button type="button" id="project-create">将当前照片保存为文件项目</button><form id="project-register"><label for="project-path">已有项目的文件夹路径</label><div><input id="project-path" placeholder="包含 project.json 的文件夹" /><button type="submit">打开</button></div></form><p id="project-notice" role="status"></p><section id="project-details"></section><h3>最近项目</h3><div id="project-recent"></div></dialog>
@@ -12,28 +12,32 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,onLoad,onUpd
   const notice=text=>{$('project-notice').textContent=text;};
   function status(photo=getPhoto()){
     const node=$('project-sync-status'),link=photo&&links.get(photo.id);node.hidden=!photo?.projectId;
+    if(photo){const pending=Boolean(link&&(link.dirty||link.busy||link.conflict||link.error));if(Boolean(photo.projectPending)!==pending){photo.projectPending=pending;onState(photo);}}
     if(photo===getPhoto()){const url=new URL(location.href);if(photo?.projectId)url.searchParams.set('project',photo.projectId);else url.searchParams.delete('project');history.replaceState(null,'',url);}
     if(!photo?.projectId)return;
-    node.textContent=(link?.conflict?'项目有更新 · 当前修改尚未同步':link?.error?'项目保存失败':link?.busy||link?.dirty?'正在保存到项目…':'已保存到文件项目')+' · '+photo.projectPath;
+    node.textContent=(link?.conflict?'项目有更新 · 当前修改尚未同步':link?.error?'项目保存失败':link?.busy||link?.dirty?'正在保存到项目…':link?.remote>photo.projectRevision?'正在读取项目更新…':'已保存到文件项目')+' · '+photo.projectPath;
   }
   function render(data=selected) {
     selected=data;
     $('project-create').disabled=!getPhoto()||!available;
     $('project-create').textContent=getPhoto()?.projectId?'将当前修改另存为新项目':'将当前照片保存为文件项目';
-    $('project-details').innerHTML=data?`<h3>${escape(data.name)}</h3><p class="project-path">${escape(data.path)}</p><p>版本 ${data.revision} · 自动保存到此文件夹</p>${!data.supported?`<p class="project-error">${escape(data.limitations)}</p>`:''}<div class="project-buttons"><button type="button" data-project-copy>复制给 Codex</button><button type="button" data-project-reload>重新读取项目</button></div><h3>候选方案</h3>${data.candidates.map(c=>`<article class="project-candidate" data-candidate="${escape(c.id)}"><strong>${escape(c.name)}</strong><p>${escape(c.goal)}</p><p>${escape(c.tradeoff)}</p>${c.items.map(item=>`<label><input type="checkbox" data-project-item="${escape(item.id)}" ${c.selectedItemIds.includes(item.id)?'checked':''} ${c.stale||c.unsupported?'disabled':''}/>${escape(item.title)}</label>`).join('')}<div class="project-buttons"><button type="button" data-project-preview="${escape(c.id)}" ${c.stale||c.unsupported?'disabled':''}>${c.stale?'方案已过期':'对比预览'}</button><button type="button" data-project-discard="${escape(c.id)}">取消方案</button></div></article>`).join('')||'<p>还没有候选。可以在 Codex 中生成方案。</p>'}<details data-project-section="versions"><summary>已保存版本 · ${data.versions.length}</summary>${data.versions.slice().reverse().map(v=>`<div class="project-version"><span>${escape(v.name)}<small>${escape(new Date(v.at).toLocaleString())}</small></span><button type="button" data-project-restore="${escape(v.id)}" ${v.id===data.currentId?'disabled':''}>${v.id===data.currentId?'当前':'恢复'}</button></div>`).join('')}</details><details data-project-section="exports"><summary>导出记录 · ${data.exports.length}</summary>${data.exports.map(e=>`<p class="project-path">${escape(e.path)} · ${e.width} × ${e.height}</p>`).join('')||'<p>导出后可在这里查看文件位置。</p>'}</details>`:'';
+    $('project-details').innerHTML=data?`<h3>${escape(data.name)}</h3><p class="project-path">${escape(data.path)}</p><p>版本 ${data.revision} · 自动保存到此文件夹</p>${!data.supported?`<p class="project-error">${escape(data.limitations)}</p>`:''}<div class="project-buttons"><button type="button" data-project-copy>复制给 Codex</button><button type="button" data-project-reload>重新读取项目</button></div><h3>候选方案</h3>${data.candidates.map(c=>`<article class="project-candidate" data-candidate="${escape(c.id)}"><strong>${escape(c.name)}</strong><p>${escape(c.goal)}</p><p>${escape(c.tradeoff)}</p>${c.items.map(item=>`<label><input type="checkbox" data-project-item="${escape(item.id)}" ${c.selectedItemIds.includes(item.id)?'checked':''} ${c.stale||c.unsupported?'disabled':''}/>${escape(item.title)}</label>`).join('')}<div class="project-buttons"><button type="button" data-project-preview="${escape(c.id)}" ${c.stale||c.unsupported?'disabled':''}>${c.stale?'方案已过期':'对比预览'}</button><button type="button" data-project-discard="${escape(c.id)}">取消方案</button></div></article>`).join('')||'<p>还没有候选。可以在 Codex 中生成方案。</p>'}<details data-project-section="versions"><summary>已保存版本 · ${data.versions.length}</summary>${data.versions.slice().reverse().map(v=>`<div class="project-version"><span>${escape(v.name)}<small>${escape(new Date(v.at).toLocaleString())}</small></span><button type="button" data-project-restore="${escape(v.id)}" ${v.id===data.currentId?'disabled':''}>${v.id===data.currentId?'当前':'恢复'}</button></div>`).join('')}</details><details data-project-section="exports"><summary>导出记录 · ${data.exports.length}</summary>${data.exports.map(e=>`<p class="project-path">${escape(e.path)} · ${escape(e.width)} × ${escape(e.height)}</p>`).join('')||'<p>导出后可在这里查看文件位置。</p>'}</details>`:'';
   }
   async function recent(){const {projects}=await projectRequest('/api/projects');$('project-recent').innerHTML=projects.map(p=>`<button type="button" class="project-recent" data-project-load="${escape(p.id)}"><strong>${escape(p.name)}</strong><small>${escape(p.path)}</small></button>`).join('')||'<p>尚未保存文件项目。</p>';}
-  async function attach(photo,data){
+  async function attach(photo,data,baseline=getPatch(photo)){
     links.get(photo.id)?.events.close();
     Object.assign(photo,{projectId:data.id,projectPath:data.path,projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});
-    const link={baseline:JSON.stringify(getPatch(photo)),dirty:false,busy:false,error:null,conflict:false,data,events:new EventSource(`/api/projects/${data.id}/events`)};links.set(photo.id,link);
+    const link={photo,baseline:JSON.stringify(baseline),dirty:JSON.stringify(getPatch(photo))!==JSON.stringify(baseline),busy:false,remote:0,error:null,conflict:false,data,events:new EventSource(`/api/projects/${data.id}/events`)};links.set(photo.id,link);
+    onVersions(photo,data);
     link.events.onmessage=async event=>{
+      if(links.get(photo.id)!==link)return;
       let update;try{update=JSON.parse(event.data);}catch{return;}
       if(update.error){link.error=update.error;status();return;}
-      if(update.revision<=photo.projectRevision)return;
-      if(link.busy){link.remote=true;return;}
+      if(!Number.isInteger(update.revision)||update.revision<=photo.projectRevision)return;
+      link.remote=Math.max(link.remote,update.revision);
+      if(link.busy)return;
       if(JSON.stringify(getPatch(photo))!==link.baseline){link.conflict=true;status();notice('项目已在另一处更新，当前修改尚未同步。请先保存副本，再重新读取项目。');return;}
-      try{await refresh(photo);}catch(error){link.error=error.message;status();}
+      try{await drainRemote(photo);}catch(error){link.error=error.message;status();}
     };
     link.events.onerror=()=>{link.error='项目更新连接已断开，正在重连。';status();};
     link.events.onopen=()=>{link.error=null;status();};status(photo);
@@ -49,18 +53,32 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,onLoad,onUpd
   }
   async function refresh(photo){
     const link=links.get(photo.id);if(!link)return;
-    const data=await projectRequest(`/api/projects/${photo.projectId}`);
+    const data=await projectRequest(`/api/projects/${link.data.id}`);
+    if(links.get(photo.id)!==link)return;
     if(data.revision<=photo.projectRevision)return;
     if(link.dirty||link.busy||JSON.stringify(getPatch(photo))!==link.baseline){link.conflict=true;status();return;}
     if(!data.supported){link.conflict=true;link.error=data.limitations;notice(data.limitations);status();return;}
     updating=true;
     try{await onUpdate(photo,data);Object.assign(photo,{projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});link.data=data;link.baseline=JSON.stringify(getPatch(photo));if(previewToken&&previewToken.revision!==data.revision){previewToken=null;$('project-accept').disabled=true;}if(selected?.id===data.id)render(data);}finally{updating=false;status();}
   }
+  async function drainRemote(photo){
+    const link=links.get(photo.id);if(!link||link.busy)return;
+    if(link.refreshing)return link.refreshing;
+    link.refreshing=(async()=>{
+      while(links.get(photo.id)===link&&link.remote>photo.projectRevision&&!link.conflict){
+        const revision=photo.projectRevision;await refresh(photo);
+        if(photo.projectRevision===revision)break;
+      }
+      if(link.remote<=photo.projectRevision)link.remote=0;
+    })();
+    try{await link.refreshing;}finally{link.refreshing=null;status();}
+  }
   function schedule(photo){
     if(updating||!photo?.projectId)return;
     const link=links.get(photo.id);if(!link)return;
-    link.dirty=JSON.stringify(getPatch(photo))!==link.baseline;status();
+    link.dirty=JSON.stringify(getPatch(photo))!==link.baseline||getVersions(photo).some(v=>!link.data.versions.some(saved=>saved.id===v.id));status();
     clearTimeout(link.timer);if(link.dirty&&!link.conflict)link.timer=setTimeout(()=>flush(photo).catch(error=>{link.error=error.message;notice(error.message);status();}),500);
+    else if(!link.dirty&&link.remote>photo.projectRevision)drainRemote(photo).catch(error=>{link.error=error.message;notice(error.message);status();});
   }
   async function flush(photo=getPhoto()){
     const link=photo&&links.get(photo.id);if(!link)return null;
@@ -68,30 +86,50 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,onLoad,onUpd
     if(link.conflict)throw new Error('项目已在另一处更新，请先处理未同步修改。');
     if(link.busy){await link.promise;return flush(photo);}
     const patch=getPatch(photo),serialized=JSON.stringify(patch);
-    if(serialized===link.baseline){link.dirty=false;return link.data;}
+    const savedIds=new Set(link.data.versions.map(v=>v.id));
+    const versions=JSON.parse(JSON.stringify(getVersions(photo).filter(v=>!savedIds.has(v.id))));
+    if(serialized===link.baseline&&!versions.length){link.dirty=false;await drainRemote(photo);return link.data;}
     link.busy=true;link.error=null;status();
     link.promise=(async()=>{
       try{
-        const data=await projectRequest(`/api/projects/${photo.projectId}/save`,{method:'POST',value:{...patch,revision:photo.projectRevision,baseVersion:photo.projectCurrentId}});
+        const data=await projectRequest(`/api/projects/${link.data.id}/save`,{method:'POST',value:{...patch,...(versions.length?{versions,importId:crypto.randomUUID()}:{}),revision:photo.projectRevision,baseVersion:photo.projectCurrentId}});
+        if(links.get(photo.id)!==link)return data;
         photo.projectRevision=data.revision;photo.projectCurrentId=data.currentId;photo.projectData=data;link.data=data;link.baseline=serialized;link.dirty=JSON.stringify(getPatch(photo))!==serialized;
+        onVersions(photo,data);
         if(selected?.id===data.id)render(data);return data;
       }catch(error){if(error.status===409)link.conflict=true;link.error=error.message;throw error;}
       finally{link.busy=false;status();}
     })();
     const data=await link.promise;
-    if(link.dirty)return flush(photo);
-    if(link.remote){link.remote=false;await refresh(photo);}return data;
+    if(links.get(photo.id)!==link)return links.get(photo.id)?.data||data;
+    if(link.dirty||getVersions(photo).some(v=>!link.data.versions.some(saved=>saved.id===v.id)))return flush(photo);
+    await drainRemote(photo);return link.data;
   }
-  async function mutate(photo,operation,value,baseline){
+  async function mutate(photo,operation,value,baseline,{reload=false}={}){
     const link=links.get(photo.id);if(!link)throw new Error('项目未连接。');
     while(link.busy)await link.promise;
-    link.busy=true;status();
-    link.promise=projectRequest(`/api/projects/${photo.projectId}/${operation}`,{method:'POST',value}).then(data=>{
+    if(links.get(photo.id)!==link)throw new Error('项目已切换，请在当前项目重试。');
+    const beforeReload=reload?JSON.stringify(getPatch(photo)):null;
+    link.busy=true;link.error=null;status();
+    link.promise=projectRequest(`/api/projects/${link.data.id}/${operation}`,{method:'POST',value}).then(async data=>{
+      if(links.get(photo.id)!==link)return data;
+      if(reload){
+        if(JSON.stringify(getPatch(photo))!==beforeReload){link.conflict=true;throw new Error('恢复已写入文件项目，但等待期间有新的网页修改。已保留这些修改，请先另存副本或重新读取项目。');}
+        if(!data.supported){link.conflict=true;throw new Error(data.limitations||'这个版本需要在 Skill 中继续编辑。当前网页编辑仍保留。');}
+        updating=true;try{await onUpdate(photo,data);}finally{updating=false;}link.baseline=JSON.stringify(getPatch(photo));link.dirty=false;
+      }
       Object.assign(photo,{projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});link.data=data;
+      onVersions(photo,data);
       if(baseline)link.baseline=JSON.stringify(baseline);
+      link.dirty=JSON.stringify(getPatch(photo))!==link.baseline;
       if(selected?.id===data.id)render(data);return data;
-    }).finally(()=>{link.busy=false;status();});
-    return link.promise;
+    }).catch(error=>{if(error.status===409)link.conflict=true;link.error=error.message;throw error;}).finally(()=>{link.busy=false;status();});
+    const data=await link.promise;
+    if(links.get(photo.id)!==link)throw new Error('项目已切换，旧操作的结果保留在原文件项目中。');
+    // Applying a preview commits the browser snapshot immediately after this return.
+    // Wait for schedule() to observe that snapshot before reconciling remote edits.
+    if(baseline&&link.dirty)return data;
+    await drainRemote(photo);return {...link.data,candidateId:data.candidateId,remoteUpdated:link.data.revision!==data.revision};
   }
   async function open(section){notice(available?'':'请先运行 npm run setup，安装本地图片处理依赖后刷新页面。');render(getPhoto()?.projectId?links.get(getPhoto().id)?.data:null);$('project-dialog').showModal();try{if(getPhoto()?.projectId){await flush(getPhoto());render(links.get(getPhoto().id)?.data);}await recent();if(['versions','exports'].includes(section))$('project-details').querySelector(`[data-project-section="${section}"]`)?.setAttribute('open','');}catch(error){notice(error.message);}}
   $('project-open').addEventListener('click',open);$('project-close').addEventListener('click',()=>$('project-dialog').close());
@@ -100,9 +138,16 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,onLoad,onUpd
     const photo=getPhoto();if(!photo)return;$('project-create').disabled=true;notice('正在保存原片和项目…');
     try{
       const bytes=photo.projectId?await(await fetch(`/api/projects/${photo.projectId}/original`)).blob():photo.sourceOriginalBlob||photo.originalBlob||await(await fetch(photo.src)).blob();
-      const data=await projectRequest('/api/projects/create',{method:'POST',body:bytes,headers:{'Content-Type':'application/octet-stream','X-Photo-Name':encodeURIComponent(photo.originalFileName||photo.imageName)}});
-      // Attach without changing the current edits, then save those edits atomically.
-      await attach(photo,data);links.get(photo.id).baseline='';await flush(photo);render(links.get(photo.id).data);await recent();notice('已保存。网页与 Codex 可以继续编辑这个项目。');
+      const {patch,versions}=JSON.parse(JSON.stringify({patch:getPatch(photo),versions:getVersions(photo,{copy:true})})),signature=JSON.stringify({patch,versions});
+      if(!photo.pendingProject||photo.pendingProject.signature!==signature){
+        const data=await projectRequest('/api/projects/create',{method:'POST',body:bytes,headers:{'Content-Type':'application/octet-stream','X-Photo-Name':encodeURIComponent(photo.originalFileName||photo.imageName)}});
+        photo.pendingProject={data,signature,importId:crypto.randomUUID(),patch,versions};
+      }
+      const staged=photo.pendingProject,data=await projectRequest(`/api/projects/${staged.data.id}/save`,{method:'POST',value:{...staged.patch,versions:staged.versions,importId:staged.importId,revision:staged.data.revision,baseVersion:staged.data.currentId}});
+      // Do not exclude the browser draft until every saved edition has committed.
+      await attach(photo,data,staged.patch);delete photo.pendingProject;
+      // Persist edits and editions created while the initial migration was in flight.
+      const latest=await flush(photo);render(latest);await recent();notice('已保存照片、全部命名版本与批注。网页与 Codex 可以继续编辑。');
     }catch(error){notice(error.message);}finally{$('project-create').disabled=false;}
   });
   $('project-recent').addEventListener('click',async event=>{const id=event.target.closest('[data-project-load]')?.dataset.projectLoad;if(!id)return;try{await load(id);}catch(error){notice(error.message);}});
@@ -136,6 +181,9 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,onLoad,onUpd
   });
   async function capabilities(){try{const result=await projectRequest('/api/local-capabilities');available=result.projects;$('project-open').hidden=!result.local;return result;}catch{return {projects:false,heic:false};}}
   return {open,load,attach,schedule,flush,status,capabilities,refresh,
+    async saveEdition(photo,name,kind='manual'){const patch=JSON.parse(JSON.stringify(getPatch(photo)));await flush(photo);return mutate(photo,'versions',{revision:photo.projectRevision,baseVersion:photo.projectCurrentId,name,kind,patch});},
+    async renameEdition(photo,id,name){await flush(photo);return mutate(photo,'versions/rename',{revision:photo.projectRevision,id,name});},
+    async restoreEdition(photo,id){await flush(photo);return mutate(photo,'restore',{revision:photo.projectRevision,id},null,{reload:true});},
     async propose(photo,patch,explanation){await flush(photo);const data=await mutate(photo,'candidate',{revision:photo.projectRevision,baseVersion:photo.projectCurrentId,patch,goal:explanation.goal,tradeoff:explanation.tradeoff});const candidate=data.candidates.find(c=>c.id===data.candidateId);return {projectId:photo.projectId,id:candidate.id,revision:data.revision,selectionHash:candidate.selectionHash};},
     async accept(photo,token,patch){const {id,revision,selectionHash}=token;return mutate(photo,'accept',{id,revision,selectionHash},patch);},
     async discard(photo,token){if(!token)return;try{if(photo&&links.has(photo.id))await mutate(photo,'discard',{id:token.id});else if(token.projectId)await projectRequest(`/api/projects/${token.projectId}/discard`,{method:'POST',value:{id:token.id}});}catch{/* It may already have been accepted or discarded elsewhere. */}},
