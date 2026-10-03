@@ -22,7 +22,7 @@ export function snapshotItem(base, state, title = '整组精调') {
 }
 
 function localLayer(patch, base, notes) {
-  object(patch, ['annotationId', 'settings', 'remove', 'feather', 'maskType', 'start', 'end', 'enabled', 'amount'], 'INVALID_LOCAL');
+  object(patch, ['annotationId', 'settings', 'remove', 'feather', 'maskType', 'start', 'end', 'enabled', 'amount', 'rect', 'note', 'exclude'], 'INVALID_LOCAL');
   ids([patch.annotationId], 'INVALID_LOCAL');
   const existing = base.locals.find(l => l.id === patch.annotationId);
   if (patch.remove !== undefined && typeof patch.remove !== 'boolean') fail('INVALID_LOCAL', 'remove 必须是布尔值。');
@@ -31,9 +31,10 @@ function localLayer(patch, base, notes) {
     if (!existing) fail('LOCAL_NOT_FOUND', '要移除的局部层不存在。');
     return {id: patch.annotationId, remove: true};
   }
-  const note = notes.find(n => n.id === patch.annotationId);
+  const note = notes.find(n => n.id === patch.annotationId) || (patch.rect ? {id:patch.annotationId,rect:cleanRect(patch.rect),note:String(patch.note||'').slice(0,600)}:null);
   if (!note) fail('NOTE_NOT_FOUND', '局部标记已更新或删除，请重新读取批注。');
   const layer = structuredClone(existing || {id: note.id, maskType: 'rectangle', feather: .36, localAmount: 100, localEnabled: true, localSettings: {}});
+  if(patch.exclude!==undefined){if(!Array.isArray(patch.exclude)||patch.exclude.length>8)fail('INVALID_MASK','排除范围无效。');layer.exclude=patch.exclude.map(r=>cleanRect(r));}
   layer.rect = cleanRect(note.rect); layer.note = note.note;
   layer.localSettings = {...layer.localSettings, ...cleanSettings(patch.settings)};
   if (patch.feather !== undefined) layer.feather = bounded(patch.feather, 0, 1, 'INVALID_FEATHER');

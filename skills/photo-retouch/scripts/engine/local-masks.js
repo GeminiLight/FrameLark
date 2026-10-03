@@ -1,7 +1,17 @@
 const clamp=v=>Math.max(0,Math.min(1,v));
 const smooth=v=>{const t=clamp(v);return t*t*(3-2*t);};
 export const maskTypes={rectangle:'矩形',linear:'渐变',radial:'径向',brush:'画笔'};
+// Exclusion cores remain untouched; the transition lies outside each core.
 export function maskWeight(item,p,width=1,height=1) {
+  let weight=baseMaskWeight(item,p,width,height);
+  for(const r of item.exclude || []){
+    const dx=Math.max(r.x-p.x,0,p.x-r.x-r.width),dy=Math.max(r.y-p.y,0,p.y-r.y-r.height);
+    const distance=Math.hypot(dx*width,dy*height),fade=Math.max(1,Math.min(r.width*width,r.height*height)*.2);
+    weight*=smooth(distance/fade);
+  }
+  return weight;
+}
+function baseMaskWeight(item,p,width=1,height=1) {
   const r=item.rect;if(!r || item.localEnabled===false)return 0;
   const feather=Math.max(0,Math.min(1,Number.isFinite(item.feather)?item.feather:.36));
   const type=item.maskType || 'rectangle';

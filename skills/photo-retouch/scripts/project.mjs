@@ -269,10 +269,11 @@ function workspaceSnapshot(p,value,baseState=currentVersion(p).state) {
       if(Object.values(settings).some(Boolean)||raw.hasLocal){
         const maskType=raw.maskType || 'rectangle';if(!['rectangle','radial','linear','brush'].includes(maskType))fail('INVALID_MASK','不支持的局部范围。');
         const layer={id:raw.id,rect,note,maskType,feather:bounded(raw.feather??.36,0,1,'INVALID_MASK'),localAmount:bounded(raw.localAmount??100,0,150,'INVALID_LOCAL'),localEnabled:raw.localEnabled!==false,localSettings:settings};
+        if(raw.exclude!==undefined){if(!Array.isArray(raw.exclude)||raw.exclude.length>8)fail('INVALID_MASK','排除范围无效。');layer.exclude=raw.exclude.map(r=>cleanRect(r));}
         if(maskType==='linear'){layer.start=point(raw.start);layer.end=point(raw.end);}
         if(maskType==='brush'){if(!Array.isArray(raw.points)||!raw.points.length||raw.points.length>600)fail('INVALID_MASK','画笔范围无效。');layer.points=raw.points.map(point);layer.brushRadius=bounded(raw.brushRadius,.001,.15,'INVALID_MASK');}
         const previous=baseState.locals.find(l=>l.id===raw.id);
-        const unchanged=previous&&adjustmentKeys.every(k=>(previous.localSettings?.[k]||0)===(settings[k]||0))&&equal(previous.rect,rect)&&previous.note===note&&(previous.maskType||'rectangle')===maskType&&(previous.feather??.36)===layer.feather&&(previous.localAmount??100)===layer.localAmount&&(previous.localEnabled!==false)===layer.localEnabled&&['start','end','points','brushRadius'].every(k=>equal(previous[k],layer[k]));
+        const unchanged=previous&&adjustmentKeys.every(k=>(previous.localSettings?.[k]||0)===(settings[k]||0))&&equal(previous.rect,rect)&&previous.note===note&&(previous.maskType||'rectangle')===maskType&&(previous.feather??.36)===layer.feather&&(previous.localAmount??100)===layer.localAmount&&(previous.localEnabled!==false)===layer.localEnabled&&['start','end','points','brushRadius','exclude'].every(k=>equal(previous[k],layer[k]));
         locals.push(unchanged?structuredClone(previous):layer);
       }
     }

@@ -22,7 +22,7 @@ export function remainingAdjustments(target,current={}) {
 }
 
 export function adjustmentSignature(settings,crop,annotations,{includeNotes=true}={}) {
-  return JSON.stringify({settings,crop,regions:annotations.filter(item=>includeNotes || Object.values(item.localSettings || {}).some(Boolean)).map(item=>({id:item.id,rect:item.rect,settings:item.localSettings,amount:item.localAmount ?? 100,...(includeNotes ? {note:item.note}:{}),maskType:item.maskType || 'rectangle',feather:item.feather ?? .36,enabled:item.localEnabled!==false,start:item.start,end:item.end,points:item.points,radius:item.brushRadius}))});
+  return JSON.stringify({settings,crop,regions:annotations.filter(item=>includeNotes || Object.values(item.localSettings || {}).some(Boolean)).map(item=>({id:item.id,rect:item.rect,settings:item.localSettings,amount:item.localAmount ?? 100,...(includeNotes ? {note:item.note}:{}),maskType:item.maskType || 'rectangle',feather:item.feather ?? .36,enabled:item.localEnabled!==false,start:item.start,end:item.end,points:item.points,radius:item.brushRadius,exclude:item.exclude}))});
 }
 
 export function hasLocalEffects(annotations=[],advisorLayers=[]) {return effectiveAnnotations(annotations,advisorLayers).some(item=>item.localEnabled!==false && (item.localAmount ?? 100)>0 && Object.values(item.localSettings || {}).some(value=>Math.abs(value)>.001));}

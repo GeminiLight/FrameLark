@@ -53,7 +53,7 @@ export class ProjectBridge {
   async propose(id,{revision,baseVersion,patch,goal='',tradeoff=''}){
     const {runtime,path,p}=await this.resolve(id),before=runtime.currentVersion(p).state;
     const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b),items=[];
-    const sameLocal=(a,b)=>a&&[...new Set([...Object.keys(a.localSettings||{}),...Object.keys(b.localSettings||{})])].every(k=>(a.localSettings?.[k]||0)===(b.localSettings?.[k]||0))&&['rect','maskType','feather','localAmount','localEnabled','start','end','points','brushRadius'].every(k=>same(a[k],b[k]));
+    const sameLocal=(a,b)=>a&&[...new Set([...Object.keys(a.localSettings||{}),...Object.keys(b.localSettings||{})])].every(k=>(a.localSettings?.[k]||0)===(b.localSettings?.[k]||0))&&['rect','maskType','feather','localAmount','localEnabled','start','end','points','brushRadius','exclude'].every(k=>same(a[k],b[k]));
     const global={};if(!same(before.settings,patch.settings))global.settings=patch.settings;
     if(!same(before.style,patch.style))global.style=patch.style;
     if(Object.keys(global).length)items.push({id:'global',title:'光色与风格',patch:global});
@@ -67,8 +67,10 @@ export class ProjectBridge {
         if(sameLocal(existing,a))continue;
         throw new Error('文件项目的候选暂不支持修改画笔范围，请先用矩形、径向或渐变。');
       }
-      if(a.hasNote===false){if(sameLocal(existing,a))continue;throw new Error('请先为这个局部范围补充批注，再生成项目候选。');}
+      if(sameLocal(existing,a))continue;
       const local={annotationId:a.id,settings:a.localSettings,maskType:a.maskType||'rectangle',feather:a.feather??.36,enabled:a.localEnabled!==false,amount:a.localAmount??100};
+      if(!p.notes.some(n=>n.id===a.id)){local.rect=a.rect;local.note=a.note;}
+      if(a.exclude!==undefined)local.exclude=a.exclude;
       if(local.maskType==='linear'){local.start=a.start;local.end=a.end;}
       items.push({id:'local-'+a.id,title:'局部调整',patch:{locals:[local]}});
     }

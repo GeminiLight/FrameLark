@@ -18,6 +18,7 @@ export function cleanExchangeState(state){
   if(!Array.isArray(state.locals)||state.locals.length>8||new Set(state.locals.map(l=>l.id)).size!==state.locals.length)problem('局部记录无效或超过 8 处。');
   const point=p=>p&&['x','y'].every(k=>Number.isFinite(p[k])&&p[k]>=0&&p[k]<=1);
   const locals=state.locals.map(l=>{
+    if(l.exclude!==undefined&&(!Array.isArray(l.exclude)||l.exclude.length>8||!l.exclude.every(rectValid)))problem("排除范围无效。");
     if(!string(l.id,80)||!l.id||!string(l.note||'',600)||!rectValid(l.rect)||!['rectangle','radial','linear'].includes(l.maskType)||!Number.isFinite(l.feather)||l.feather<0||l.feather>1||!Number.isFinite(l.localAmount)||l.localAmount<0||l.localAmount>150||typeof l.localEnabled!=='boolean'||l.maskType==='linear'&&(!point(l.start)||!point(l.end)))problem('局部范围无法交换；画笔请在原工作区继续。');
     return {...structuredClone(l),localSettings:cleanExchangeState({settings:l.localSettings||{},locals:[]}).settings};
   });
