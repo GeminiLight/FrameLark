@@ -52,6 +52,14 @@ test('missing CLI and process crashes become actionable failures',async t=>{
   const app=env.client();await assert.rejects(app.request(payload('crash-fixture'),{model:'gpt-6.1-sol'}),e=>e.code==='CODEX_FAILED');
 });
 
+test('oversized output is interrupted without leaving a timer that stops other photos',async t=>{
+  const env=await setup(t),app=env.client();
+  await assert.rejects(app.request(payload('oversize-fixture'),{model:'gpt-6.1-sol',sessionKey:'large-photo'}),e=>e.code==='INVALID_MODEL_RESPONSE');
+  assert.equal(app.active.size,0);
+  const next=await app.request(payload(),{model:'gpt-6.1-sol',sessionKey:'other-photo'});
+  assert.equal(JSON.parse(next.output_text).reply,'人物在左边，可以保留原片。');
+});
+
 test('model tiers preserve explicit settings, choose Sol by default, and never promote a retry',()=>{
   const tiers=defaultModelTiers();assert.equal(routeModel(tiers).model,'gpt-6.1-sol');assert.equal(routeModel(tiers,{task:'probe'}).tier,'fast');
   assert.equal(routeModel(tiers,{task:'series'}).model,'gpt-6-astra');assert.equal(routeModel(tiers,{tier:'deep'}).model,'gpt-6-astra');

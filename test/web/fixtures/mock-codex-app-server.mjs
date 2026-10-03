@@ -25,7 +25,7 @@ createInterface({input:process.stdin}).on('line',line=>{
     if(text.includes('quota-fixture'))return send({id:m.id,error:{message:'usage limit reached SECRET'}});
     send({method:'turn/started',params:{threadId:p.threadId,turn:{id,status:'inProgress',items:[]}}});
     result({turn:{id,status:'inProgress',items:[]}});
-    const final=JSON.stringify({reply:'人物在左边，可以保留原片。'});
+    const final=JSON.stringify({reply:text.includes('oversize-fixture')?'x'.repeat(200001):'人物在左边，可以保留原片。'});
     const timer=setTimeout(()=>{
       send({method:'item/agentMessage/delta',params:{threadId:p.threadId,turnId:id,itemId:'reply',delta:final.slice(0,16)}});
       send({method:'item/agentMessage/delta',params:{threadId:p.threadId,turnId:id,itemId:'reply',delta:final.slice(16)}});

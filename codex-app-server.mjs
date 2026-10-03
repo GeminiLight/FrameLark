@@ -86,11 +86,12 @@ export class CodexAppServer {
     if(message.method==='turn/started')task.emit({type:'progress',stage:'analyzing'});
     if(message.method==='item/agentMessage/delta') {
       task.text+=p.delta || '';
-      if(task.text.length>200000){task.reject(new CodexError('INVALID_MODEL_RESPONSE','模型回复过长，请缩小问题后重试。'));this.interrupt(p.threadId,task);return;}
+      if(task.text.length>200000){task.failure=new CodexError('INVALID_MODEL_RESPONSE','模型回复过长，请缩小问题后重试。');this.interrupt(p.threadId,task);return;}
       task.emit({type:'delta',delta:p.delta || ''});
     }
     if(message.method==='item/completed' && p.item?.type==='agentMessage' && p.item.phase!=='commentary')task.final=p.item.text;
     if(message.method==='turn/completed') {
+      if(task.failure){task.reject(task.failure);return;}
       if(p.turn.status!=='completed'){task.reject(task.cancelled?new CodexError('CANCELLED','本次回复已取消。',{status:499}):codexFailure(p.turn.error?.message));return;}
       const final=p.turn.items?.filter(item=>item.type==='agentMessage'&&item.phase!=='commentary').at(-1)?.text || task.final || task.text;
       task.resolve({status:'completed',output_text:final,model:task.model,id:p.turn.id,threadId:p.threadId});
@@ -125,7 +126,7 @@ export class CodexAppServer {
     if(!task.turnId)return;
     task.interrupting=true;
     this.rpc('turn/interrupt',{threadId,turnId:task.turnId}).catch(()=>{});
-    task.cancelTimer=setTimeout(()=>{task.reject(new CodexError('CANCELLED','本次回复已取消。',{status:499}));this.stop();},5000);
+    task.cancelTimer=setTimeout(()=>{task.reject(task.failure||new CodexError('CANCELLED','本次回复已取消。',{status:499}));this.stop();},5000);
   }
   async request(payload,options={}) {
     const key=options.sessionKey;
