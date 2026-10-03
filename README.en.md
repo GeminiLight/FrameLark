@@ -57,12 +57,12 @@ For file-based projects with your own agent, prepare image dependencies and crea
 npm run setup
 mkdir -p projects
 
-node skills/guangjian-retouch/scripts/cli.mjs init \
+node skills/photo-retouch/scripts/cli.mjs init \
   --image "/your/photo.jpg" \
   --project "./projects/my-photo" \
   --intent "Preserve natural colors and the existing light"
 
-node skills/guangjian-retouch/scripts/cli.mjs serve \
+node skills/photo-retouch/scripts/cli.mjs serve \
   --project "./projects/my-photo"
 ```
 
@@ -87,14 +87,14 @@ Requires an agent that can read images, run local tools, and load skills, such a
 npm run install:skill
 ```
 
-The default destination is `~/.codex/skills/guangjian-retouch`. The first installation prepares image dependencies. The skill keeps the identifier `guangjian-retouch` for compatibility. Reload the skill list or open a new task if it has not appeared.
+The default destination is `~/.codex/skills/photo-retouch`, with the identifier `photo-retouch`. The first installation prepares image dependencies. Reload the skill list or open a new task if it has not appeared. To migrate an existing `guangjian-retouch` installation, run `npm run install:skill -- --update`; the old installation is backed up before moving to the new directory.
 
-Compare the original and trial looks on a shared frame before choosing a direction; evaluate cropping separately. Agent-saved trials are not treated as your preferences, and explicitly rejected versions are excluded from preference evidence. [Look development and comparison](skills/guangjian-retouch/references/look-development.md)
+Compare the original and trial looks on a shared frame before choosing a direction; evaluate cropping separately. Agent-saved trials are not treated as your preferences, and explicitly rejected versions are excluded from preference evidence. [Look development and comparison](skills/photo-retouch/references/look-development.md)
 
 Send this to your agent:
 
 ```text
-Use $guangjian-retouch to review /photos/morning.jpg.
+Use $photo-retouch to review /photos/morning.jpg.
 Keep the quiet morning atmosphere and natural colors.
 Explain what to preserve, then propose adjustments I can preview.
 ```
@@ -109,7 +109,7 @@ Show a trial and explain the main changes and tradeoffs.
 
 A review can recommend keeping the original. AI review uses your host agent's visual model, usage limits, and data rules, with no additional model key. Continue the conversation in that agent; “在 Agent 中继续” in the Web UI copies a project prompt.
 
-Automatic retouching follows diagnosis → trial → review → acceptance → export. Diagnosis records the goal, relationships to preserve, locations, and tradeoffs; it may recommend no changes. In reviewed mode, agent acceptance requires a ready audit of the current combination and a response to every blocking finding. Tools verify version identity; aesthetic judgment comes from the host viewing the image. [Review and delivery](skills/guangjian-retouch/references/reviewed-workflow.md)
+Automatic retouching follows diagnosis → trial → review → acceptance → export. Diagnosis records the goal, relationships to preserve, locations, and tradeoffs; it may recommend no changes. In reviewed mode, agent acceptance requires a ready audit of the current combination and a response to every blocking finding. Tools verify version identity; aesthetic judgment comes from the host viewing the image. [Review and delivery](skills/photo-retouch/references/reviewed-workflow.md)
 
 <details>
 <summary>Calibration, second review, and project exchange</summary>
@@ -120,7 +120,7 @@ Automatic retouching follows diagnosis → trial → review → acceptance → e
 - **Portable preferences:** explicitly requested local records of user choices, subjects, light and reasons. Editable and removable; current intent takes priority.
 - **Project exchange:** in the studio, open 草稿 → 与 Agent 继续编辑 to download or open `.frameyn.json`; use `project-export/import` in the Skill. Import adds a new project. Originals, saved versions, intent, comments and compatible edits transfer; lettering, brushes, protection constraints and conversations do not.
 
-[Workflow and commands](skills/guangjian-retouch/references/reviewed-workflow.md) · [Visual examples](skills/guangjian-retouch/references/visual-examples.md) · [Preference records](skills/guangjian-retouch/references/learning-memory.md) (Chinese)
+[Workflow and commands](skills/photo-retouch/references/reviewed-workflow.md) · [Visual examples](skills/photo-retouch/references/visual-examples.md) · [Preference records](skills/photo-retouch/references/learning-memory.md) (Chinese)
 
 </details>
 
@@ -136,7 +136,7 @@ npm run install:skill -- --update
 Specify a compatible host's skill directory:
 
 ```sh
-node scripts/install-photo-skill.mjs /your/skills/guangjian-retouch
+node scripts/install-photo-skill.mjs /your/skills/photo-retouch
 ```
 
 </details>
@@ -153,7 +153,7 @@ Supported workflows include travel stories, portraits, events, product catalogs,
 - **Web UI:** a 2–12 photo workspace for already selected images, with purpose, intent, sequencing, previews and ordered export. Manual order is respected.
 - Changes to the brief, saved images or annotations make earlier curation stale. Web and Skill projects do not automatically synchronize.
 
-[Collection workflow](skills/guangjian-retouch/references/collection-craft.md) · [CLI and tool contracts](skills/guangjian-retouch/references/collection-tools.md) (Chinese)
+[Collection workflow](skills/photo-retouch/references/collection-craft.md) · [CLI and tool contracts](skills/photo-retouch/references/collection-tools.md) (Chinese)
 
 ![The photo-series workspace: purpose, intent, manual order, and individual inspection.](assets/screenshots/series-workspace.png)
 
@@ -183,12 +183,12 @@ See [controlled editing](docs/CONTROLLED_EDITS.md) for guarantees, migration, an
 Lettering is a separate mode, enabled only when requested. Keep the retouched photograph and preview short captions, cream-colored stickers, or small editorial titles before accepting. The local Web UI supports text, placement, size, color, and small heart or sparkle accents. Export with or without lettering; ordinary photo edits never add text automatically.
 
 ```text
-Use $guangjian-retouch to add “A little joy” to this retouched photo.
+Use $photo-retouch to add “A little joy” to this retouched photo.
 Try a small cream-colored sticker in the negative space, away from the subject.
 Show me the trial and keep a clean edition.
 ```
 
-Fonts are supplied by the host computer; Chinese text requires an installed CJK font. See the [lettering guide](skills/guangjian-retouch/references/lettering.md).
+Fonts are supplied by the host computer; Chinese text requires an installed CJK font. See the [lettering guide](skills/photo-retouch/references/lettering.md).
 
 ## Interface
 
@@ -232,18 +232,18 @@ References are currently written in Chinese.
 
 | Topic | Documents |
 | --- | --- |
-| Judgment and composition | [Aesthetic judgment](skills/guangjian-retouch/references/aesthetic-judgment.md) · [Composition](skills/guangjian-retouch/references/composition-craft.md) |
-| Subjects and scenes | [Subject playbooks](skills/guangjian-retouch/references/subject-playbooks.md) |
-| Collections | [Purpose, curation and sequencing](skills/guangjian-retouch/references/collection-craft.md) · [Local collection tools](skills/guangjian-retouch/references/collection-tools.md) |
-| Light, color, and detail | [Light and color](skills/guangjian-retouch/references/light-color.md) · [Local work and output](skills/guangjian-retouch/references/detail-local-crop.md) |
-| Styles and sources | [Style atlas](skills/guangjian-retouch/references/style-atlas.md) · [Sources](skills/guangjian-retouch/references/sources.md) |
-| Cases and feedback | [Casebook](skills/guangjian-retouch/references/casebook.md) · [Learning records](skills/guangjian-retouch/references/learning-memory.md) |
-| Calibration and delivery | [Visual examples](skills/guangjian-retouch/references/visual-examples.md) · [Diagnosis, review and exchange](skills/guangjian-retouch/references/reviewed-workflow.md) |
-| Video | [Color and editing knowledge](skills/guangjian-retouch/references/video-craft.md) |
+| Judgment and composition | [Aesthetic judgment](skills/photo-retouch/references/aesthetic-judgment.md) · [Composition](skills/photo-retouch/references/composition-craft.md) |
+| Subjects and scenes | [Subject playbooks](skills/photo-retouch/references/subject-playbooks.md) |
+| Collections | [Purpose, curation and sequencing](skills/photo-retouch/references/collection-craft.md) · [Local collection tools](skills/photo-retouch/references/collection-tools.md) |
+| Light, color, and detail | [Light and color](skills/photo-retouch/references/light-color.md) · [Local work and output](skills/photo-retouch/references/detail-local-crop.md) |
+| Styles and sources | [Style atlas](skills/photo-retouch/references/style-atlas.md) · [Sources](skills/photo-retouch/references/sources.md) |
+| Cases and feedback | [Casebook](skills/photo-retouch/references/casebook.md) · [Learning records](skills/photo-retouch/references/learning-memory.md) |
+| Calibration and delivery | [Visual examples](skills/photo-retouch/references/visual-examples.md) · [Diagnosis, review and exchange](skills/photo-retouch/references/reviewed-workflow.md) |
+| Video | [Color and editing knowledge](skills/photo-retouch/references/video-craft.md) |
 
 ```sh
-node skills/guangjian-retouch/scripts/knowledge.mjs search --query 'Hideaki Hamada portrait skin'
-node skills/guangjian-retouch/scripts/knowledge.mjs read --id style-daily-soft
+node skills/photo-retouch/scripts/knowledge.mjs search --query 'Hideaki Hamada portrait skin'
+node skills/photo-retouch/scripts/knowledge.mjs read --id style-daily-soft
 ```
 
 Local keyword search makes no model requests; review still requires the agent to inspect the image. Video guidance supports planning. Execution needs other host media tools; this photo CLI does not import or export video.
@@ -280,7 +280,7 @@ npm test
 
 `npm run test:web` checks the complete studio, AI routes, and photo processing. `npm run test:skill` checks projects, selective editing, protections, rendering, and knowledge retrieval. `npm test` runs both. Licensed Web photo fixtures and generated Skill charts are kept separately. See [validation scope](docs/VALIDATION.md).
 
-[Contributing](CONTRIBUTING.md) · [Skill entry point](skills/guangjian-retouch/SKILL.md) · [CLI and JSON reference](skills/guangjian-retouch/references/tools.md)
+[Contributing](CONTRIBUTING.md) · [Skill entry point](skills/photo-retouch/SKILL.md) · [CLI and JSON reference](skills/photo-retouch/references/tools.md)
 
 ## Contributors
 

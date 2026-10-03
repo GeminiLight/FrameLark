@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
 import os from 'node:os';import path from 'node:path';import {createRequire} from 'node:module';
-import {initProject,loadProject,currentVersion,createCandidate,acceptCandidate,changeGuards,saveNote,deleteNote,hash} from '../skills/guangjian-retouch/scripts/project.mjs';
-import {renderFrame,exportPhoto,previewPhoto} from '../skills/guangjian-retouch/scripts/render.mjs';
-import {protectionMask,protectionWeight,compositeProtectedRegions} from '../skills/guangjian-retouch/scripts/engine/protected-regions.js';
-import {viewToOriginalPoint} from '../skills/guangjian-retouch/scripts/engine/photo-geometry.js';
-const sharp=createRequire(new URL('../skills/guangjian-retouch/package.json',import.meta.url))('sharp');
+import {initProject,loadProject,currentVersion,createCandidate,acceptCandidate,changeGuards,saveNote,deleteNote,hash} from '../skills/photo-retouch/scripts/project.mjs';
+import {renderFrame,exportPhoto,previewPhoto} from '../skills/photo-retouch/scripts/render.mjs';
+import {protectionMask,protectionWeight,compositeProtectedRegions} from '../skills/photo-retouch/scripts/engine/protected-regions.js';
+import {viewToOriginalPoint} from '../skills/photo-retouch/scripts/engine/photo-geometry.js';
+const sharp=createRequire(new URL('../skills/photo-retouch/package.json',import.meta.url))('sharp');
 async function fixture(t,{width=96,height=80,alpha=false}={}){const root=await mkdtemp(path.join(os.tmpdir(),'frameyn-protection-'));t.after(()=>rm(root,{recursive:true,force:true}));const file=path.join(root,'source.png'),data=Buffer.alloc(width*height*4);for(let y=0;y<height;y++)for(let x=0;x<width;x++){const i=(y*width+x)*4;data[i]=(x*17+y*7)%256;data[i+1]=(x*3+y*11)%256;data[i+2]=(x*5+y*13)%256;data[i+3]=alpha?(x+y)%256:255;}await sharp(data,{raw:{width,height,channels:4}}).png().toFile(file);const folder=path.join(root,'project');await initProject(file,folder);return folder;}
 const plan=(p,settings,extra={})=>({revision:p.revision,baseVersion:p.currentId,settings,...extra});
 const accept=(folder,result)=>acceptCandidate(folder,{id:result.candidate.id,revision:result.project.revision,selectionHash:result.candidate.selectionHash});
@@ -96,7 +96,7 @@ test('view core uses rounded source edges, including boundary pixels of fraction
 
 test('restoring historical protected appearance preserves the final composite after explicit unlock',async t=>{
   const folder=await fixture(t);await protect(folder);let p=await loadProject(folder);const edit=await createCandidate(folder,plan(p,{exposure:.6}));await accept(folder,edit);p=await loadProject(folder);const savedId=p.currentId,savedPixels=(await renderFrame(folder)).pixelHash;
-  const unlock=await changeGuards(folder,{revision:p.revision,operation:'unlock',regionIds:currentVersion(p).state.guards.regions.map(r=>r.id)});await accept(folder,unlock);p=await loadProject(folder);const {restoreVersion}=await import('../skills/guangjian-retouch/scripts/project.mjs');await restoreVersion(folder,{revision:p.revision,id:savedId});assert.equal((await renderFrame(folder)).pixelHash,savedPixels);
+  const unlock=await changeGuards(folder,{revision:p.revision,operation:'unlock',regionIds:currentVersion(p).state.guards.regions.map(r=>r.id)});await accept(folder,unlock);p=await loadProject(folder);const {restoreVersion}=await import('../skills/photo-retouch/scripts/project.mjs');await restoreVersion(folder,{revision:p.revision,id:savedId});assert.equal((await renderFrame(folder)).pixelHash,savedPixels);
 });
 
 test('nested protected lettering without own text retains compatible no-text references at another size',async t=>{
@@ -106,7 +106,7 @@ test('nested protected lettering without own text retains compatible no-text ref
 test('pipeline mismatch blocks protected output but permits inspection and explicit unlock recovery',async t=>{
   const folder=await fixture(t);await protect(folder);const file=path.join(folder,'project.json'),p=JSON.parse(await readFile(file,'utf8'));currentVersion(p).state.guards.regions[0].pipeline='old-version';await writeFile(file,JSON.stringify(p));
   const loaded=await loadProject(folder);assert.equal(loaded.currentId,p.currentId);await assert.rejects(renderFrame(folder),{code:'REFERENCE_PIPELINE_CHANGED'});
-  const {runCLI}=await import('../skills/guangjian-retouch/scripts/cli.mjs');const inspect=await runCLI(['inspect','--project',folder]);assert.equal(inspect.preview.available,false);assert.equal(inspect.preview.error.code,'REFERENCE_PIPELINE_CHANGED');assert.ok(inspect.original.path);
+  const {runCLI}=await import('../skills/photo-retouch/scripts/cli.mjs');const inspect=await runCLI(['inspect','--project',folder]);assert.equal(inspect.preview.available,false);assert.equal(inspect.preview.error.code,'REFERENCE_PIPELINE_CHANGED');assert.ok(inspect.original.path);
   const unlock=await changeGuards(folder,{revision:p.revision,operation:'unlock',regionIds:currentVersion(p).state.guards.regions.map(r=>r.id)});assert.ok((await renderFrame(folder,unlock.candidate.id)).pixelHash);await accept(folder,unlock);assert.ok((await renderFrame(folder)).pixelHash);
 });
 

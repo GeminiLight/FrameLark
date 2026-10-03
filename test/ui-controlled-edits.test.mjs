@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {toggleSelection, createLatestMutationQueue, samePreviewIdentity, imageMatchesIdentity, createPreviewGate, selectedCandidateCanAccept, protectionOutline, renderedViewCrop, guardActionReady} from '../skills/guangjian-retouch/scripts/ui/controlled-edits-model.js';
-import {viewToOriginalPoint, originalToViewPoint} from '../skills/guangjian-retouch/scripts/engine/photo-geometry.js';
+import {toggleSelection, createLatestMutationQueue, samePreviewIdentity, imageMatchesIdentity, createPreviewGate, selectedCandidateCanAccept, protectionOutline, renderedViewCrop, guardActionReady} from '../skills/photo-retouch/scripts/ui/controlled-edits-model.js';
+import {viewToOriginalPoint, originalToViewPoint} from '../skills/photo-retouch/scripts/engine/photo-geometry.js';
 
 const items = [
   {id: 'light', title: '人物提亮', dependsOn: []},
@@ -146,7 +146,7 @@ test('rotated original-space affine core projects back to the exact selected cur
 });
 
 test('UI retains optional lettering and crop-only note protection, and provides explicit accepted-view protection controls', async () => {
-  const html = await readFile(new URL('../skills/guangjian-retouch/scripts/ui/index.html', import.meta.url), 'utf8');
+  const html = await readFile(new URL('../skills/photo-retouch/scripts/ui/index.html', import.meta.url), 'utf8');
   for (const id of ['lettering-dialog', 'lettering-open', 'export-include-text', 'candidate-items', 'selection-status', 'guard-view-current', 'protect-feather', 'guard-save-region', 'geometry-lock-reason', 'local-lock-reason', 'restore-error']) assert.match(html, new RegExp(`id="${id}"`));
   assert.match(html, /裁剪时保留这处/); assert.match(html, /核心内部不羽化/);
 });
@@ -167,9 +167,9 @@ test('UI mutation queue and preview identity complete a real HTTP selection-to-a
   const {mkdtemp, rm} = await import('node:fs/promises');
   const os = await import('node:os'), path = await import('node:path');
   const {createRequire} = await import('node:module');
-  const sharp = createRequire(new URL('../skills/guangjian-retouch/package.json', import.meta.url))('sharp');
-  const {initProject, createCandidate} = await import('../skills/guangjian-retouch/scripts/project.mjs');
-  const {serveProject} = await import('../skills/guangjian-retouch/scripts/server.mjs');
+  const sharp = createRequire(new URL('../skills/photo-retouch/package.json', import.meta.url))('sharp');
+  const {initProject, createCandidate} = await import('../skills/photo-retouch/scripts/project.mjs');
+  const {serveProject} = await import('../skills/photo-retouch/scripts/server.mjs');
   const root = await mkdtemp(path.join(os.tmpdir(), 'frameyn-ui-contract-'));
   t.after(() => rm(root, {recursive:true, force:true}));
   const image = path.join(root, 'source.png'), folder = path.join(root, 'project');
@@ -232,9 +232,9 @@ test('HTTP unlock-all recovery previews and accepts a clean candidate while pres
   const {mkdtemp, rm, writeFile} = await import('node:fs/promises');
   const os = await import('node:os'), path = await import('node:path');
   const {createRequire} = await import('node:module');
-  const sharp = createRequire(new URL('../skills/guangjian-retouch/package.json', import.meta.url))('sharp');
-  const {initProject, changeGuards, loadProject, currentVersion} = await import('../skills/guangjian-retouch/scripts/project.mjs');
-  const {serveProject} = await import('../skills/guangjian-retouch/scripts/server.mjs');
+  const sharp = createRequire(new URL('../skills/photo-retouch/package.json', import.meta.url))('sharp');
+  const {initProject, changeGuards, loadProject, currentVersion} = await import('../skills/photo-retouch/scripts/project.mjs');
+  const {serveProject} = await import('../skills/photo-retouch/scripts/server.mjs');
   const root=await mkdtemp(path.join(os.tmpdir(),'frameyn-ui-recovery-'));t.after(()=>rm(root,{recursive:true,force:true}));
   const image=path.join(root,'source.png'),folder=path.join(root,'project');
   await sharp({create:{width:64,height:64,channels:4,background:{r:120,g:140,b:160,alpha:1}}}).png().toFile(image);
@@ -260,7 +260,7 @@ test('HTTP unlock-all recovery previews and accepts a clean candidate while pres
 });
 
 test('clean preview and export remain available for lettering retained only in protected references',async()=>{
-  const {hasLetteringContent}=await import('../skills/guangjian-retouch/scripts/ui/controlled-edits-model.js');
+  const {hasLetteringContent}=await import('../skills/photo-retouch/scripts/ui/controlled-edits-model.js');
   assert.equal(hasLetteringContent({textOverlays:[],guards:{regions:[]}}),false);
   assert.equal(hasLetteringContent({textOverlays:[{text:'A'}]}),true);
   assert.equal(hasLetteringContent({textOverlays:[],guards:{regions:[{snapshot:{pixelHash:'full'},cleanSnapshot:{pixelHash:'clean'}}]}}),true);
@@ -268,7 +268,7 @@ test('clean preview and export remain available for lettering retained only in p
 });
 
 test('refinement pins the selected candidate combination and rejects changed, stale, discarded or unlock sources', async () => {
-  const {refinementSource, refinementSourceMatches}=await import('../skills/guangjian-retouch/scripts/ui/controlled-edits-model.js');
+  const {refinementSource, refinementSourceMatches}=await import('../skills/photo-retouch/scripts/ui/controlled-edits-model.js');
   const current={id:'accepted'}, candidate={id:'trial',selectionHash:'chosen-a'};
   const project={currentId:current.id,candidates:[candidate]};
   const source=refinementSource(project,candidate);
@@ -282,7 +282,7 @@ test('refinement pins the selected candidate combination and rejects changed, st
 });
 
 test('preview cancellation covers decode waits and late promises without validating old image tickets', async () => {
-  const {abortable}=await import('../skills/guangjian-retouch/scripts/ui/controlled-edits-model.js');
+  const {abortable}=await import('../skills/photo-retouch/scripts/ui/controlled-edits-model.js');
   const deferredDecode=deferred(), controller=new AbortController(), gate=createPreviewGate(), context=identity();
   const ticket=gate.begin(context), wait=abortable(deferredDecode.promise,controller.signal);
   controller.abort('timeout');gate.invalidate();
@@ -295,7 +295,7 @@ test('preview cancellation covers decode waits and late promises without validat
 });
 
 test('merged UI retains upstream recovery and refinement controls alongside protected clean lettering', async () => {
-  const directory=new URL('../skills/guangjian-retouch/scripts/ui/',import.meta.url);
+  const directory=new URL('../skills/photo-retouch/scripts/ui/',import.meta.url);
   const html=await readFile(new URL('index.html',directory),'utf8'),app=await readFile(new URL('app.js',directory),'utf8'),lettering=await readFile(new URL('lettering.js',directory),'utf8'),css=await readFile(new URL('style.css',directory),'utf8');
   for(const id of ['preview-error','preview-error-message','retry-image','candidate-pending','manual-source','lettering-source','guard-unlock-regions']) assert.match(html,new RegExp(`id="${id}"`));
   assert.match(app,/controller\.abort\('timeout'\)/);assert.match(app,/candidate-expired/);
@@ -307,7 +307,7 @@ test('merged UI retains upstream recovery and refinement controls alongside prot
 // Exercise the same DOM-free request coordinators used by app.js. Pending and
 // decoded previews both retain their exact revision/hash/view identity.
 test('repeated high-resolution zooms share one request and reuse the displayed preview', async () => {
-  const {createPreviewRequests}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const {createPreviewRequests}=await import('../skills/photo-retouch/scripts/ui/preview-requests.js');
   const requests=createPreviewRequests(), first=deferred(), controllers=[];
   const render=controller=>{controllers.push(controller);return first.promise;};
   const pending=requests.load(identity(),8192,render);
@@ -321,7 +321,7 @@ test('repeated high-resolution zooms share one request and reuse the displayed p
 });
 
 test('detail upgrades replace low-resolution work once and stale completion cannot clear newer in-flight work', async () => {
-  const {createPreviewRequests}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const {createPreviewRequests}=await import('../skills/photo-retouch/scripts/ui/preview-requests.js');
   const requests=createPreviewRequests(), low=deferred(), high=deferred(), controllers=[];
   const initial=requests.load(identity(),1400,controller=>{controllers.push(controller);return low.promise;});
   await Promise.resolve();
@@ -335,7 +335,7 @@ test('detail upgrades replace low-resolution work once and stale completion cann
 });
 
 test('every preview identity component defeats reuse and explicit invalidation permits same-identity reloads', async () => {
-  const {createPreviewRequests}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const {createPreviewRequests}=await import('../skills/photo-retouch/scripts/ui/preview-requests.js');
   for(const key of ['version','candidateId','selectionHash','revision','view','currentId']){
     const requests=createPreviewRequests(), old=deferred();let controller;
     const pending=requests.load(identity(),8192,value=>{controller=value;return old.promise;});
@@ -348,7 +348,7 @@ test('every preview identity component defeats reuse and explicit invalidation p
 });
 
 test('failed, aborted and invalidated image requests are retryable and never become reusable previews', async () => {
-  const {createPreviewRequests}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const {createPreviewRequests}=await import('../skills/photo-retouch/scripts/ui/preview-requests.js');
   const requests=createPreviewRequests();let calls=0;
   await assert.rejects(requests.load(identity(),8192,async()=>{calls++;throw Error('network failure');}),/network failure/);
   assert.equal(await requests.load(identity(),8192,async()=>{calls++;return false;}),false);
@@ -368,7 +368,7 @@ function pollTimers(){
 }
 
 test('project polling never overlaps a slow read or image update and start is idempotent', async()=>{
-  const {createProjectPoller}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const {createProjectPoller}=await import('../skills/photo-retouch/scripts/ui/preview-requests.js');
   const timers=pollTimers(), read=deferred(), updated=deferred();let reads=0,updates=0,connected=0;
   const poller=createProjectPoller({...timers,read:()=>{reads++;return read.promise;},getProject:()=>({revision:1}),blocked:()=>false,update:()=>{updates++;return updated.promise;},connected:()=>connected++});
   poller.start();poller.start();assert.equal(timers.size(),1);
@@ -379,7 +379,7 @@ test('project polling never overlaps a slow read or image update and start is id
 });
 
 test('project polling recovers from an initially disconnected project and retries later failures', async()=>{
-  const {createProjectPoller}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const {createProjectPoller}=await import('../skills/photo-retouch/scripts/ui/preview-requests.js');
   const timers=pollTimers(), failures=[], previousProjects=[];let project,attempt=0,connections=0;
   const poller=createProjectPoller({...timers,read:async()=>{if(++attempt%2)throw Error('disconnected');return {revision:0,currentId:'saved'};},getProject:()=>project,blocked:()=>false,
     update:async(next,previous)=>{previousProjects.push(previous);project=next;},connected:()=>connections++,onError:error=>failures.push(error.message)});
@@ -390,7 +390,7 @@ test('project polling recovers from an initially disconnected project and retrie
 });
 
 test('polling checks draft/navigation blocks again after reads and ignores older project snapshots', async()=>{
-  const {createProjectPoller}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const {createProjectPoller}=await import('../skills/photo-retouch/scripts/ui/preview-requests.js');
   const timers=pollTimers();let blocked=true,reads=0,updates=0,connections=0,read=deferred();
   const poller=createProjectPoller({...timers,read:()=>{reads++;return read.promise;},getProject:()=>({revision:4}),blocked:()=>blocked,update:async()=>updates++,connected:()=>connections++});
   poller.start();await timers.tick();assert.equal(reads,0);
@@ -401,7 +401,7 @@ test('polling checks draft/navigation blocks again after reads and ignores older
 });
 
 test('stopping a poll suppresses late read delivery and later restart retains one timer', async()=>{
-  const {createProjectPoller}=await import('../skills/guangjian-retouch/scripts/ui/preview-requests.js');
+  const {createProjectPoller}=await import('../skills/photo-retouch/scripts/ui/preview-requests.js');
   const timers=pollTimers(), read=deferred();let updates=0,connections=0;
   const poller=createProjectPoller({...timers,read:()=>read.promise,getProject:()=>undefined,blocked:()=>false,update:async()=>updates++,connected:()=>connections++});
   poller.start();const pending=timers.tick();poller.stop();read.resolve({revision:1});await pending;

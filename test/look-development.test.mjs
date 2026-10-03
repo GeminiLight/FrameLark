@@ -4,12 +4,12 @@ import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createRequire} from 'node:module';
-import {initProject,loadProject,createCandidate,acceptCandidate,saveFeedback,publicProject,setIntent} from '../skills/guangjian-retouch/scripts/project.mjs';
-import {renderLookSheet} from '../skills/guangjian-retouch/scripts/look-sheet.mjs';
-import {renderFrame} from '../skills/guangjian-retouch/scripts/render.mjs';
-import {runCLI} from '../skills/guangjian-retouch/scripts/cli.mjs';
-import {dispatchHostTool,hostToolContract} from '../skills/guangjian-retouch/scripts/tool-contract.mjs';
-const sharp=createRequire(new URL('../skills/guangjian-retouch/package.json',import.meta.url))('sharp');
+import {initProject,loadProject,createCandidate,acceptCandidate,saveFeedback,publicProject,setIntent} from '../skills/photo-retouch/scripts/project.mjs';
+import {renderLookSheet} from '../skills/photo-retouch/scripts/look-sheet.mjs';
+import {renderFrame} from '../skills/photo-retouch/scripts/render.mjs';
+import {runCLI} from '../skills/photo-retouch/scripts/cli.mjs';
+import {dispatchHostTool,hostToolContract} from '../skills/photo-retouch/scripts/tool-contract.mjs';
+const sharp=createRequire(new URL('../skills/photo-retouch/package.json',import.meta.url))('sharp');
 async function fixture(t){const root=await mkdtemp(path.join(os.tmpdir(),'frameyn-looks-'));t.after(()=>rm(root,{recursive:true,force:true}));const file=path.join(root,'source.png');await sharp({create:{width:160,height:100,channels:4,background:'#7b9c84'}}).png().toFile(file);const folder=path.join(root,'photo');await initProject(file,folder);return folder;}
 async function trial(folder,settings,extra={}){const p=await loadProject(folder);return createCandidate(folder,{revision:p.revision,baseVersion:p.currentId,name:'试片',settings,...extra});}
 

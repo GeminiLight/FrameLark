@@ -4,13 +4,13 @@ import {mkdtemp,rm,readFile,writeFile,stat} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createRequire} from 'node:module';
-import {initProject,loadProject,saveNote,createCandidate,acceptCandidate,changeGuards,commitProtection,hash} from '../skills/guangjian-retouch/scripts/project.mjs';
-import {createRenderSession,renderFrame} from '../skills/guangjian-retouch/scripts/render.mjs';
-import {prepareProtection} from '../skills/guangjian-retouch/scripts/protection-preparation.mjs';
-import {protectionMask,protectionWeight,compositeProtectedRegions} from '../skills/guangjian-retouch/scripts/engine/protected-regions.js';
-import {viewToOriginalPoint} from '../skills/guangjian-retouch/scripts/engine/photo-geometry.js';
-import {srgbToLinear,linearToSrgb} from '../skills/guangjian-retouch/scripts/engine/tone-processing.js';
-const sharp=createRequire(new URL('../skills/guangjian-retouch/package.json',import.meta.url))('sharp');
+import {initProject,loadProject,saveNote,createCandidate,acceptCandidate,changeGuards,commitProtection,hash} from '../skills/photo-retouch/scripts/project.mjs';
+import {createRenderSession,renderFrame} from '../skills/photo-retouch/scripts/render.mjs';
+import {prepareProtection} from '../skills/photo-retouch/scripts/protection-preparation.mjs';
+import {protectionMask,protectionWeight,compositeProtectedRegions} from '../skills/photo-retouch/scripts/engine/protected-regions.js';
+import {viewToOriginalPoint} from '../skills/photo-retouch/scripts/engine/photo-geometry.js';
+import {srgbToLinear,linearToSrgb} from '../skills/photo-retouch/scripts/engine/tone-processing.js';
+const sharp=createRequire(new URL('../skills/photo-retouch/package.json',import.meta.url))('sharp');
 async function fixture(t){const root=await mkdtemp(path.join(os.tmpdir(),'frameyn-performance-'));t.after(()=>rm(root,{recursive:true,force:true}));const width=129,height=97,data=Buffer.alloc(width*height*4);for(let i=0;i<data.length;i++)data[i]=(i*31+7)%256;const source=path.join(root,'source.png');await sharp(data,{raw:{width,height,channels:4}}).png().toFile(source);const folder=path.join(root,'project');await initProject(source,folder);return folder;}
 const guard=p=>({revision:p.revision,operation:'protect',rect:{x:.2,y:.2,width:.25,height:.25},feather:.12});
 

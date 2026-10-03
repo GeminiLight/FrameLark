@@ -1,12 +1,12 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {runKnowledge} from '../skills/guangjian-retouch/scripts/knowledge.mjs';
+import {runKnowledge} from '../skills/photo-retouch/scripts/knowledge.mjs';
 
 test('Chinese artist requests retrieve style and subject constraints together',async()=>{
  const result=await runKnowledge('search',{query:'滨田英明 柔光人像，保留肤色'});
  assert.equal(result.results[0].presetId,'daily-soft');
  assert.ok(result.results.some(r=>r.id==='portrait'));
- assert.ok(result.results.every(r=>r.path.startsWith(new URL('../skills/guangjian-retouch/references/',import.meta.url).pathname)));
+ assert.ok(result.results.every(r=>r.path.startsWith(new URL('../skills/photo-retouch/references/',import.meta.url).pathname)));
 });
 test('English artist and technical aliases route without substring false positives',async()=>{
  const artist=await runKnowledge('search',{query:'Saul Leiter'});assert.equal(artist.results[0].presetId,'quiet-film');

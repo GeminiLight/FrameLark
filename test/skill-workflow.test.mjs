@@ -4,18 +4,18 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {fileURLToPath} from 'node:url';
-import {initProject,loadProject,createCandidate,acceptCandidate,saveResultAudit,setIntent,saveNote,changeGuards,saveFeedback} from '../skills/guangjian-retouch/scripts/project.mjs';
-import {configureWorkflow,recordDiagnosis,prepareReview,rebuildEdits,editSources} from '../skills/guangjian-retouch/scripts/workflow.mjs';
-import {workflowStatus} from '../skills/guangjian-retouch/scripts/workflow-state.mjs';
-import {previewPhoto,renderFrame} from '../skills/guangjian-retouch/scripts/render.mjs';
-import {initProfile,learnProfile,inspectProfile,editProfile} from '../skills/guangjian-retouch/scripts/profile.mjs';
-import {probeControl} from '../skills/guangjian-retouch/scripts/probe.mjs';
-import {exportExchange,importExchange} from '../skills/guangjian-retouch/scripts/exchange.mjs';
+import {initProject,loadProject,createCandidate,acceptCandidate,saveResultAudit,setIntent,saveNote,changeGuards,saveFeedback} from '../skills/photo-retouch/scripts/project.mjs';
+import {configureWorkflow,recordDiagnosis,prepareReview,rebuildEdits,editSources} from '../skills/photo-retouch/scripts/workflow.mjs';
+import {workflowStatus} from '../skills/photo-retouch/scripts/workflow-state.mjs';
+import {previewPhoto,renderFrame} from '../skills/photo-retouch/scripts/render.mjs';
+import {initProfile,learnProfile,inspectProfile,editProfile} from '../skills/photo-retouch/scripts/profile.mjs';
+import {probeControl} from '../skills/photo-retouch/scripts/probe.mjs';
+import {exportExchange,importExchange} from '../skills/photo-retouch/scripts/exchange.mjs';
 import {exchangeSnapshot,validateExchange,restoreWebExchange} from '../public/project-exchange.js';
 import {renderPhotoPixels} from '../public/photo-rendering.js';
 import {combineSettings} from '../public/editor-engine.js';
 import {presetById} from '../public/presets.js';
-import {runCLI} from '../skills/guangjian-retouch/scripts/cli.mjs';
+import {runCLI} from '../skills/photo-retouch/scripts/cli.mjs';
 async function fixture(t,name='portrait.png'){const root=await mkdtemp(path.join(os.tmpdir(),'frameyn-flow-'));t.after(()=>rm(root,{recursive:true,force:true}));const folder=path.join(root,'photo');await initProject(fileURLToPath(new URL('./web/fixtures/quality/'+name,import.meta.url)),folder,{intent:'肤色真实，保留光线'});return {root,folder};}
 const finding={id:'skin',dimension:'color',area:'脸部',rect:{x:.3,y:.1,width:.3,height:.4},observation:'肤色需要与环境光协调',impact:'影响真实感',action:'轻调白平衡',check:'脸与衣服的关系',tradeoff:'不漂白肤色',priority:'blocking',confidence:'medium'};
 async function diagnose(folder,findings=[finding]){const p=await loadProject(folder),v=await previewPhoto(folder,'current',{maxSide:800});return recordDiagnosis(folder,{revision:p.revision,versionId:p.currentId,maxSide:800,pixelHash:v.pixelHash,frameSpecHash:v.frameSpecHash,actorId:'editor-a',goal:'肤色真实',preserve:['暖光与皮肤质感'],checked:['完整画面、脸部与领口'],findings});}

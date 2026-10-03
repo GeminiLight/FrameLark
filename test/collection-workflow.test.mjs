@@ -4,10 +4,10 @@ import {mkdtemp,rm,readFile,writeFile,rename,mkdir} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {initCollection,inspectCollection,updateCollectionBrief,saveCollectionPlan,collectionSheet,exportCollection} from '../skills/guangjian-retouch/scripts/collection.mjs';
-import {loadProject,createCandidate,acceptCandidate,saveNote,hash} from '../skills/guangjian-retouch/scripts/project.mjs';
-import {dispatchHostTool,hostToolContract} from '../skills/guangjian-retouch/scripts/tool-contract.mjs';
-import {runCLI} from '../skills/guangjian-retouch/scripts/cli.mjs';
+import {initCollection,inspectCollection,updateCollectionBrief,saveCollectionPlan,collectionSheet,exportCollection} from '../skills/photo-retouch/scripts/collection.mjs';
+import {loadProject,createCandidate,acceptCandidate,saveNote,hash} from '../skills/photo-retouch/scripts/project.mjs';
+import {dispatchHostTool,hostToolContract} from '../skills/photo-retouch/scripts/tool-contract.mjs';
+import {runCLI} from '../skills/photo-retouch/scripts/cli.mjs';
 const photo=fileURLToPath(new URL('./web/fixtures/import/portrait.png',import.meta.url));
 const broken=fileURLToPath(new URL('./web/fixtures/import/broken.jpg',import.meta.url));
 async function fixture(t,images=[photo,photo]){

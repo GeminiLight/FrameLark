@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
 import os from 'node:os';import path from 'node:path';import {fileURLToPath} from 'node:url';import {createRequire} from 'node:module';
-import {initProject,loadProject,createCandidate,acceptCandidate,discardCandidate,restoreVersion,currentVersion,hash} from '../skills/guangjian-retouch/scripts/project.mjs';
-import {renderFrame,exportPhoto} from '../skills/guangjian-retouch/scripts/render.mjs';
-import {cleanTextOverlays} from '../skills/guangjian-retouch/scripts/text-overlays.mjs';
-const sharp=createRequire(new URL('../skills/guangjian-retouch/package.json',import.meta.url))('sharp');
+import {initProject,loadProject,createCandidate,acceptCandidate,discardCandidate,restoreVersion,currentVersion,hash} from '../skills/photo-retouch/scripts/project.mjs';
+import {renderFrame,exportPhoto} from '../skills/photo-retouch/scripts/render.mjs';
+import {cleanTextOverlays} from '../skills/photo-retouch/scripts/text-overlays.mjs';
+const sharp=createRequire(new URL('../skills/photo-retouch/package.json',import.meta.url))('sharp');
 async function fixture(t){const root=await mkdtemp(path.join(os.tmpdir(),'frameyn-lettering-'));t.after(()=>rm(root,{recursive:true,force:true}));const folder=path.join(root,'photo');await initProject(fileURLToPath(new URL('./fixtures/quality/portrait.png',import.meta.url)),folder);return folder;}
 const note={id:'tiny-note',text:'A little joy',style:'sticker',x:.07,y:.78,width:.62,size:.045,decoration:'heart',rotation:-2};
 const plan=(p,extra)=>({revision:p.revision,baseVersion:p.currentId,name:'文字点缀版',mode:'lettering',textOverlays:[note],...extra});

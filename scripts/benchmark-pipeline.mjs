@@ -5,7 +5,7 @@ import os from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {createRequire} from 'node:module';
 const repo=process.env.PERF_REPO||fileURLToPath(new URL('../',import.meta.url));
-const root=path.join(repo,'skills/guangjian-retouch');
+const root=path.join(repo,'skills/photo-retouch');
 const data=process.env.PERF_DATA||await mkdtemp(path.join(os.tmpdir(),'frameyn-benchmark-'));
 console.log(JSON.stringify({data,repo,label:process.env.PERF_LABEL||'working-tree'}));
 const require=createRequire(path.join(root,'package.json')),sharp=require('sharp');

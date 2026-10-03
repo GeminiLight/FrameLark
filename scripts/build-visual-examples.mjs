@@ -2,11 +2,11 @@ import {mkdtemp,mkdir,rm,writeFile,readFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {fileURLToPath} from 'node:url';
-import {initProject,loadProject,createCandidate} from '../skills/guangjian-retouch/scripts/project.mjs';
-import {renderFrame} from '../skills/guangjian-retouch/scripts/render.mjs';
-import {renderLookSheet} from '../skills/guangjian-retouch/scripts/look-sheet.mjs';
-import {hash} from '../skills/guangjian-retouch/scripts/engine/edit-identity.js';
-const root=fileURLToPath(new URL('../',import.meta.url)),dest=path.join(root,'skills/guangjian-retouch/assets/visual-cases');
+import {initProject,loadProject,createCandidate} from '../skills/photo-retouch/scripts/project.mjs';
+import {renderFrame} from '../skills/photo-retouch/scripts/render.mjs';
+import {renderLookSheet} from '../skills/photo-retouch/scripts/look-sheet.mjs';
+import {hash} from '../skills/photo-retouch/scripts/engine/edit-identity.js';
+const root=fileURLToPath(new URL('../',import.meta.url)),dest=path.join(root,'skills/photo-retouch/assets/visual-cases');
 const cases=[
  {id:'portrait-natural',source:'portrait.png',author:'NASA / Eileen Collins',rights:'public domain',tags:['人像','肤色','portrait','skin'],intent:'保留日光下自然肤色和表情，不漂白皮肤',preserve:['肤色与暖光','衣服与背景的明暗分离'],trial:{exposure:.05,contrast:5,highlights:-5,shadows:3,warmth:-2,sharpen:2},failure:{exposure:.3,warmth:50,saturation:35,highlights:30,clarity:35},check:['检查脸部是否偏橘','额头与领口的高光过渡','真实纹理与锐化边缘']},
  {id:'still-life-preserve',source:'still-life.png',author:'Rachel Michetti / Pikolo Espresso Bar',rights:'CC0',tags:['静物','咖啡','暖木','中性','still-life'],intent:'保留暖木与白瓷的日常温度，原片可以成立',preserve:['白瓷与暖木的材料关系','自然暖光'],trial:null,failure:{exposure:.25,warmth:-65,tint:10,saturation:-20},check:['不能把暖木和奶泡当成灰卡','检查强行校冷后的杯子与木桌','保留原片也是有效选择']},

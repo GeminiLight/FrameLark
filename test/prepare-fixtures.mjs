@@ -1,7 +1,7 @@
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 import {fileURLToPath} from 'node:url';
-const sharp=createRequire(new URL('../skills/guangjian-retouch/package.json',import.meta.url))('sharp');
+const sharp=createRequire(new URL('../skills/photo-retouch/package.json',import.meta.url))('sharp');
 const root=new URL('./fixtures/',import.meta.url);
 await mkdir(new URL('quality/',root),{recursive:true});await mkdir(new URL('import/',root),{recursive:true});
 const data=Buffer.alloc(512*512*3);

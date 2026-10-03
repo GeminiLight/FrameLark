@@ -94,7 +94,7 @@ npm run setup
 npm run photo -- help
 ```
 
-Skill 运行时以 `skills/guangjian-retouch/scripts/` 为准。安装器直接安装该目录，不会用另一份旧运行时重新覆盖项目、保护或界面实现。
+Skill 运行时以 `skills/photo-retouch/scripts/` 为准。安装器直接安装该目录，不会用另一份旧运行时重新覆盖项目、保护或界面实现。
 
 ## 目录与验证
 
@@ -104,7 +104,7 @@ Skill 运行时以 `skills/guangjian-retouch/scripts/` 为准。安装器直接�
 | `api/` | Vercel 函数入口 |
 | `server.mjs` | 本地静态服务和 AI 路由 |
 | `vision-service.mjs`、`series-review.mjs` | 模型协议、连接校验、组图审阅 |
-| `skills/guangjian-retouch/` | 可独立安装的 Skill、CLI 与 Agent 暗房 |
+| `skills/photo-retouch/` | 可独立安装的 Skill、CLI 与 Agent 暗房 |
 | `test/web/` | 工作台测试、授权照片和导入样张 |
 | `test/*.test.mjs` | Skill、逐项选择、保护和性能测试 |
 

@@ -2,7 +2,7 @@ import {performance,monitorEventLoopDelay} from 'node:perf_hooks';
 import path from 'node:path';
 import {writeFile} from 'node:fs/promises';
 if(!process.env.PERF_REPO||!process.env.PERF_DATA)throw Error('Set PERF_REPO and PERF_DATA from a completed pipeline benchmark.');
-const root=process.env.PERF_REPO+'/skills/guangjian-retouch';
+const root=process.env.PERF_REPO+'/skills/photo-retouch';
 const {serveProject}=await import(path.join(root,'scripts/server.mjs'));
 const {loadProject}=await import(path.join(root,'scripts/project.mjs'));
 const folder=path.join(process.env.PERF_DATA,'project'),p=await loadProject(folder);

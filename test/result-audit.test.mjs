@@ -4,10 +4,10 @@ import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createRequire} from 'node:module';
-import {initProject,loadProject,createCandidate,selectCandidateItems,acceptCandidate,saveResultAudit,setIntent} from '../skills/guangjian-retouch/scripts/project.mjs';
-import {previewPhoto,renderFrame} from '../skills/guangjian-retouch/scripts/render.mjs';
-import {runCLI} from '../skills/guangjian-retouch/scripts/cli.mjs';
-const sharp=createRequire(new URL('../skills/guangjian-retouch/package.json',import.meta.url))('sharp');
+import {initProject,loadProject,createCandidate,selectCandidateItems,acceptCandidate,saveResultAudit,setIntent} from '../skills/photo-retouch/scripts/project.mjs';
+import {previewPhoto,renderFrame} from '../skills/photo-retouch/scripts/render.mjs';
+import {runCLI} from '../skills/photo-retouch/scripts/cli.mjs';
+const sharp=createRequire(new URL('../skills/photo-retouch/package.json',import.meta.url))('sharp');
 async function fixture(t){const root=await mkdtemp(path.join(os.tmpdir(),'frameyn-audit-'));t.after(()=>rm(root,{recursive:true,force:true}));const source=path.join(root,'source.png');await sharp({create:{width:800,height:500,channels:4,background:'#84937b'}}).png().toFile(source);const folder=path.join(root,'photo');await initProject(source,folder);const p=await loadProject(folder);const r=await createCandidate(folder,{revision:p.revision,baseVersion:p.currentId,items:[{id:'tone',title:'明暗',patch:{settings:{contrast:12}}},{id:'color',title:'色彩',patch:{settings:{warmth:8}}}]});return {folder,c:r.candidate};}
 async function input(folder,c,extra={}){const p=await loadProject(folder),preview=await previewPhoto(folder,c.id,{maxSide:1400});return {revision:p.revision,versionId:c.id,maxSide:1400,pixelHash:preview.pixelHash,frameSpecHash:preview.frameSpecHash,selectionHash:preview.selectionHash,decision:'ready',summary:'当前目标下的光色关系成立，主体与边缘经过实际查看。',checked:['完整画面与高反差边缘'],strengths:['主体与环境有明暗分离'],issues:[],...extra};}
 const issue={area:'天空',observation:'天光被压成灰块',nextAction:'降低天空曝光压缩后重新看图',severity:'blocking'};

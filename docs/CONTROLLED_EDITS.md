@@ -19,7 +19,7 @@
 
 `project.mjs` 只编排项目锁、版本与原子持久化；CLI、HTTP 都调用它。`render.mjs` 负责同一输出网格的重放、参考缓存、准确区域裁片与导出。UI 的依赖选择、串行最新写入队列与预览身份逻辑放在独立模块，可脱离 DOM 测试。
 
-实际模型 function calling 是宿主侧集成：运行 `tool-schema` 获取函数定义，宿主解释请求后传 `{name, arguments}` 到 `tool --input`。输入 schema 同步发布在 `skills/guangjian-retouch/schemas/edit-plan.schema.json`。定义不会自动向任何模型提供方注册工具。
+实际模型 function calling 是宿主侧集成：运行 `tool-schema` 获取函数定义，宿主解释请求后传 `{name, arguments}` 到 `tool --input`。输入 schema 同步发布在 `skills/photo-retouch/schemas/edit-plan.schema.json`。定义不会自动向任何模型提供方注册工具。
 
 ## 选择与接受
 

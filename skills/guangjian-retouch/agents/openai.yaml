@@ -1,4 +1,0 @@
-interface:
-  display_name: "帧映修片"
-  short_description: "按用途与主题选片、排序、统一精修；保留原片、批注、试片和版本，支持整组交付"
-  default_prompt: "使用 $guangjian-retouch 处理这些照片：围绕我的用途和表达，选出值得保留的画面，安排顺序，再给可预览、可继续精调的方案。"

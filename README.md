@@ -57,12 +57,12 @@ docker compose up -d --build
 npm run setup
 mkdir -p projects
 
-node skills/guangjian-retouch/scripts/cli.mjs init \
+node skills/photo-retouch/scripts/cli.mjs init \
   --image "/你的/照片.jpg" \
   --project "./projects/my-photo" \
   --intent "保留自然色彩与原有光线"
 
-node skills/guangjian-retouch/scripts/cli.mjs serve \
+node skills/photo-retouch/scripts/cli.mjs serve \
   --project "./projects/my-photo"
 ```
 
@@ -87,12 +87,12 @@ node skills/guangjian-retouch/scripts/cli.mjs serve \
 npm run install:skill
 ```
 
-默认安装到 `~/.codex/skills/guangjian-retouch`，首次安装自动准备图片处理依赖。Skill 标识保留 `guangjian-retouch`，兼容已有调用；未显示时重新加载 Skill 列表或打开新任务。
+默认安装到 `~/.codex/skills/photo-retouch`，首次安装自动准备图片处理依赖。Skill 标识为 `photo-retouch`；未显示时重新加载 Skill 列表或打开新任务。旧版 `guangjian-retouch` 使用 `npm run install:skill -- --update`，备份后迁移到新目录。
 
 在 Agent 中发送：
 
 ```text
-用 $guangjian-retouch 审阅 /照片/清晨.jpg。
+用 $photo-retouch 审阅 /照片/清晨.jpg。
 保留清晨的安静和自然色彩。先说明值得保留的部分，再给可预览的调整方案。
 ```
 
@@ -103,9 +103,9 @@ npm run install:skill
 先给我看试片，说明主要变化和代价。
 ```
 
-风格调整可以先生成原片与候选的并排试片，再分别比较光色和构图。Agent 保存的试修不会自动成为你的风格偏好；明确拒绝的版本会从偏好参考中排除。[定调与试片流程](skills/guangjian-retouch/references/look-development.md)
+风格调整可以先生成原片与候选的并排试片，再分别比较光色和构图。Agent 保存的试修不会自动成为你的风格偏好；明确拒绝的版本会从偏好参考中排除。[定调与试片流程](skills/photo-retouch/references/look-development.md)
 
-自动精修采用「诊断 → 试片 → 复评 → 接受 → 导出」流程。诊断记录目标、保留关系、具体位置与代价，允许零项调整。reviewed 模式下，Agent 接受前必须有当前组合的通过审核，并逐项回答诊断中的阻碍问题。工具核对版本身份，审美判断来自宿主实际看图。[审片与交付](skills/guangjian-retouch/references/reviewed-workflow.md)
+自动精修采用「诊断 → 试片 → 复评 → 接受 → 导出」流程。诊断记录目标、保留关系、具体位置与代价，允许零项调整。reviewed 模式下，Agent 接受前必须有当前组合的通过审核，并逐项回答诊断中的阻碍问题。工具核对版本身份，审美判断来自宿主实际看图。[审片与交付](skills/photo-retouch/references/reviewed-workflow.md)
 
 <details>
 <summary>校准、复审与跨工作空间继续</summary>
@@ -116,7 +116,7 @@ npm run install:skill
 - **可携带偏好**：按用户要求建立本地档案，记录明确选择及题材、光线、理由；支持修改、删除，当前意图优先。
 - **项目交换**：完整工作台「草稿 → 与 Agent 继续编辑」下载或打开 `.frameyn.json`；Skill 使用 `project-export/import`。交换原片、已保存版本、意图、批注和兼容调整，导入新增项目。文字、画笔、保护约束及对话不在交换范围内。
 
-[流程与命令](skills/guangjian-retouch/references/reviewed-workflow.md) · [视觉案例](skills/guangjian-retouch/references/visual-examples.md) · [偏好档案](skills/guangjian-retouch/references/learning-memory.md)
+[流程与命令](skills/photo-retouch/references/reviewed-workflow.md) · [视觉案例](skills/photo-retouch/references/visual-examples.md) · [偏好档案](skills/photo-retouch/references/learning-memory.md)
 
 </details>
 
@@ -125,11 +125,11 @@ npm run install:skill
 照片加字是单独的可选模式。例如：
 
 ```text
-用 $guangjian-retouch 给当前修片版加一句“今天也有一点小确幸”。
+用 $photo-retouch 给当前修片版加一句“今天也有一点小确幸”。
 做一个克制的奶油贴纸，放在留白处，避开主体。先给我看文字版，也保留无字版。
 ```
 
-Agent 暗房的 **文字点缀** 可修改文案、位置、字号、配色和轻装饰；接受前只生成候选。中文需本机有可用中文字体。详情见 [文字点缀](skills/guangjian-retouch/references/lettering.md)。
+Agent 暗房的 **文字点缀** 可修改文案、位置、字号、配色和轻装饰；接受前只生成候选。中文需本机有可用中文字体。详情见 [文字点缀](skills/photo-retouch/references/lettering.md)。
 
 <details>
 <summary>更新或安装到其他宿主</summary>
@@ -143,7 +143,7 @@ npm run install:skill -- --update
 指定兼容宿主的 Skill 目录：
 
 ```sh
-node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
+node scripts/install-photo-skill.mjs /你的/skills/photo-retouch
 ```
 
 </details>
@@ -154,7 +154,7 @@ node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
 
 把照片目录交给 Agent，例如：
 
-> 用 $guangjian-retouch 看一下这次海边旅行的照片，选六张，保留松弛感和真实光线。先给我选片和顺序，再试统一风格；第二张合照一定留下。
+> 用 $photo-retouch 看一下这次海边旅行的照片，选六张，保留松弛感和真实光线。先给我选片和顺序，再试统一风格；第二张合照一定留下。
 
 Skill 按用途整理主题与必留条件，生成带编号的联系表，记录入选、备选和不入选的画面依据，再逐张试片。最后按顺序导出成片与清单；不删除原图、不自动发布。支持旅行分享、人物交付、活动记录、商品展示、作品集和归档，不要求每种用途都编一个故事。
 
@@ -162,7 +162,7 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 - **Web UI**：2–12 张已选照片的组图空间，选择用途、表达与排序依据，再审片、试片和顺序导出；可明确保持自己的顺序。
 - 主题、已保存照片或批注更新后，旧组选片会标为过期，先复看再交付。Web 与 Skill 项目目前不自动同步。
 
-执行命令与 JSON：[组图工具](skills/guangjian-retouch/references/collection-tools.md) · 选片方法：[组图创作](skills/guangjian-retouch/references/collection-craft.md)
+执行命令与 JSON：[组图工具](skills/photo-retouch/references/collection-tools.md) · 选片方法：[组图创作](skills/photo-retouch/references/collection-craft.md)
 
 ![组图空间：选择用途、主题和阅读顺序，再逐张检查。](assets/screenshots/series-workspace.png)
 
@@ -228,18 +228,18 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 
 | 内容 | 文档 |
 | --- | --- |
-| 判断与构图 | [审美判断](skills/guangjian-retouch/references/aesthetic-judgment.md) · [构图与拍摄](skills/guangjian-retouch/references/composition-craft.md) |
-| 题材与场景 | [题材策略](skills/guangjian-retouch/references/subject-playbooks.md) |
-| 选片与组图 | [用途、主题、取舍与排序](skills/guangjian-retouch/references/collection-craft.md) · [联系表与整组工具](skills/guangjian-retouch/references/collection-tools.md) |
-| 光色与细节 | [光线与色彩](skills/guangjian-retouch/references/light-color.md) · [局部与输出](skills/guangjian-retouch/references/detail-local-crop.md) |
-| 风格与来源 | [风格图谱](skills/guangjian-retouch/references/style-atlas.md) · [来源](skills/guangjian-retouch/references/sources.md) |
-| 案例与反馈 | [案例手册](skills/guangjian-retouch/references/casebook.md) · [学习记录](skills/guangjian-retouch/references/learning-memory.md) |
-| 校准与交付 | [真实视觉案例](skills/guangjian-retouch/references/visual-examples.md) · [诊断、复审与交换](skills/guangjian-retouch/references/reviewed-workflow.md) |
-| 视频 | [调色与剪辑知识](skills/guangjian-retouch/references/video-craft.md) |
+| 判断与构图 | [审美判断](skills/photo-retouch/references/aesthetic-judgment.md) · [构图与拍摄](skills/photo-retouch/references/composition-craft.md) |
+| 题材与场景 | [题材策略](skills/photo-retouch/references/subject-playbooks.md) |
+| 选片与组图 | [用途、主题、取舍与排序](skills/photo-retouch/references/collection-craft.md) · [联系表与整组工具](skills/photo-retouch/references/collection-tools.md) |
+| 光色与细节 | [光线与色彩](skills/photo-retouch/references/light-color.md) · [局部与输出](skills/photo-retouch/references/detail-local-crop.md) |
+| 风格与来源 | [风格图谱](skills/photo-retouch/references/style-atlas.md) · [来源](skills/photo-retouch/references/sources.md) |
+| 案例与反馈 | [案例手册](skills/photo-retouch/references/casebook.md) · [学习记录](skills/photo-retouch/references/learning-memory.md) |
+| 校准与交付 | [真实视觉案例](skills/photo-retouch/references/visual-examples.md) · [诊断、复审与交换](skills/photo-retouch/references/reviewed-workflow.md) |
+| 视频 | [调色与剪辑知识](skills/photo-retouch/references/video-craft.md) |
 
 ```sh
-node skills/guangjian-retouch/scripts/knowledge.mjs search --query '滨田英明 柔光人像 肤色'
-node skills/guangjian-retouch/scripts/knowledge.mjs read --id style-daily-soft
+node skills/photo-retouch/scripts/knowledge.mjs search --query '滨田英明 柔光人像 肤色'
+node skills/photo-retouch/scripts/knowledge.mjs read --id style-daily-soft
 ```
 
 本地关键词检索不调用模型，审片仍需 Agent 实际看图。视频知识用于方案判断；执行需要宿主另有媒体工具，本照片 CLI 不支持视频导入或导出。
@@ -276,7 +276,7 @@ npm test
 
 `npm run test:web` 检查完整工作台、AI 接口和照片效果；`npm run test:skill` 检查项目、逐项选择、保护、渲染与知识检索。`npm test` 执行两组检查。Web 的授权照片检查集与 Skill 的生成测试图分别保存，见 [验证范围](docs/VALIDATION.md)。
 
-[维护指南](CONTRIBUTING.md) · [Skill 入口](skills/guangjian-retouch/SKILL.md) · [CLI 与 JSON 参考](skills/guangjian-retouch/references/tools.md)
+[维护指南](CONTRIBUTING.md) · [Skill 入口](skills/photo-retouch/SKILL.md) · [CLI 与 JSON 参考](skills/photo-retouch/references/tools.md)
 
 ## 贡献者
 

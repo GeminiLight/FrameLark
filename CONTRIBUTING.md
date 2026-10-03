@@ -2,7 +2,7 @@
 
 ## 工作台与 Skill
 
-完整工作台位于 `public/`、`api/` 和根目录服务端文件，使用 `npm start` 运行。Agent Skill 位于 `skills/guangjian-retouch/`；安装器直接安装该目录。不要从旧的外部 `local/` 目录覆盖已维护的 Skill 运行时。
+完整工作台位于 `public/`、`api/` 和根目录服务端文件，使用 `npm start` 运行。Agent Skill 位于 `skills/photo-retouch/`；安装器直接安装该目录。不要从旧的外部 `local/` 目录覆盖已维护的 Skill 运行时。
 
 Web 测试放在 `test/web/`，Skill 测试保留在 `test/`。两组都进入 `npm test`，也可分别运行 `npm run test:web` 和 `npm run test:skill`。Web 的授权照片不与 Skill 的生成测试图混用。
 
@@ -14,7 +14,7 @@ Web 测试放在 `test/web/`，Skill 测试保留在 `test/`。两组都进入 `
 
 新增方法写清：条件、意图、可见证据、实际处理、对照结果、接受/回退原因和适用边界。单个案例保持案例结论；推理练习不要标成实测。摄影师学习线索使用本人或正式机构来源，不编造官方配方。
 
-图片引擎位于 `skills/guangjian-retouch/scripts/engine`。处理保持原片字节、绝对参数、独立风格层及当前版本/意图/批注冲突检查。变更局部范围、缩放或输出管线时，需要检查实际照片与成片。
+图片引擎位于 `skills/photo-retouch/scripts/engine`。处理保持原片字节、绝对参数、独立风格层及当前版本/意图/批注冲突检查。变更局部范围、缩放或输出管线时，需要检查实际照片与成片。
 
 不提交个人照片、草稿、项目目录、API Key 或本地会话文件。可复现质量案例说明来源、观看尺寸、是否人为压力变体；测试图与真实审片证据分开。
 

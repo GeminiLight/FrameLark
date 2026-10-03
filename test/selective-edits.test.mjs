@@ -4,13 +4,13 @@ import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createRequire} from 'node:module';
-import {initProject,loadProject,currentVersion,createCandidate,selectCandidateItems,acceptCandidate,discardCandidate,restoreVersion,changeGuards,saveNote,deleteNote,hash} from '../skills/guangjian-retouch/scripts/project.mjs';
-import {renderFrame} from '../skills/guangjian-retouch/scripts/render.mjs';
-import {serveProject} from '../skills/guangjian-retouch/scripts/server.mjs';
-import {runCLI} from '../skills/guangjian-retouch/scripts/cli.mjs';
-import {hostToolContract,dispatchHostTool} from '../skills/guangjian-retouch/scripts/tool-contract.mjs';
-import {effectiveSettings} from '../skills/guangjian-retouch/scripts/engine/edit-guards.js';
-const sharp=createRequire(new URL('../skills/guangjian-retouch/package.json',import.meta.url))('sharp');
+import {initProject,loadProject,currentVersion,createCandidate,selectCandidateItems,acceptCandidate,discardCandidate,restoreVersion,changeGuards,saveNote,deleteNote,hash} from '../skills/photo-retouch/scripts/project.mjs';
+import {renderFrame} from '../skills/photo-retouch/scripts/render.mjs';
+import {serveProject} from '../skills/photo-retouch/scripts/server.mjs';
+import {runCLI} from '../skills/photo-retouch/scripts/cli.mjs';
+import {hostToolContract,dispatchHostTool} from '../skills/photo-retouch/scripts/tool-contract.mjs';
+import {effectiveSettings} from '../skills/photo-retouch/scripts/engine/edit-guards.js';
+const sharp=createRequire(new URL('../skills/photo-retouch/package.json',import.meta.url))('sharp');
 async function fixture(t){const root=await mkdtemp(path.join(os.tmpdir(),'frameyn-selection-'));t.after(()=>rm(root,{recursive:true,force:true}));const file=path.join(root,'source.png');await sharp({create:{width:72,height:56,channels:4,background:'#6b8090'}}).png().toFile(file);const folder=path.join(root,'photo');await initProject(file,folder);return folder;}
 const item=(id,settings,extra={})=>({id,title:id,patch:{settings},...extra});
 const plan=(p,items,extra={})=>({revision:p.revision,baseVersion:p.currentId,items,...extra});
@@ -113,7 +113,7 @@ test('CLI, host tool dispatch and HTTP share selection and guard validation',asy
 });
 
 test('published JSON schema matches the live host tool definition',async()=>{
-  const schema=JSON.parse(await readFile(new URL('../skills/guangjian-retouch/schemas/edit-plan.schema.json',import.meta.url),'utf8'));
+  const schema=JSON.parse(await readFile(new URL('../skills/photo-retouch/schemas/edit-plan.schema.json',import.meta.url),'utf8'));
   const {$schema,title,...definition}=schema;assert.deepEqual(definition,hostToolContract().tools[0].function.parameters);assert.equal(definition.properties.items.items.properties.patch.additionalProperties,false);
 });
 
