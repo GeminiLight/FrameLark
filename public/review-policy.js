@@ -39,7 +39,7 @@ export function reviewPresentation(analysis) {
 
 const demoObservations = {
   order:{finding:'人物与晨光提供两个视线停留点。',evidence:'左侧人物的暖色与右上晨光形成呼应，远山延续视线。'},
-  emotion:{finding:'广阔空间可以支持安静、探索的感觉。',evidence:'人物相对山峦较小，云海与冷暖层次保留距离感；这只是可选的阅读。'},
+  emotion:{finding:'广阔空间可以支持安静、探索的感觉。',evidence:'人物相对山峦较小，云海与冷暖层次保留距离感；这是一种可能的感受。'},
   subject:{finding:'橙色外套已经让人物从远山中清楚分离。',evidence:'人物处在左侧山脊，衣服暖色与灰蓝色山体形成对照。'},
   background:{finding:'前景、远山与云海保留了完整的空间层次。',evidence:'岩石、山脊和云海由近及远展开，交代了人物所处的环境。'},
   light:{finding:'晨光的暖色与山峦的冷色已经相互呼应。',evidence:'右上方的暖光与灰蓝色山体并置，形成清晨氛围。'},
@@ -56,15 +56,15 @@ export function buildBasicReview(inspection,{isDemo = false} = {}) {
     scene:isDemo ? '山地日出 · 示例讲解' : '基于光色的画面分析',
     subject:isDemo ? 'landscape' : 'unclassified',
     summary:isDemo ? '人物、山脊与云海由近及远展开，晨光与灰蓝色远山形成色彩对照。以下保留理由是示例照片的预写讲解。' : note,
-    conclusion:isDemo ? {kind:'keep',reason:'人物与环境的关系已经完整。保留远山与云海的空间，以及晨光原有的冷暖对照。'} : {kind:'uncertain',reason:'本地光色统计不能判断这些明暗与色彩是否符合你的表达。暂不提供自动调色或裁剪，可直接导出，也可手动调整。'},
+    conclusion:isDemo ? {kind:'keep',reason:'建议保留人物周围的远山和云海，以及晨光与山色的冷暖对比。'} : {kind:'uncertain',reason:'本地光色统计不能判断这些明暗与色彩是否符合你的表达。暂不提供自动调色或裁剪，可直接导出，也可手动调整。'},
     metricEvidence:statisticalEvidence(inspection),
     observations:isDemo ? Object.fromEntries(Object.entries(demoObservations).map(([key,item]) => [key,{...item,verdict:'keep',confidence:'medium',location:'示例讲解',condition:'以下是这张示例的预写观察；以保留人物与环境关系为目标，不适用于所有照片。',region:null}])) : null,
     observationSource:isDemo ? 'demo' : 'statistics',metrics:inspection.metrics,
     recommendedStyle:null,styleMatches:[],cropRecommendation:null,cropReason:isDemo ? '保留人物一侧的远景空间，当前不需要收紧画幅。' : '本地统计无法判断是否需要裁剪。',recommendations:[],
     lessons:[
       {title:'先分清表达与问题',body:'暗不一定是曝光错误，淡不一定要增色。先判断这些关系是否服务于你想表达的感觉。'},
-      {title:'保留有用的空间',body:'留白、环境和主体之间的距离也能叙事。只有边缘确实分散视线时，才值得裁剪。'},
-      {title:'把原片作为参照',body:'每次只改变有明确目的的一处。若调整没有带来更合适的表达，保留原片也是完整的决定。'}
+      {title:'保留有用的空间',body:'留白和周围环境也能交代照片的内容。只有边缘确实分散视线时，才值得裁剪。'},
+      {title:'把原片作为参照',body:'每次只改变有明确目的的一处。如果调整后不满意，可以保留原片。'}
     ],
     insight:'修片先决定值得保留什么，再决定是否需要改变。'
   };

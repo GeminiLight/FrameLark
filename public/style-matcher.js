@@ -4,8 +4,8 @@ import { tasteAffinity } from './taste-memory.js';
 
 function localReason(preset, stats) {
   const a = preset.adjustments;
-  if (a.monochrome && a.grain > 20) return '去掉色彩后，粗颗粒与更深的黑位会强化线条；请检查暗部是否丢失细节。';
-  if (a.monochrome && a.fade > 10) return '柔和的银灰能让明暗过渡更安静；请看主体是否仍有足够分离度。';
+  if (a.monochrome && a.grain > 20) return '转为黑白后，粗颗粒与更深的黑位会强化线条；请检查暗部是否丢失细节。';
+  if (a.monochrome && a.fade > 10) return '柔和的银灰让明暗过渡更平缓；请检查主体是否仍然突出。';
   if (a.monochrome) return '黑白与适度反差会把注意力放回光线和结构；请检查最亮处是否仍有层次。';
   if (stats.mean > .57 && a.highlights < -10) return '原片亮部偏集中，这组配方会收住高光，保留亮处层次。';
   if (stats.mean < .43 && a.shadows > 8) return '原片暗部偏深，这组配方会轻提阴影，让细节更可读。';
@@ -13,8 +13,8 @@ function localReason(preset, stats) {
   if (stats.saturation > .32 && a.saturation < 0) return '原片色彩已经较丰富，收一点饱和度可让视线更集中。';
   if (stats.deviation < .2 && a.contrast > 8) return '原片明暗差异较柔和，这组配方会建立更清楚的影调层次。';
   if (preset.groups.includes('night')) return '冷暖光与更深的黑位会塑造夜色氛围；请检查主体是否因此变暗。';
-  if (preset.feels.includes('film')) return '柔化黑位与少量颗粒能改变画面的节奏；请比较肤色与阴影是否自然。';
-  if (preset.feels.includes('airy')) return '较柔和的对比与色彩会留出呼吸感；请确认主体没有失去重点。';
+  if (preset.feels.includes('film')) return '抬高黑位并添加少量颗粒，形成胶片感；请比较肤色与阴影是否自然。';
+  if (preset.feels.includes('airy')) return '降低对比和饱和度，让画面更柔和；请确认主体仍然突出。';
   return '这组配方会调整原片的色彩关系；请用前后对比判断主色和主体是否更明确。';
 }
 

@@ -107,7 +107,7 @@ const agentReading=new Map();
 const styleAudition=createStyleAudition({
   context:()=>state.image && !state.loading ? {photoId:currentPhotoId,signature:currentEffectSignature(),snapshot:editSnapshot(),image:state.image,source:currentPreviewPixels()}:null,
   render:async(snapshot,captured)=>{
-    const version=viewerVersion(snapshot,'audition','试看片'),source=captured.source,image=captured.image;
+    const version=viewerVersion(snapshot,'audition','预览'),source=captured.source,image=captured.image;
     const pixels=await auditionRenderer.render({pixels:source.data,width:source.width,height:source.height,settings:version.settings,annotations:version.annotations,crop:snapshot.crop,
       frame:{fullWidth:image.naturalWidth,fullHeight:image.naturalHeight,sourceRect:cropPixelRect(snapshot.crop,image.naturalWidth,image.naturalHeight),angle:snapshot.crop?.angle || 0}});
     return {pixels,width:source.width,height:source.height};
@@ -117,8 +117,8 @@ const styleAudition=createStyleAudition({
     $('#style-audition-strip').hidden=!active;canvas.hidden=!ready;
     $('#photo-stage').classList.toggle('auditioning',active);
     $('#photo-stage').classList.toggle('audition-ready',ready);
-    $('#style-audition-label').textContent=active ? `${presetById(styleId)?.name} · ${amount}%${phase==='loading' ? ' · 正在试看片…':phase==='failed' ? ' · 未能预览，请重试':''}`:'';
-    $('#style-audition-note').textContent=phase==='failed' ? '当前版本仍然保留':innerWidth<=600 ? '当前版本未变':'仅试看片 · 当前版本未变';
+    $('#style-audition-label').textContent=active ? `${presetById(styleId)?.name} · ${amount}%${phase==='loading' ? ' · 正在预览…':phase==='failed' ? ' · 未能预览，请重试':''}`:'';
+    $('#style-audition-note').textContent=phase==='failed' ? '当前版本仍然保留':innerWidth<=600 ? '当前版本未变':'正在预览 · 尚未应用';
     $('#style-audition-open').textContent=innerWidth<=600 ? '调节强度 ↗':'调整与应用 ↗';
     if(ready){canvas.width=output.width;canvas.height=output.height;canvas.getContext('2d').putImageData(new ImageData(output.pixels,output.width,output.height),0,0);}
     document.querySelectorAll('.style-audition-toggle').forEach(button=>button.setAttribute('aria-pressed',String(active && button.closest('[data-preset]').dataset.preset===styleId)));
@@ -175,7 +175,7 @@ const controlGroups = [
   {id:'curve',name:'曲线',description:'精细塑造暗调、中间调、亮调'},
   {id:'color',name:'色彩',description:'白平衡与整体饱和度'},
   {id:'mixer',name:'色彩混合',description:'分别控制橙、绿、蓝'},
-  {id:'effects',name:'效果',description:'质感、空气感与边缘'},
+  {id:'effects',name:'效果',description:'纹理、去雾与暗角'},
   {id:'detail',name:'细节',description:'锐化与噪点控制'}
 ];
 const metricKeys = Object.keys(metricLabels);
@@ -262,7 +262,7 @@ const seriesWorkspace=createSeriesWorkspace({
       plan.photo.versions ||= [];if(plan.photo.versions.length<40)plan.photo.versions.push({id:crypto.randomUUID(),kind:'manual',label:'组图调整前',at:new Date().toISOString(),signature:snapshotAcceptanceSignature(plan.before),snapshot:structuredClone(plan.before)});
     }
     if(changed.length)lastBatch=changed;
-    scheduleDraftSave();renderPhotoTabs();showToast(changed.length?`已接受 ${changed.length} 张的组图调整，可逐张精调或整组撤销。`:'已保留这组照片的当前光色。');
+    scheduleDraftSave();renderPhotoTabs();showToast(changed.length?`已应用 ${changed.length} 张的组图调整，可逐张精调或整组撤销。`:'已保留这组照片的当前光色。');
   }
 });
 
@@ -344,7 +344,7 @@ function renderLibrary() {
     const exported = photo.id === currentPhotoId ? state.exported : photo.exported;
     const status = edited && !exported ? '有未导出的调整' : exported ? '已导出' : '原片';
     return `<article class="library-card${selectedPhotos.has(photo.id) ? ' selected':''}"><button type="button" class="library-photo${photo.id === currentPhotoId ? ' active' : ''}" data-library-select="${photo.id}"><img src="${photo.src}" alt="" /><span><strong>${escapeHtml(photo.imageName)}</strong><small>${subjectLabel(photo.subject)} · ${photoTaskLabel(photo) || status}</small></span></button>${librarySelecting ? `<label class="library-check"><input type="checkbox" data-batch-select="${photo.id}" aria-label="选择 ${escapeHtml(photo.imageName)}" ${selectedPhotos.has(photo.id) ? 'checked':''} /></label>`:''}</article>`;
-  }).join('') : `<div class="library-empty">${photoSessions.length ? '这个题材还没有照片。可在诊断页为照片选择题材。' : '还没有照片。添加一张，开始你的创作。'}</div>`;
+  }).join('') : `<div class="library-empty">${photoSessions.length ? '该题材下暂无照片，可在审片面板为照片选择题材。' : '还没有照片。添加一张，开始你的创作。'}</div>`;
   $('#library-add').disabled = importingFiles || state.loading || photoSessions.length >= 12;
   $('#library-selection-actions').hidden=!librarySelecting;$('#library-selection-count').textContent=`已选 ${selectedPhotos.size} 张`;
   $('#library-select-mode').textContent=librarySelecting ? '完成选择':'选择照片';
@@ -396,13 +396,13 @@ function renderPersonalOverview() {
   const photoStatus=photo ? photoTaskLabel(photo) || (finalized ? '已定稿':state.exported ? '已导出':photoHasEdits(photo) ? '编辑中':'原片'):'';
   const avatar=$('#personal-avatar');avatar.replaceChildren($('#account-avatar').cloneNode(true));avatar.firstElementChild.removeAttribute('id');
   $('#personal-current-photo').innerHTML=photo ? `<div class="personal-photo-row"><img src="${escapeHtml(photo.src)}" alt="${escapeHtml(photo.imageName)}的原片缩略图" /><div class="personal-photo-copy"><span class="personal-caption">${photo.isDemo ? '示例照片 · 原片预览':'当前照片 · 原片预览'}</span><strong>${escapeHtml(photo.imageName)}</strong><span>${escapeHtml(subjectLabel(photo.subject))} · ${escapeHtml(photoStatus)}</span><button type="button" class="personal-primary" id="personal-resume-photo" ${state.loading ? 'disabled':''}><span data-icon="sliders"></span>${state.loading ? '照片准备中…':'继续修片'}<span data-icon="arrow-right"></span></button></div></div>` : `<div class="personal-no-photo"><span data-icon="image"></span><div><strong>从一张自己的照片开始</strong><p>添加照片，试试看你的第一版。</p><button type="button" class="personal-primary" id="personal-add-photo"><span data-icon="plus"></span>添加照片</button></div></div>`;
-  $('#personal-subject-summary').textContent=personalProfile.subjects.length ? personalProfile.subjects.map(subjectLabel).join('、'):'还未设置，随照片探索';
+  $('#personal-subject-summary').textContent=personalProfile.subjects.length ? personalProfile.subjects.map(subjectLabel).join('、'):'尚未设置';
   const style=stylePreferences.find(item=>item.id===state.stylePreference);
-  $('#personal-style-summary').textContent=state.stylePreference==='auto' ? '随画面自适应':style?.label || '随画面自适应';
-  $('#personal-preference-note').textContent=summary.count ? `推荐会参考 ${summary.count} 张定稿的选择，优先听这一张的意图。`:'告诉帧映你偏爱什么，让下一次推荐更贴近你。';
+  $('#personal-style-summary').textContent=state.stylePreference==='auto' ? '根据照片自动推荐':style?.label || '根据照片自动推荐';
+  $('#personal-preference-note').textContent=summary.count ? `推荐会参考 ${summary.count} 张定稿的选择，优先考虑这张照片的调整目标。`:'设置偏好，用于以后的风格推荐。';
   $('#personal-workspace-meta').innerHTML=`<span class="section-label"><span data-icon="grid"></span>工作区 ${photoSessions.length} 张</span><span class="section-label"><span data-icon="heart"></span>收藏风格 ${state.favoritePresets.size} 款</span>`;
   $('#personal-view-growth').hidden=summary.count===0;
-  $('#personal-recent-records').innerHTML=summary.count ? `<p class="personal-caption">已记录 ${summary.count} 张定稿 · 保存选择摘要</p><ol class="personal-record-list">${[...summary.records].reverse().slice(0,3).map(record=>{const date=new Date(record.acceptedAt);const day=Number.isNaN(date.getTime())?'定稿':`${date.getMonth()+1}.${String(date.getDate()).padStart(2,'0')}`;return `<li><span class="personal-record-date">${day}</span><div><strong>${escapeHtml(subjectLabel(record.subject))}</strong><span>${escapeHtml(presetById(record.presetId)?.name || (record.moods.includes('mono') ? '黑白精修':'手动精修'))}</span></div><span data-icon="check"></span></li>`;}).join('')}</ol>` : `<div class="personal-record-empty"><span data-icon="history"></span><strong>还没有定稿记录</strong><p>满意后把一版记为定稿，这里会留下你的题材、影调与取舍。</p><button type="button" class="personal-text-action" data-profile-view="growth">看看如何记录 <span data-icon="arrow-right"></span></button></div>`;
+  $('#personal-recent-records').innerHTML=summary.count ? `<p class="personal-caption">已记录 ${summary.count} 张定稿 · 保存选择摘要</p><ol class="personal-record-list">${[...summary.records].reverse().slice(0,3).map(record=>{const date=new Date(record.acceptedAt);const day=Number.isNaN(date.getTime())?'定稿':`${date.getMonth()+1}.${String(date.getDate()).padStart(2,'0')}`;return `<li><span class="personal-record-date">${day}</span><div><strong>${escapeHtml(subjectLabel(record.subject))}</strong><span>${escapeHtml(presetById(record.presetId)?.name || (record.moods.includes('mono') ? '黑白精修':'手动精修'))}</span></div><span data-icon="check"></span></li>`;}).join('')}</ol>` : `<div class="personal-record-empty"><span data-icon="history"></span><strong>还没有定稿记录</strong><p>将满意的版本记为定稿，在这里查看题材、影调和调整记录。</p><button type="button" class="personal-text-action" data-profile-view="growth">看看如何记录 <span data-icon="arrow-right"></span></button></div>`;
   hydrateIcons($('#profile-dialog'));
 }
 
@@ -427,22 +427,22 @@ function renderTasteProfile() {
   const summary = summarizeTaste(tasteRecords);
   const count = summary.count;
   $('#profile-growth-view').classList.toggle('without-records', count === 0);
-  $('#taste-headline').textContent = count ? count < 3 ? '你的影像语言，正在显影' : '从定稿里，看见你的选择' : '从第一张定稿开始';
-  $('#taste-subtitle').textContent = count ? `已记录 ${count} 张定稿作品。这里呈现你做过的选择，不给作品或审美打分。` : '收下一张满意的作品，才会把原片与最终版本的光色、风格和调整选择用于下次推荐。';
-  $('#taste-evidence').textContent = count ? `依据 ${count} 张定稿 · ${count < 3 ? '初步观察' : '持续更新'}` : '等待作品';
+  $('#taste-headline').textContent = count ? count < 3 ? '已保存的定稿还不多' : '看看常用的调整' : '从第一张定稿开始';
+  $('#taste-subtitle').textContent = count ? `已记录 ${count} 张定稿作品。这里呈现你做过的选择，不给作品或审美打分。` : '保存定稿后，系统才会将前后的光色、风格与参数偏好用于后续推荐。';
+  $('#taste-evidence').textContent = count ? `依据 ${count} 张定稿 · ${count < 3 ? '初步观察' : '持续更新'}` : '暂无定稿记录';
   const signals = [];
   if (summary.leadingMood) signals.push({kicker:'影调选择',title:moodNames[summary.leadingMood],detail:`出现在 ${summary.moodCounts[summary.leadingMood]} 张定稿中`});
-  if (count && summary.tendencies.color <= -.015) signals.push({kicker:'色彩取舍',title:'倾向收敛色彩',detail:'相对原片，定稿常更克制'});
-  else if (count && summary.tendencies.color >= .015) signals.push({kicker:'色彩取舍',title:'倾向唤醒色彩',detail:'相对原片，定稿常更鲜明'});
+  if (count && summary.tendencies.color <= -.015) signals.push({kicker:'色彩取舍',title:'常降低饱和度',detail:'定稿的色彩通常比原片更淡'});
+  else if (count && summary.tendencies.color >= .015) signals.push({kicker:'色彩取舍',title:'常增加饱和度',detail:'相对原片，定稿常更鲜明'});
   if (count && summary.tendencies.light >= .025) signals.push({kicker:'光线选择',title:'让画面更明亮',detail:'定稿的平均亮度高于原片'});
   else if (count && summary.tendencies.light <= -.025) signals.push({kicker:'光线选择',title:'保留低调氛围',detail:'定稿的平均亮度低于原片'});
-  if (summary.practices.composition) signals.push({kicker:'构图习惯',title:'愿意重新取舍画面',detail:`有 ${summary.practices.composition} 张定稿重新裁剪`});
+  if (summary.practices.composition) signals.push({kicker:'构图习惯',title:'经常裁剪照片',detail:`有 ${summary.practices.composition} 张定稿重新裁剪`});
   if (count >= 2) {
     const subjects = Object.entries(summary.records.reduce((result,item) => { result[item.subject] = (result[item.subject] || 0)+1;return result; },{})).sort((a,b) => b[1]-a[1]);
     if (subjects[0]?.[1] >= 2 && subjects[0][0] !== 'unclassified') signals.push({kicker:'常拍题材',title:subjectLabel(subjects[0][0]),detail:`出现在 ${subjects[0][1]} 张定稿中`});
   }
-  if (count && !signals.length) signals.push({kicker:'起点',title:'尊重原片本来的样子',detail:'这张作品只做了很轻的调整'});
-  $('#taste-signals').innerHTML = signals.length ? signals.slice(0,4).map(item => `<article class="taste-signal"><span>${item.kicker}</span><strong>${item.title}</strong><small>${item.detail}</small></article>`).join('') : '<p class="taste-empty">这里还没有定稿记录。先完成一张自己的照片，再来看看你的选择。</p>';
+  if (count && !signals.length) signals.push({kicker:'起点',title:'调整幅度较小',detail:'这张作品只做了很轻的调整'});
+  $('#taste-signals').innerHTML = signals.length ? signals.slice(0,4).map(item => `<article class="taste-signal"><span>${item.kicker}</span><strong>${item.title}</strong><small>${item.detail}</small></article>`).join('') : '<p class="taste-empty">还没有定稿记录。可以将满意的版本记为定稿。</p>';
   $('#taste-practice').innerHTML = practiceGuide.map(item => {
     const occurrences = summary.practices[item.id];
     return `<article class="taste-practice-item"><div class="taste-practice-head"><strong>${item.name}</strong><span>${occurrences ? `${occurrences} 次实践` : '可以从这里开始'}</span></div><div class="taste-practice-marks" aria-hidden="true">${Array.from({length:4},(_,index) => `<i class="${index < occurrences ? 'filled' : ''}"></i>`).join('')}</div><p>${item.prompt}</p></article>`;
@@ -454,7 +454,7 @@ function renderTasteProfile() {
   const recentLight = count >= 4 ? averageDelta(summary.records.slice(-half),'mean') : 0;
   const earlyLight = count >= 4 ? averageDelta(summary.records.slice(0,half),'mean') : 0;
   let evolution = `再定稿 ${Math.max(0,4-count)} 张，就可以比较早期和最近的光色选择。`;
-  if (count >= 4) evolution = Math.abs(recentColor-earlyColor) >= .025 ? `与早期相比，你最近定稿的色彩${recentColor < earlyColor ? '更克制' : '更鲜明'}。下一次可以继续观察，这是否符合你想表达的情绪。` : Math.abs(recentLight-earlyLight) >= .03 ? `与早期相比，你最近定稿的整体影调${recentLight < earlyLight ? '更低调' : '更明亮'}。试着留意这种变化是否适合不同题材。` : '早期与最近的光色取舍比较接近。下一次可以尝试一种新的表达，再决定要不要保留。';
+  if (count >= 4) evolution = Math.abs(recentColor-earlyColor) >= .025 ? `与早期相比，你最近定稿的色彩${recentColor < earlyColor ? '更克制' : '更鲜明'}。可以看看这是否符合你的偏好。` : Math.abs(recentLight-earlyLight) >= .03 ? `与早期相比，你最近定稿的整体影调${recentLight < earlyLight ? '更低调' : '更明亮'}。试着留意这种变化是否适合不同题材。` : '早期与最近定稿的光色变化不大。';
   $('#taste-evolution').textContent = evolution;
   $('#taste-timeline').innerHTML = count ? [...summary.records].reverse().slice(0,6).map(record => {
     const date = new Date(record.acceptedAt);
@@ -477,8 +477,8 @@ function renderTasteProfile() {
     $(`#profile-${view}-tab`).setAttribute('aria-selected',String(profileView===view));
     $(`#profile-${view}-tab`).tabIndex=profileView===view ? 0:-1;
   }
-  $('#profile-title').textContent=profileView==='overview' ? personalProfile.name || '我的':profileView==='growth' ? '创作轨迹':'创作偏好';
-  $('#profile-intro').textContent=profileView==='overview' ? '继续创作，看看自己的选择正在如何积累。':profileView==='growth' ? '从定稿里的真实取舍，发现自己的影像语言。':'告诉帧映你喜欢拍什么、偏爱怎样的影调。';
+  $('#profile-title').textContent=profileView==='overview' ? personalProfile.name || '我的':profileView==='growth' ? '定稿记录':'修图偏好';
+  $('#profile-intro').textContent=profileView==='overview' ? '查看偏好和已保存的定稿。':profileView==='growth' ? '查看定稿记录和常用的调整。':'设置常用拍摄题材与偏好影调。';
   $('#profile-done').textContent = profileView === 'preferences' ? '完成设置':workspaceSpace==='learn' ? '返回学习':'返回修片';
 }
 
@@ -597,7 +597,7 @@ function activatePhoto(id) {
   originalImage.alt = photo.imageName;
   $('#crop-editor-image').src = photo.src;
   $('#file-name').textContent = photo.imageName;
-  $('#file-meta').textContent = `${photo.image.naturalWidth} × ${photo.image.naturalHeight} · ${photo.isDemo ? '示例照片' : '你上传的照片'}`;
+  $('#file-meta').textContent = `${photo.image.naturalWidth} × ${photo.image.naturalHeight} · ${photo.isDemo ? '示例照片' : '本地导入的照片'}`;
   $('#photo-subject').value = validSubject(photo.subject);
   $('#workspace-title').textContent = photo.imageName;
   $('#workspace-title').title = photo.imageName;
@@ -648,7 +648,7 @@ function requestClosePhoto(id) {
   if (!photo || state.loading) return;
   if ((photoHasEdits(photo) && !(id === currentPhotoId ? state.exported : photo.exported)) || photoHasNotes(photo)) {
     pendingCloseId = id;
-    $('#replace-description').textContent = `「${photo.imageName}」有调整、批注或创作意图。这些随草稿保存，导出照片不会包含批注与意图。移出会从当前草稿移除这张照片，原片文件仍然保留。`;
+    $('#replace-description').textContent = `「${photo.imageName}」有调整、批注或调整目标。这些随草稿保存，导出照片不会包含批注与意图。移出会从当前草稿移除这张照片，原片文件仍然保留。`;
     $('#replace-dialog').showModal();
   } else removePhoto(id);
 }
@@ -803,7 +803,7 @@ function updateSliderTotals() {
   const total=getAdjustments();
   for (const spec of sliderSpecs) {
     const output=$(`#total-${spec.key}`);
-    if (output) output.textContent=`手动增量 · 合成 ${formatSlider(Number(total[spec.key].toFixed(2)),spec)}`;
+    if (output) output.textContent=`手动调整值 · 叠加后 ${formatSlider(Number(total[spec.key].toFixed(2)),spec)}`;
   }
 }
 function renderAdjustmentLayers() {
@@ -811,7 +811,7 @@ function renderAdjustmentLayers() {
   for (const item of state.analysis?.recommendations || []) if(state.active.has(item.id)) rows.push({id:`suggestion:${item.id}`,label:item.title,source:`审片建议${item.previewAmount ? ' · 强度 '+item.previewAmount+'%':''}`,settings:item.adjustments});
   if(state.presetId && state.presetAmount>0) rows.push({id:'style',label:presetById(state.presetId)?.name,source:`风格 · ${state.presetAmount}%`,settings:combineSettings({settings:presetById(state.presetId)?.adjustments,amount:state.presetAmount/100})});
   for(const item of state.advisorLayers) rows.push({id:`advisor:${item.id}`,label:item.label,source:(item.source==='series'?'组图 · 逐张光色':item.annotationId ? '顾问 · 局部':'顾问 · 全局')+(item.previewAmount ? ' · 强度 '+item.previewAmount+'%':''),settings:item.settings});
-  if(adjustmentKeys.some(key=>state.manual[key])) rows.push({id:'manual',label:'手动参数',source:'手动调整 · 增量',settings:state.manual});
+  if(adjustmentKeys.some(key=>state.manual[key])) rows.push({id:'manual',label:'手动参数',source:'手动调整 · 叠加值',settings:state.manual});
   for(const item of state.annotations) if(item.localSettings && Object.values(item.localSettings).some(Boolean)) rows.push({id:`region:${item.id}`,label:`标记 ${state.annotations.indexOf(item)+1}`,source:item.localEnabled===false ? '局部手动调整 · 已暂停':'局部手动调整',settings:item.localSettings});
   if(state.crop) rows.push({id:'crop',label:'构图裁剪',source:`保留 ${Math.round(state.crop.width*state.crop.height*100)}%`,settings:{}});
   $('#adjustment-layers').hidden=!inspectionVisibility({sources:rows.length}).sources;
@@ -889,7 +889,7 @@ function refreshActions() {
   if (state.active.size) pieces.push(`${state.active.size} 项建议`);
   if (state.crop) pieces.push('裁剪');
   if (state.presetId && state.presetAmount > 0) pieces.push(presetById(state.presetId)?.name || '风格');
-  if (adjustmentKeys.some(key => Math.abs(state.manual[key] || 0) > .001)) pieces.push('专业参数');
+  if (adjustmentKeys.some(key => Math.abs(state.manual[key] || 0) > .001)) pieces.push('手动参数');
   if (hasLocalEffects(state.annotations,state.advisorLayers)) pieces.push('局部微调');
   $('#edit-status').textContent = state.loading ? state.loadingPurpose === 'export' ? '正在导出照片…' : '正在读取照片…' : state.analyzing ? '正在分析画面…' : state.assessmentBusy ? '正在复评当前效果…' : state.exported ? '已导出 · 可以继续调整' : pieces.length ? `${pieces.join(' · ')}已生效` : review.kind === 'keep' ? '建议保留原片 · 可直接导出' : '原片就绪 · 可导出或手动调整';
   renderReviewConclusion();
@@ -1055,12 +1055,12 @@ function buildPresetThumbs(image) {
 function renderPresets() {
   endStyleAudition();
   const ranked=collectionRanking();
-  $('#style-audition-help').textContent=innerWidth<=600 ? '点缩略图试看片，再点恢复；「调整与应用」可选择强度，应用后才保存。':'悬停或聚焦缩略图，临时试看片；点击可停留查看。只有「应用」会保存调整。';
+  $('#style-audition-help').textContent=innerWidth<=600 ? '点缩略图预览，再点恢复；「调整与应用」可选择强度，应用后才保存。':'悬停或聚焦缩略图，临时预览；点击可停留查看。只有「应用」会保存调整。';
   renderCreativeIntent();
   $('#style-categories').innerHTML = styleCategories.map(item => `<button class="style-chip ${state.styleCategory === item.id ? 'active' : ''}" type="button" data-category="${item.id}" aria-pressed="${state.styleCategory === item.id}">${escapeHtml(item.label)}</button>`).join('');
-  $('#recommendation-source').textContent = cleanIntent(state.creativeIntent) ? '优先围绕这一张的意图筛选；缩略图为画面概览，完整效果在展开库查看。' : reviewPresentation(state.analysis).kind === 'keep' ? '原片建议保留；以下仅供主动探索另一种表达，按画面光色与偏好排序。' : state.analysisSource === 'ai' && state.analysis?.styleMatches?.length ? '结合视觉模型、原片光色与已定稿的选择排序' : tasteRecords.length ? `结合原片光色与 ${tasteRecords.length} 张定稿作品的倾向初筛；未识别新照片内容` : state.isDemo ? '根据示例照片已知的晨光场景、原片光色与个人偏好排序' : '依据原片亮度、色彩与个人偏好初筛；未识别画面内容';
+  $('#recommendation-source').textContent = cleanIntent(state.creativeIntent) ? '优先按这张照片的调整目标推荐。点击风格可查看完整效果。' : reviewPresentation(state.analysis).kind === 'keep' ? '建议保留原片。也可以尝试以下风格，按照片光色和你的偏好排序。' : state.analysisSource === 'ai' && state.analysis?.styleMatches?.length ? '结合画面视觉分析、原片光色与历史定稿偏好排序' : tasteRecords.length ? `结合原片光色与 ${tasteRecords.length} 张定稿作品的倾向初筛；未识别新照片内容` : state.isDemo ? '根据示例照片已知的晨光场景、原片光色与个人偏好排序' : '依据原片亮度、色彩与个人偏好初筛；未识别画面内容';
   const picks=styleSelections(ranked,[...state.favoritePresets]);
-  const pickCard=({preset,reason,source},favorite=false)=>`<article class="curated-style-card" data-preset="${escapeHtml(preset.id)}"><button type="button" class="style-audition-toggle" aria-label="试看片：${escapeHtml(preset.name)}；再次点击恢复当前版本" aria-pressed="false" aria-describedby="style-audition-help"><img src="${state.presetThumbs[preset.id] || ''}" alt="" /><span>${state.presetId===preset.id ? '当前风格':favorite ? '已收藏':source==='intent' ? '意图适配':source==='ai' ? '视觉推荐':source==='demo' ? '示例场景':'光色适配'}</span><em>试看片</em></button><div><strong>${escapeHtml(preset.name)}</strong><small>${escapeHtml(preset.category)}</small><p>${escapeHtml(favorite ? preset.mood:reason)}</p><button type="button" class="style-preview-open">调整与应用 ↗</button></div></article>`;
+  const pickCard=({preset,reason,source},favorite=false)=>`<article class="curated-style-card" data-preset="${escapeHtml(preset.id)}"><button type="button" class="style-audition-toggle" aria-label="预览：${escapeHtml(preset.name)}；再次点击恢复当前版本" aria-pressed="false" aria-describedby="style-audition-help"><img src="${state.presetThumbs[preset.id] || ''}" alt="" /><span>${state.presetId===preset.id ? '当前风格':favorite ? '已收藏':source==='intent' ? '符合调整目标':source==='ai' ? '视觉推荐':source==='demo' ? '示例场景':'光色适配'}</span><em>预览</em></button><div><strong>${escapeHtml(preset.name)}</strong><small>${escapeHtml(preset.category)}</small><p>${escapeHtml(favorite ? preset.mood:reason)}</p><button type="button" class="style-preview-open">调整与应用 ↗</button></div></article>`;
   $('#style-recommendations').innerHTML=picks.recommended.map(item=>pickCard(item)).join('');
   $('.style-favorites').hidden=!picks.favorite.length && state.favoritePresets.size>0;
   $('.style-favorites .style-block-heading').hidden=!picks.favorite.length;
@@ -1189,7 +1189,7 @@ function renderDiagnosis() {
   const evidenceAfter = state.assessment?.afterEvidence;
   const openKey = $('#metric-grid details[open]')?.dataset.metric;
   const visual = state.assessment ? state.assessment.source === 'ai' : state.analysisSource === 'ai';
-  $('#diagnosis-scale').textContent = visual ? '视觉参考 · 以画面依据与表达目标判断，分数不是审美排名。' : '光色统计 · 启发式参照，不识别画面内容，也不要求分数越高越好。';
+  $('#diagnosis-scale').textContent = visual ? '视觉评分仅供参考，请结合照片和调整目标判断，不用于比较作品高低。' : '评分来自光色统计，未识别照片内容，分数并非越高越好。';
   $('#metric-grid').innerHTML = metricKeys.map(key => {
     const base = Math.round(before[key] || 0), current = after ? Math.round(after[key] || 0) : null;
     const delta = current === null ? 0 : current - base;
@@ -1216,10 +1216,10 @@ function renderAssessmentExplanation() {
   const assessment=state.assessment,container=$('#assessment-details');
   container.hidden=!assessment;
   if(!assessment) {container.innerHTML='';return;}
-  const source=assessment.source==='ai' ? `${assessment.provenance?.model || '视觉模型'} · 双图视觉复评` : assessment.failed ? '视觉复评未完成 · 已降级为光色统计' : '本地光色统计 · 未进行画面识别';
+  const source=assessment.source==='ai' ? `${assessment.provenance?.model || '视觉模型'} · 双图视觉复评` : assessment.failed ? '视觉复评未完成 · 仅显示光色统计' : '本地光色统计 · 未进行画面识别';
   const facts=assessment.effectFacts ? `<p class="assessment-source">实际调整 · ${formatAdjustmentChips(assessment.effectFacts.settings) || '无全局参数'}${assessment.effectFacts.crop ? ' · 包含裁剪':''} · ${assessment.effectFacts.localCount ? assessment.effectFacts.localCount+' 处局部范围':'无局部调整'}</p>`:'';
-  const sections=[['improvements','改善',assessment.source==='ai' ? '没有确认明确改善。' : '统计不能确认画面改善。'],['tradeoffs','取舍与代价','未观察到明确代价，仍需放大确认细节。'],['preserved','继续保留',assessment.source==='ai' ? '尚未给出保留观察。' : '主体、构图和情绪尚未判断。']];
-  container.innerHTML=`<details class="assessment-evidence"><summary>完整复评与取舍</summary><p class="assessment-source">${escapeHtml(source)}${assessment.baselineSource==='original-review' ? ' · 沿用首次原片基准':''}</p>${facts}<p>${escapeHtml(assessment.summary)}</p>${assessment.observation ? `<p><strong>放大检查 · </strong>${escapeHtml(assessment.observation)}</p>`:''}${sections.map(([key,label,empty])=>`<details><summary>${label} · ${assessment[key]?.length || 0}</summary>${assessment[key]?.length ? assessment[key].map(item=>`<article><strong>${escapeHtml(item.finding)}</strong><p>${escapeHtml(item.evidence)}</p><small>适用条件 · ${escapeHtml(item.condition)}</small></article>`).join('') : `<p>${empty}</p>`}</details>`).join('')}</details>`;
+  const sections=[['improvements','改善',assessment.source==='ai' ? '没有确认明确改善。' : '统计不能确认画面改善。'],['tradeoffs','可能的不足','未观察到明确代价，仍需放大确认细节。'],['preserved','继续保留',assessment.source==='ai' ? '暂无保留建议。' : '主体、构图和情绪尚未判断。']];
+  container.innerHTML=`<details class="assessment-evidence"><summary>完整对比结果</summary><p class="assessment-source">${escapeHtml(source)}${assessment.baselineSource==='original-review' ? ' · 沿用首次原片基准':''}</p>${facts}<p>${escapeHtml(assessment.summary)}</p>${assessment.observation ? `<p><strong>放大检查 · </strong>${escapeHtml(assessment.observation)}</p>`:''}${sections.map(([key,label,empty])=>`<details><summary>${label} · ${assessment[key]?.length || 0}</summary>${assessment[key]?.length ? assessment[key].map(item=>`<article><strong>${escapeHtml(item.finding)}</strong><p>${escapeHtml(item.evidence)}</p><small>适用条件 · ${escapeHtml(item.condition)}</small></article>`).join('') : `<p>${empty}</p>`}</details>`).join('')}</details>`;
 }
 
 async function refreshVisionAvailability(signal) {
@@ -1238,9 +1238,9 @@ function renderAnalysisStatus() {
   $('#analysis-mode').textContent = sourceLabel;
   $('#analysis-source-button').textContent = sourceLabel;
   $('#analysis-source-button').dataset.source = state.analysisSource;
-  $('#analysis-source-button').title = '查看分析来源与视觉模型接入';
+  $('#analysis-source-button').title = '查看分析来源与模型连接设置';
   const priorVision = state.analysisSource === 'ai';
-  $('#analysis-provenance').textContent = state.analyzing ? state.analysisStatus==='queued' ? '等待审片，已有结果与调整保留。':state.analysisStatus === 'checking' ? '正在检查视觉接入，当前结果尚未更新。' : '正在通过视觉模型审阅原片，调整不会自动应用。' : priorVision
+  $('#analysis-provenance').textContent = state.analyzing ? state.analysisStatus==='queued' ? '等待审片，已有结果与调整保留。':state.analysisStatus === 'checking' ? '正在检查模型连接，当前结果尚未更新。' : '正在通过视觉模型审阅原片，调整不会自动应用。' : priorVision
     ? `${state.analysisProvenance?.model || state.aiModel || '视觉模型'} · 原片视觉审阅${['fallback','unconfigured'].includes(state.analysisStatus) ? ' · 保留上次结果' : ''}`
     : state.isDemo ? '示例讲解与本地光色统计，尚未进行视觉识别。' : '仅测量亮度、色彩和对比度，未识别主体、背景或构图。';
   $('#analysis-provenance').title = priorVision ? `${state.analysisProvenance?.provider || '视觉服务'} · ${state.analysisProvenance?.analyzedAt ? new Date(state.analysisProvenance.analyzedAt).toLocaleString('zh-CN') : ''} · ${state.analysisProvenance?.promptVersion || ''}` : '';
@@ -1252,12 +1252,12 @@ function renderAnalysisStatus() {
   $('#vision-notice-summary').textContent=state.analyzing ? state.analysisStatus==='queued' ? '等待审片 · 查看进度':'正在审片 · 查看进度':state.analysisStatus==='fallback' ? '这次审片未完成 · 重试':'基础光色 · 尚未连接视觉审片';
   panel.dataset.status = state.analyzing ? 'analyzing' : state.analysisStatus;
   $('#vision-status-title').textContent = state.analyzing ? state.analysisStatus==='queued' ? '这张照片正在等待审片':state.analysisStatus === 'checking' ? '正在准备视觉审片' : '正在审阅这张原片' : state.analysisStatus === 'unconfigured' ? '尚未连接视觉审片' : priorVision ? '这次审片未完成' : '视觉审片未完成 · 当前为基础光色';
-  $('#vision-status-message').textContent = state.analyzing ? state.analysisStatus==='queued' ? '前面的照片处理后会自动开始。你可以继续编辑这张照片，或切换查看已就绪的照片。':state.analysisStatus === 'checking' ? '正在检查接入；基础光色只测量像素分布，不识别画面内容。' : '观察主体、背景、光线与构图。你可以继续查看照片，或取消这次审片。' : state.analysisStatus === 'unconfigured'
+  $('#vision-status-message').textContent = state.analyzing ? state.analysisStatus==='queued' ? '前面的照片处理后会自动开始。你可以继续编辑这张照片，或切换查看已就绪的照片。':state.analysisStatus === 'checking' ? '正在检查连接；基础光色只测量像素分布，不识别画面内容。' : '观察主体、背景、光线与构图。你可以继续查看照片，或取消这次审片。' : state.analysisStatus === 'unconfigured'
     ? '基础光色不识别照片内容。连接视觉模型后，可获得有画面依据的修片建议。'
     : `${state.analysisError?.message || '视觉服务暂时不可用。'}${priorVision ? '上次审片结果与已有调整均已保留。' : hasEdits() ? '已有调整保留；本地结果不包含照片内容识别。' : '当前本地结果不包含照片内容识别。'}`;
   $('#vision-retry').hidden = state.analyzing || state.analysisStatus === 'unconfigured' || state.analysisError?.retryable === false;
   $('#vision-open-settings').hidden = state.analyzing;
-  $('#vision-open-settings').textContent = !state.visionConfigurationEditable ? '视觉接入状态':state.analysisStatus === 'unconfigured' ? '连接视觉审片' : '检查接入';
+  $('#vision-open-settings').textContent = !state.visionConfigurationEditable ? '模型连接状态':state.analysisStatus === 'unconfigured' ? '连接视觉审片' : '检查连接';
   $('#vision-cancel').hidden = !state.analyzing;
   renderReviewWait();
   renderVisionObservations();
@@ -1268,7 +1268,7 @@ function renderReviewWait() {
   const elapsed=elapsedReview(task);
   $('#vision-notice-summary').textContent=task?.status==='queued' ? '等待审片 · 可继续编辑':`${task?.message?.includes('自动重试') ? '校对建议 · 自动重试一次':'正在审片'}${elapsed ? ' · '+elapsed:''}`;
 }
-setInterval(()=>{renderReviewWait();const photo=currentPhoto(),label=$('.agent-typing span');if(photo?.agentBusy&&label){const seconds=Math.floor((Date.now()-photo.agentStartedAt)/1000);label.textContent=seconds<15?'正在结合画面与批注思考…':`已等待 ${seconds} 秒 · 可以继续查看照片，或取消`; }},1000);
+setInterval(()=>{renderReviewWait();const photo=currentPhoto(),label=$('.agent-typing span');if(photo?.agentBusy&&label){const seconds=Math.floor((Date.now()-photo.agentStartedAt)/1000);label.textContent=seconds<15?'正在查看照片和批注…':`已等待 ${seconds} 秒 · 可以继续查看照片，或取消`; }},1000);
 
 function renderReviewConclusion() {
   const analysis = state.analysis;
@@ -1283,7 +1283,7 @@ function renderReviewConclusion() {
   const wasOpen = panel.querySelector('details')?.open;
   panel.hidden = !visible;
   const list = review.preserved.length ? `<ul class="preservation-list">${review.preserved.map(item => `<li><span>${escapeHtml(item.label)}</span><p>${escapeHtml(item.finding)}</p></li>`).join('')}</ul>` : '';
-  const controls = `<div class="preservation-actions"><button type="button" data-review-action="adjust">继续手动调整 <span aria-hidden="true">↗</span></button><button type="button" data-review-action="styles">探索其他风格 <span aria-hidden="true">↗</span></button>${review.kind === 'keep' && hasEdits() ? '<button type="button" data-review-action="original">恢复原片 · 可撤销</button>' : ''}</div>`;
+  const controls = `<div class="preservation-actions"><button type="button" data-review-action="adjust">继续手动调整 <span aria-hidden="true">↗</span></button><button type="button" data-review-action="styles">试试其他风格 <span aria-hidden="true">↗</span></button>${review.kind === 'keep' && hasEdits() ? '<button type="button" data-review-action="original">恢复原片 · 可撤销</button>' : ''}</div>`;
   panel.hidden = !visible || !list && review.count > 0;
   panel.innerHTML = `<details class="preservation-details" ${wasOpen ? 'open' : ''}><summary>${list ? `值得保留的地方 · ${review.preserved.length} 项`:'其他调整方向'}</summary>${list}${!review.count ? controls : ''}${review.kind === 'keep' && hasEdits() ? '<p class="preservation-edit-note">结论针对原片。已有调整保留，可对照后决定是否恢复。</p>' : ''}</details>`;
 }
@@ -1293,7 +1293,7 @@ function renderVisionObservations() {
   const observations = state.analysisSource === 'ai' || state.analysis?.observationSource === 'demo' ? state.analysis?.observations : null;
   const wasOpen=container.querySelector('.observation-collection')?.open;
   container.hidden = !observations;
-  container.innerHTML = observations ? `<details class="observation-collection" ${wasOpen ? 'open':''}><summary>主体、构图与表达 <span>6 项观察</span></summary>`+ `<div class="vision-observations-heading"><strong>画面关系</strong><span>${state.analysis?.observationSource === 'demo' ? '示例 · 预写讲解' : '原片 · 视觉观察'}</span></div>${Object.entries(observationLabels).map(([key,label]) => {
+  container.innerHTML = observations ? `<details class="observation-collection" ${wasOpen ? 'open':''}><summary>主体、构图与表达 <span>6 项观察</span></summary>`+ `<div class="vision-observations-heading"><strong>画面关系</strong><span>${state.analysis?.observationSource === 'demo' ? '示例 · 预置讲解' : '原片 · 视觉观察'}</span></div>${Object.entries(observationLabels).map(([key,label]) => {
     const item = observations[key];
     if(!item) return `<article class="vision-observation"><strong>${label}</strong><p>旧审片没有此项观察，请重新审片。</p></article>`;
     return `<article class="vision-observation"><div><strong>${label}</strong><span class="vision-verdict" data-verdict="${item.verdict}">${verdictLabels[item.verdict]}${item.confidence === 'low' && item.verdict !== 'uncertain' ? ' · 需确认' : ''}</span></div><p>${escapeHtml(item.finding)}</p><details><summary>观察依据${item.region ? '' : ' · ' + escapeHtml(item.location)}</summary><p>${escapeHtml(item.evidence)}</p><small>适用条件 · ${escapeHtml(item.condition || '旧结果未说明，请结合表达目标确认。')}</small></details>${item.region ? `<button type="button" data-vision-evidence="${key}" aria-pressed="${selectedEvidenceKey === key}"><span data-icon="focus"></span>${escapeHtml(item.location)} · ${selectedEvidenceKey === key ? '收起范围' : '看近似范围'}</button>` : ''}</article>`;
@@ -1335,7 +1335,7 @@ function analyzeImage(photo=currentPhoto()) {
     const analyzedIntent=cleanIntent(photo.creativeIntent);
     const timeout=setTimeout(()=>controller.abort('timeout'),115_000);let analysis=null,provenance=null,failure=null,configured=false;
     try {
-      progress('检查视觉接入');
+      progress('检查模型连接');
       const status=state.aiAvailable ? {aiAvailable:true}:await refreshVisionAvailability(controller.signal);configured=status.aiAvailable;
       if(!configured)failure={code:'AI_NOT_CONFIGURED',message:'尚未配置视觉模型。',retryable:false};
       else {
@@ -1349,7 +1349,7 @@ function analyzeImage(photo=currentPhoto()) {
           progress('视觉模型反馈未通过校验，自动重试一次');
         }
         if(!response.ok)failure=normalizeVisionFailure(result);
-        else if(result.provenance?.source!=='vision' || typeof result.provenance.model!=='string')failure={code:'INVALID_MODEL_RESPONSE',message:'审片结果缺少可验证来源，请重试。',retryable:true};
+        else if(result.provenance?.source!=='vision' || typeof result.provenance.model!=='string')failure={code:'INVALID_MODEL_RESPONSE',message:'审片结果缺少有效来源信息，请重试。',retryable:true};
         else {try {analysis=normalizeAnalysis(result.analysis,++analysisGeneration,photo);provenance=result.provenance;}catch {failure={code:'INVALID_MODEL_RESPONSE',message:'审片缺少完整画面依据，请重试。',retryable:true};}}
       }
     } catch(error) {
@@ -1395,7 +1395,7 @@ async function openVisionSettings() {
   $('#vision-settings-form').hidden=true;
   $('#vision-managed-note').hidden=true;
   $('#vision-settings-dialog').showModal();
-  $('#vision-connection-summary').textContent = '正在读取接入状态…';
+  $('#vision-connection-summary').textContent = '正在读取连接状态…';
   try {
     const response = await fetch('/api/vision-config',{cache:'no-store'});
     if (!response.ok) throw new Error('CONFIG_UNAVAILABLE');
@@ -1404,17 +1404,17 @@ async function openVisionSettings() {
     state.visionConfigurationEditable=editable;
     $('#vision-settings-form').hidden=!editable;
     $('#vision-managed-note').hidden=editable;
-    $('#vision-settings-title').textContent=editable ? '让顾问真正看见照片':'视觉审片状态';
+    $('#vision-settings-title').textContent=editable ? '连接 AI 模型':'视觉审片状态';
     $('#vision-managed-note').textContent=settings.hasKey ? '视觉服务由工作台管理员提供。审片仅发送压缩预览，原片与手动调整仍由你掌握。':'这个工作台尚未启用视觉审片。你可以继续手动调色、裁剪、保存版本与导出；当前诊断只提供基础光色统计。';
     $('#vision-provider').value = settings.provider || 'api';
     updateVisionProvider();
     $('#vision-model').value = settings.model;
     $('#vision-endpoint').value = settings.endpoint;
     $('#vision-api-key').placeholder = settings.hasKey ? '已配置密钥；留空保留' : '仅交给本机服务';
-    $('#vision-connection-summary').textContent = settings.connectionStatus === 'ready' ? `${settings.model} · 视觉请求已验证` : settings.connectionStatus === 'error' ? `${settings.model} · ${settings.lastError?.message || '上次请求未完成'}` : settings.aiAvailable ? `${settings.model} · 已配置，等待验证` : '尚未配置视觉服务';
+    $('#vision-connection-summary').textContent = settings.connectionStatus === 'ready' ? `${settings.model} · 图片识别已验证` : settings.connectionStatus === 'error' ? `${settings.model} · ${settings.lastError?.message || '上次请求未完成'}` : settings.aiAvailable ? `${settings.model} · 已配置，等待验证` : '尚未配置视觉服务';
   } catch {
-    $('#vision-connection-summary').textContent = '接入状态暂不可读';
-    $('#vision-managed-note').textContent='接入状态暂时无法读取，请稍后重试。照片与已有调整均保留。';
+    $('#vision-connection-summary').textContent = '暂时无法读取连接状态';
+    $('#vision-managed-note').textContent='连接状态暂时无法读取，请稍后重试。照片与已有调整均保留。';
     $('#vision-managed-note').hidden=false;
     $('#vision-settings-error').textContent = location.hostname==='localhost'||location.hostname==='127.0.0.1' ? '请确认本机工作台服务正在运行，再重试。':'请检查网络，重新打开工作台后重试。';
     $('#vision-settings-error').hidden = false;
@@ -1489,7 +1489,7 @@ function renderAnalysis() {
         <p class="suggestion-full-reason">${escapeHtml(item.reason)}</p>
         <div class="suggestion-brief"><span><b>目标</b>${escapeHtml(item.goal || '优化当前画面的光色关系')}</span><span><b>留意</b>${escapeHtml(item.caution || '别让调整失去自然感')}</span></div>
         <div class="suggestion-parameters">${formatAdjustmentChips(item.adjustments)}</div>
-        <div class="suggestion-actions"><button class="edit-toggle" type="button" data-action="edit">${expandedCards.get(item.id)?.editing ? '收起参数' : '微调这条建议'}</button><button class="reason-toggle" type="button" data-action="reason">${expandedCards.get(item.id)?.lesson ? '收起原理' : '摄影原理'}</button></div>
+        <div class="suggestion-actions"><button class="edit-toggle" type="button" data-action="edit">${expandedCards.get(item.id)?.editing ? '收起参数' : '微调参数'}</button><button class="reason-toggle" type="button" data-action="reason">${expandedCards.get(item.id)?.lesson ? '收起原理' : '摄影原理'}</button></div>
         <div class="suggestion-editor">${renderSuggestionControls(item)}</div>
         <div class="suggestion-lesson">${escapeHtml(item.lesson)}</div>
       </details>
@@ -1515,7 +1515,7 @@ function renderCropSuggestion() {
     const matchesSuggestion = applied && ['x','y','width','height'].every(key => Math.abs(state.crop[key] - suggestion.rect[key]) < .002);
     const coverageLabel = currentCoverage === null ? `建议保留约 ${coverage}% 画面` : matchesSuggestion ? `已按建议裁剪 · 保留 ${coverage}%` : `当前保留 ${currentCoverage}% · 建议 ${coverage}%`;
     container.innerHTML = `<article class="suggestion-card crop-suggestion-card ${applied ? 'applied' : ''}">
-      <div class="suggestion-top"><span class="suggestion-icon" data-icon="crop"></span><span class="suggestion-title"><strong>收紧构图</strong><small>构图 · 裁剪</small></span><button class="suggestion-apply" type="button" data-crop-action="toggle" ${applied && !matchesSuggestion ? 'disabled' : ''}>${matchesSuggestion ? '撤回裁剪' : applied ? '已有个人裁剪' : '预览裁剪'}</button></div>
+      <div class="suggestion-top"><span class="suggestion-icon" data-icon="crop"></span><span class="suggestion-title"><strong>收紧构图</strong><small>构图 · 裁剪</small></span><button class="suggestion-apply" type="button" data-crop-action="toggle" ${applied && !matchesSuggestion ? 'disabled' : ''}>${matchesSuggestion ? '撤回裁剪' : applied ? '已手动裁剪' : '预览裁剪'}</button></div>
       <p class="suggestion-preview">${escapeHtml(suggestion.reason)}</p>
       <div class="crop-suggestion-foot"><span>${coverageLabel}</span><button type="button" data-crop-action="edit">预览并微调 <span aria-hidden="true">↗</span></button></div>
     </article>`;
@@ -1578,7 +1578,7 @@ function agentActionMarkup(message,index) {
   return `<div class="agent-action staged-action"><div class="agent-action-copy"><strong>${escapeHtml(explanation.goal)}</strong><small>${escapeHtml(explanation.scope)}</small><small>${escapeHtml(agentChanges(action))}</small></div><button type="button" data-agent-apply="${index}" ${applied || unavailable || stale ? 'disabled':''}>${unavailable ? '标记已删除':stale ? notesChanged ? '批注已更新 · 请重新提问':'目标或画面已变化 · 请重问':applied ? '已接受':'先预览'}</button></div>`;
 }
 function agentChanges(action) {
-  return action.kind==='style' ? `替换当前风格为「${presetById(action.presetId)?.name}」；其他来源保留`:action.kind==='crop' ? `保留约 ${Math.round(action.crop.width*action.crop.height*100)}% 原画幅；光色参数保持`:action.changes.map(item=>`${settingLabels[item.key] || item.key} ${item.value>0 ? '+':''}${Number(item.value.toFixed(2))}${item.key==='exposure' ? ' EV':''}`).join(' · ');
+  return action.kind==='style' ? `替换当前风格为「${presetById(action.presetId)?.name}」；其他调整保留`:action.kind==='crop' ? `保留约 ${Math.round(action.crop.width*action.crop.height*100)}% 原画幅；光色参数保持`:action.changes.map(item=>`${settingLabels[item.key] || item.key} ${item.value>0 ? '+':''}${Number(item.value.toFixed(2))}${item.key==='exposure' ? ' EV':''}`).join(' · ');
 }
 
 function selectedAnnotation() { return state.annotations.find(item => item.id === selectedAnnotationId); }
@@ -1679,11 +1679,11 @@ function renderAgentContext() {
     hydrateIcons(attachments);
   }
   $('#agent-focus').hidden=!context.focusNumber;
-  $('#agent-focus-summary').textContent=context.focusNumber ? `重点讨论标记 ${context.focusNumber} · ${context.items.find(item=>item.id===context.focusId)?.note || '还没有描述'}`:'';
+  $('#agent-focus-summary').textContent=context.focusNumber ? `重点讨论标记 ${context.focusNumber} · ${context.items.find(item=>item.id===context.focusId)?.note || '暂无描述'}`:'';
   $('#agent-compose-scope').textContent=context.count ? `全部 ${context.count} 处都会发送`:'当前照片';
   $('#agent-context-effect').textContent=hasEdits() ? '读取当前编辑效果':'读取原片画面';
-  $('#agent-intent-edit').textContent=cleanIntent(state.creativeIntent) ? '已设意图':'创作意图';
-  $('#agent-intent-edit').title=cleanIntent(state.creativeIntent) || '设置这一张的创作意图';
+  $('#agent-intent-edit').textContent=cleanIntent(state.creativeIntent) ? '已设目标':'调整目标';
+  $('#agent-intent-edit').title=cleanIntent(state.creativeIntent) || '设置这张照片的调整目标';
   $('#agent-intent-edit').disabled=!photo;
   $('#agent-export').disabled=!photo || state.loading;
   $('#agent-view-photo').disabled=!photo;
@@ -1704,7 +1704,7 @@ function refreshAgentComposer() {
   $('#agent-send').hidden=busy;$('#agent-stop').hidden=!busy;
   $('#agent-input').disabled=!photo;
   $('#agent-composer-hint').textContent=busy ? '正在回复，可先写下一条消息':'Enter 发送 · Shift Enter 换行';
-  $('#agent-input').placeholder=!photo ? '先打开一张照片':busy ? '可以先写下一条想法…':'聊聊你的想法，或问问这张照片…';
+  $('#agent-input').placeholder=!photo ? '先打开一张照片':busy ? '可以先写下一条想法…':'说说你的修图想法，或向顾问提问…';
 }
 function attachmentChips(items,focusNumber,source,messageIndex='') {
   return items.map((item,index)=>`<button class="annotation-attachment${item.number===focusNumber ? ' is-priority':''}" type="button" data-annotation-peek="${source}" data-message-index="${messageIndex}" data-note-index="${index}" aria-controls="annotation-peek" aria-expanded="false" aria-label="查看${source==='message' ? '附带的':'待发送的'}标记 ${item.number}${item.number===focusNumber ? '，重点讨论':''}：${escapeHtml(item.note || '尚未填写评论')}"><span data-icon="message"></span><b>${item.number}</b>${item.number===focusNumber ? '<em>重点</em>':''}</button>`).join('');
@@ -1739,7 +1739,7 @@ function renderAgent({follow=false}={}) {
   $('#agent-context-photo').textContent = photo?.imageName || '尚未打开照片';
   $('#agent-mode').textContent = mode;
   $('#agent-mode').dataset.source=mode==='视觉对话' ? 'ai':'local';
-  $('#agent-mode').title=mode==='视觉对话' ? '发送当前照片、最新批注与最近对话；点击查看视觉连接':'本地引导不识别具体物体；点击查看视觉连接';
+  $('#agent-mode').title=mode==='视觉对话' ? '发送当前照片、最新批注与最近对话；点击查看视觉连接':'本地模式仅分析基础光色，不识别画面内容；点击查看服务连接';
   const thumbnail=$('#agent-context-thumb');thumbnail.hidden=!photo;if(photo && thumbnail.getAttribute('src')!==photo.src)thumbnail.src=photo.src;
   $('#agent-privacy').textContent = mode === '视觉对话'
     ? '视觉模式会发送当前照片的压缩预览、标记及最近对话；对话随草稿保存。'
@@ -1761,7 +1761,7 @@ function renderAgent({follow=false}={}) {
       : `<div class="agent-message assistant" data-reply-id="${escapeHtml(message.id || String(index))}"><div class="agent-message-head"><i><img src="/assets/guangjian-icon.svg?v=4" alt="" /></i>帧映 · ${message.source === 'ai' ? '审美顾问' : '本地引导'}</div>${message.failure ? `<div class="agent-failure"><p>${escapeHtml(message.failure)}</p><button type="button" data-agent-retry="${index}" ${photo.agentBusy || !state.aiAvailable ? 'disabled':''}>用最新批注重试</button></div>`:''}<div class="agent-message-body">${escapeHtml(message.text)}</div>${message.principle ? `<p class="agent-principle"><b>摄影笔记</b> · ${escapeHtml(message.principle)}</p>` : ''}${message.clarification ? `<div class="agent-clarification"><strong>${escapeHtml(message.clarification.question)}</strong>${message.clarification.choices.map(choice=>`<button type="button" data-agent-intent="${escapeHtml(choice)}">${escapeHtml(choice)}</button>`).join('')}</div>` : ''}${agentActionMarkup(message,index)}</div>`).join('');
   }
   hydrateIcons(thread);
-  if (photo?.agentBusy) thread.insertAdjacentHTML('beforeend','<div class="agent-typing" role="status"><span>正在结合画面与批注思考…</span></div>');
+  if (photo?.agentBusy) thread.insertAdjacentHTML('beforeend','<div class="agent-typing" role="status"><span>正在查看照片和批注…</span></div>');
   $('#agent-input').value=photo?.agentDraft || '';
   resizeAgentInput();refreshAgentComposer();
   $('#agent-prompts').querySelectorAll('button').forEach(button => { button.disabled = !photo || !state.analysis || Boolean(photo.agentBusy); });
@@ -1861,7 +1861,7 @@ async function askDesignAgent(question, focusId = currentPhoto()?.agentFocusId) 
     if(request.controller.signal.aborted && request.controller.signal.reason!=='timeout')return;
     answer = localDesignReply(text,localContext);
     photo.agentFallback = true;
-    failure=requestFailure(error,request.controller.signal,'视觉对话').message+' 以下为本地引导，未完成本次视觉识别。';
+    failure=requestFailure(error,request.controller.signal,'视觉对话').message+' 已切换为本地引导，本次未完成视觉识别。';
     if(currentPhoto()===photo)showToast(failure);
   } finally {
     deliver=advisorRequests.owns(request) && (!request.controller.signal.aborted || request.controller.signal.reason==='timeout');
@@ -1877,11 +1877,11 @@ async function askDesignAgent(question, focusId = currentPhoto()?.agentFocusId) 
     const current=capturedAnnotations.find(item=>item.id===focused.id)?.localSettings;
     const remaining=remainingAdjustments(Object.fromEntries(answer.action.changes.map(item=>[item.key,item.value])),current);
     answer.action.changes=answer.action.changes.map(item=>({...item,value:remaining[item.key]})).filter(item=>Math.abs(item.value)>.001);
-    if(!answer.action.changes.length) {answer.action.kind='none';answer.reply='这处已经应用了对应的局部微调。可以先对比当前效果，再说明还有什么需要变化。';}
+    if(!answer.action.changes.length) {answer.action.kind='none';answer.reply='此区域已应用对应的局部微调。可先对比当前效果，再说明期望的其他调整。';}
   }
   if(source==='local' && answer.action.kind==='none' && localContext.currentAdjustments && localContext.analysis?.recommendations?.some(item=>Object.values(item.adjustments).some(Boolean)) && /亮|色|层次|对比/.test(text)) answer.reply+=' 已应用的原片建议不会重复叠加；请结合当前效果继续判断。';
   const actionFingerprint=JSON.stringify({question:text,action:answer.action});
-  if(capturedLayers.some(item=>item.fingerprint===actionFingerprint)) {answer.action.kind='none';answer.reply='这组微调已经生效。先比较当前效果；如需进一步改变，可以具体说想保留什么、再改变什么。';}
+  if(capturedLayers.some(item=>item.fingerprint===actionFingerprint)) {answer.action.kind='none';answer.reply='这组微调已生效。可先对比当前效果；如需继续调整，请具体说明希望保留或改动的部分。';}
   photo.conversation.push({role:'assistant',text:answer.reply,principle:answer.principle,action:answer.action,clarification:answer.clarification,source,failure,requestQuestion:text,applied:false,id:crypto.randomUUID(),baseSignature,baseIntent,baseAnnotations:annotationContext.signature,actionFingerprint});
   if (photo.conversation.length > 24) photo.conversation.splice(0,photo.conversation.length - 24);
   scheduleDraftSave();
@@ -1917,12 +1917,12 @@ function previewSuggestions(ids,{crop=false}={}) {
   const names=items.map(item=>item.title);if(suggestedCrop)names.push('收紧构图');
   const details=items.map(item=>sliderSpecs.filter(spec=>Math.abs(item.adjustments[spec.key] || 0)>.001).map(spec=>`${spec.label} ${formatSlider(item.adjustments[spec.key],spec)}`).join('、'));
   if(suggestedCrop)details.push(`裁剪保留约 ${Math.round(suggestedCrop.rect.width*suggestedCrop.rect.height*100)}% 画面`);
-  openAdjustmentPreview(before,candidate,{goal:names.join(' · '),scope:suggestedCrop ? '整张光色与画幅；保留已有调整':'整张光色；保留个人裁剪、风格与局部调整',changes:details.join('；'),tradeoff:[...new Set(items.map(item=>item.caution).filter(Boolean)),...(suggestedCrop ? ['裁剪会减少场景信息，请检查主体、光源与边缘。']:[])].join(' ') || '请放大检查细节与亮暗关系，再决定是否接受。'});
+  openAdjustmentPreview(before,candidate,{goal:names.join(' · '),scope:suggestedCrop ? '整张光色与画幅；保留已有调整':'整张光色；保留手动裁剪、风格与局部调整',changes:details.join('；'),tradeoff:[...new Set(items.map(item=>item.caution).filter(Boolean)),...(suggestedCrop ? ['裁剪会减少场景信息，请检查主体、光源与边缘。']:[])].join(' ') || '请放大检查细节与亮暗关系，满意后再应用。'});
 }
 function applyAgentAction(index) {
   const photo=currentPhoto(),message=photo?.conversation[index];
   if(!message?.action || state.loading)return;
-  if(annotationsChanged(message,renderedAnnotations())){showToast('批注已更新，请顾问读取最新内容后重新建议。');return;}
+  if(annotationsChanged(message,renderedAnnotations())){showToast('批注已更新，请重新向顾问提问以获取建议。');return;}
   const preview={photoId:photo.id,signature:message.baseSignature,intent:cleanIntent(message.baseIntent)};
   if(!previewStillValid(preview,{photoId:currentPhotoId,signature:currentEffectSignature(),intent:state.creativeIntent})){showToast('目标或画面已变化，请顾问根据当前效果重新建议。');return;}
   finishRangeEdit();finishAnnotationNote();
@@ -1949,7 +1949,7 @@ $('#advisor-preview-accept').addEventListener('click',()=>{
   if(message && annotationsChanged(message,renderedAnnotations())){showToast('批注已更新，请重新提问与预览。');$('#advisor-preview-dialog').close();return;}
   restoreEdit(pending.candidate);if(message)message.applied=true;saveEdit(pending.before);
   $('#advisor-preview-dialog').close();renderAgent();buildPresetThumbs(state.image);renderPresets();
-  showToast('已接受建议，可继续微调或撤销。');
+  showToast('已应用调整，可继续微调或撤销。');
 });
 
 function selectTab(name) {
@@ -1969,7 +1969,7 @@ function selectTab(name) {
   $('#tab-adjust').classList.toggle('active',studioTab==='adjust');
   $('#tab-presets').classList.toggle('active',studioTab==='adjust');
   $('.right-panel').classList.toggle('agent-active',studioTab==='agent');$('.panel-heading h2').textContent=headings[studioTab];
-  $('#inspector-description').textContent=studioTab==='adjust' ? '风格是可选的起点，光色与细节可以继续微调。':'先看判断与依据，再预览值得尝试的调整。';
+  $('#inspector-description').textContent=studioTab==='adjust' ? '可以选择风格，也可以直接调整光色和细节。':'看看分析结果，试试调整效果。';
   $('#analysis-source-button').hidden=studioTab!=='diagnosis';
   $('#analysis-mode').hidden=studioTab!=='diagnosis';
   if(['adjust','agent'].includes(studioTab)){buildPresetThumbs(state.image);renderPresets();}
@@ -2023,7 +2023,7 @@ async function reassessPhoto() {
     }
     if (state.image !== image || generation !== reassessGeneration || signature !== currentEffectSignature() || assessedIntent!==cleanIntent(state.creativeIntent)) return;
     state.assessment = {...assessment,effectFacts:assessedContext};
-    showToast(assessment.source === 'ai' ? '视觉模型已完成原片与当前效果的复评。' : '已完成本地技术指标复评。');
+    showToast(assessment.source === 'ai' ? '已完成当前效果的视觉复评。' : '已更新调整前后的光色统计。');
   } catch (error) {
     if(request.controller.signal.aborted && request.controller.signal.reason!=='timeout')return;
     if (state.image === image && generation === reassessGeneration && signature === currentEffectSignature() && assessedIntent===cleanIntent(state.creativeIntent)) {
@@ -2061,7 +2061,7 @@ function updateExportInfo() {
   const options=exportOptions(),photos=exportPhotoIds.map(id=>photoSessions.find(photo=>photo.id===id)).filter(Boolean);
   $('#export-quality-row').hidden=options.format==='png';$('#export-artwork').hidden=!options.includeArtwork;
   $('#export-dimensions').innerHTML=photos.map(photo=>{const g=outputGeometry(photo.crop,photo.image.naturalWidth,photo.image.naturalHeight,options.maxSide);return `<li><span>${escapeHtml(photo.imageName)}</span><strong>${g.width} × ${g.height}<small>${g.original ? '裁剪后原尺寸':'已缩小'}${options.dpi>=240 ? ` · ${printCentimeters(g.width,options.dpi).toFixed(1)} × ${printCentimeters(g.height,options.dpi).toFixed(1)} cm`:''}</small></strong></li>`;}).join('');
-  $('#export-info').textContent=photos.length>1 ? '每张使用自己的裁剪和调整。完成后可打包下载，失败照片可单独重试。':'调整写入新文件，原片保留。生成期间可以继续编辑。';
+  $('#export-info').textContent=photos.length>1 ? '每张照片保留各自的裁剪与调整。完成后可打包下载，失败照片可单独重试。':'调整写入新文件，原片保留。生成期间可以继续编辑。';
 }
 function triggerDownload(blob,name) {
   const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=name;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60_000);
@@ -2092,7 +2092,7 @@ async function makeExport(photo,snapshot,options,{signal,progress}) {
     drawPhotoSource(context,photo.image,snapshot.crop,width,height,rect);progress('处理原片光色与细节');
     const pixels=await renderer.render({pixels:context.getImageData(0,0,width,height).data,width,height,settings:snapshotSettings(snapshot),annotations:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers),crop:snapshot.crop,frame:{fullWidth:photo.image.naturalWidth,fullHeight:photo.image.naturalHeight,sourceRect:rect,angle:snapshot.crop?.angle || 0}});
     signal.throwIfAborted();context.putImageData(new ImageData(pixels,width,height),0,0);progress('编码成片与作品信息');
-    const encoded=await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob ? resolve(blob):reject(new Error('编码失败，请试用分享尺寸')),options.format==='png' ? 'image/png':'image/jpeg',options.quality));
+    const encoded=await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob ? resolve(blob):reject(new Error('导出失败，请尝试使用分享尺寸')),options.format==='png' ? 'image/png':'image/jpeg',options.quality));
     signal.throwIfAborted();const bytes=writeImageMetadata(await encoded.arrayBuffer(),options.format,{...options,title:photo.imageName});
     const retained=exportQueue.tasks.reduce((n,task)=>n+(task.result?.blob?.size || 0),0);
     if(retained+bytes.length>exportLimits.archiveBytes)throw new Error('成片缓存超过 128 MB，请下载并清理已完成任务后重试。');
@@ -2124,7 +2124,7 @@ function renderImportStatus() {
   $('#import-status-label').textContent=importingFiles ? `导入 ${done} / ${total}`:failed ? `${failed} 张未加入`:`已加入 ${successes} 张`;
   entry.setAttribute('aria-label',importingFiles ? `照片导入进度 ${done}/${total}，查看详情`:failed ? `${successes} 张已加入，${failed} 张未加入，查看原因与恢复操作`:`已加入 ${successes} 张照片，查看导入结果`);
   $('#import-result-summary').textContent=importingFiles ? `正在读取 ${done+1} / ${total} 张照片`:`${successes} 张已加入${failed ? ` · ${failed} 张未加入`:''}`;
-  $('#import-result-note').textContent=importingFiles ? '已就绪的照片可以继续编辑。取消只停止剩余读取。':failed ? '已加入的照片和原有编辑都保留。逐张处理后，可以重新选择或重试。':'照片方向已按文件信息读取，每张的编辑会分别保留。';
+  $('#import-result-note').textContent=importingFiles ? '已就绪的照片可以继续编辑。取消仅会停止导入剩余照片。':failed ? '已加入的照片和原有编辑都保留。逐张处理后，可以重新选择或重试。':'照片方向已按文件信息读取，每张的编辑会分别保留。';
   const displayed=importingFiles ? importRows:failed ? importRows.filter(row=>row.status==='failed'):importRows;
   $('#import-results').innerHTML=displayed.map(row=>`<article class="import-result" data-import-state="${row.status}"><span class="import-result-icon" data-icon="${row.status==='success' ? 'check':row.status==='failed' ? 'image':'upload'}"></span><div><strong>${escapeHtml(row.file.name || '未命名照片')}</strong><span>${row.status==='success' ? `${row.metadata.displayWidth} × ${row.metadata.displayHeight} px · 已加入`:row.status==='failed' ? escapeHtml(row.problem.reason):row.status==='reading' ? '正在检查格式、尺寸与方向…':'等待读取'}</span>${row.problem ? `<p>${escapeHtml(row.problem.action)}</p>${row.problem.detail ? `<small>${escapeHtml(row.problem.detail)}</small>`:''}`:''}</div>${row.problem?.retryable ? `<button type="button" data-import-retry="${row.id}" ${importingFiles ? 'disabled':''}>重试</button>`:''}</article>`).join('');
   hydrateIcons($('#import-results'));
@@ -2165,7 +2165,7 @@ async function processImportRows(rows) {
   }
   const failures=rows.filter(row=>row.status==='failed').length;
   if(failures) {if(!document.querySelector('dialog[open]') && !editableTarget(document.activeElement)){$('#import-dialog').showModal();$('#import-choose').focus({preventScroll:true});}showToast(`${newPhotos.length} 张已加入，${failures} 张未加入，可查看原因。`);}
-  else if(newPhotos.length)showToast(`已加入 ${newPhotos.length} 张照片。顶部可切换。`);
+  else if(newPhotos.length)showToast(`已加入 ${newPhotos.length} 张照片。可在顶部标签切换。`);
 }
 function importFiles(files) {
   if(importingFiles || state.loading){showToast('上一批照片仍在读取，请完成或取消后再添加。');return;}
@@ -2250,7 +2250,7 @@ $('#personal-open-library').addEventListener('click',()=>{
 $('#profile-start-practice').addEventListener('click',()=>{$('#profile-dialog').close();showWorkspaceSpace('learn');});
 $('#profile-accept-current').addEventListener('click', () => {
   const result = acceptCurrentVersion();
-  if (result.status === 'saved' || result.status === 'updated') showToast(result.persisted ? '这版已记入审美档案。下次推荐会参考你的选择。' : '这版只在当前页面暂存；浏览器存储不可用。');
+  if (result.status === 'saved' || result.status === 'updated') showToast(result.persisted ? '这版已记入偏好记录。下次推荐会参考你的选择。' : '这版只在当前页面暂存；浏览器存储不可用。');
 });
 $('#taste-timeline').addEventListener('click', event => {
   const id = event.target.closest('[data-taste-remove]')?.dataset.tasteRemove;
@@ -2260,7 +2260,7 @@ $('#taste-timeline').addEventListener('click', event => {
   persistTasteRecords();
   renderPersonalProfile();
   if (state.image) renderPresets();
-  refreshActions();showToast('这条定稿已从审美档案移除。');
+  refreshActions();showToast('这条定稿已从偏好记录移除。');
 });
 for(const id of ['nav-profile','style-profile-link'])$(`#${id}`).addEventListener('click',()=>{profileView='preferences';openPersonalProfile();});
 for (const id of ['profile-button','mobile-profile-button']) $( `#${id}` ).addEventListener('click',()=>{profileView='overview';openPersonalProfile();});
@@ -2335,9 +2335,9 @@ function renderTasks() {
   const running=tasks.filter(task=>['queued','running'].includes(task.status)).length,failures=tasks.filter(task=>unresolvedFailure(task)).length;
   $('#task-summary').textContent=`${running} 项等待或处理中 · ${tasks.filter(task=>task.status==='done').length} 项完成${failures ? ` · ${failures} 项失败`:''}`;
   $('#task-list').innerHTML=visible.slice().reverse().map(task=>{
-    const status=task.supersededBy ? '已由新审片替代 · '+(task.error || '意图已更新'):task.status==='done' ? task.kind==='analysis' ? task.result?.mode==='vision' ? '视觉审片完成':'基础光色就绪 · 未进行视觉识别':task.downloaded ? '已发起下载':'成片就绪':task.status==='queued' ? '等待处理':task.status==='running' ? task.message || '正在处理':task.status==='cancelled' ? task.cancelReason==='superseded' ? '意图已更新 · 已切换到新审片':task.controller ? '正在停止':'已取消':task.error;
+    const status=task.supersededBy ? '已由新审片替代 · '+(task.error || '目标已更新'):task.status==='done' ? task.kind==='analysis' ? task.result?.mode==='vision' ? '视觉审片完成':'基础光色就绪 · 未进行视觉识别':task.downloaded ? '已发起下载':'成片就绪':task.status==='queued' ? '等待处理':task.status==='running' ? task.message || '正在处理':task.status==='cancelled' ? task.cancelReason==='superseded' ? '目标已更新 · 已切换到新审片':task.controller ? '正在停止':'已取消':task.error;
     return `<article class="task-row" data-task-state="${task.status}"><div class="task-photo"><span>${task.kind==='analysis' ? '审片':'成片'}</span></div><div class="task-copy"><strong>${escapeHtml(task.label)}</strong><small>${escapeHtml((task.released ? '照片已移出 · ':'')+status)}</small>${task.kind==='export' && task.result ? `<small>${task.result.width} × ${task.result.height} px · ${(task.result.blob.size/1024/1024).toFixed(1)} MB</small>`:''}</div><div class="task-actions">${['queued','running'].includes(task.status) ? `<button type="button" data-job-action="cancel" data-job-id="${task.id}" data-job-kind="${task.kind}">取消</button>`:['failed','cancelled'].includes(task.status) && !task.released && !task.supersededBy && task.cancelReason!=='superseded' ? `<button type="button" data-job-action="retry" data-job-id="${task.id}" data-job-kind="${task.kind}" ${task.controller ? 'disabled':''}>重试</button>`:task.kind==='export' && task.result ? `<a href="${task.result.url}" download="${escapeHtml(task.name)}" data-job-action="download" data-job-id="${task.id}" data-job-kind="export">下载</a>`:''}${photoSessions.some(photo=>photo.id===task.photoId) ? `<button type="button" data-job-action="view" data-job-id="${task.id}" data-job-kind="${task.kind}">查看</button>`:''}</div></article>`;
-  }).join('') || '<p class="task-empty">这里还没有任务。添加照片后自动分析，导出也会在这里处理。</p>';
+  }).join('') || '<p class="task-empty">暂无任务。导入照片后会自动分析，导出进度也会显示在这里。</p>';
   $('#tasks-download').disabled=!exportQueue.tasks.some(task=>task.status==='done');
   $('#tasks-clear').disabled=!tasks.some(task=>['done','cancelled'].includes(task.status) && !task.controller);
 }
@@ -2375,8 +2375,8 @@ $('#library-selection-actions').addEventListener('click',event=>{
 let batchMode='sync',batchStyleId=presets[0].id;
 function openBatch(mode) {
   batchMode=mode;saveCurrentPhoto();
-  $('#batch-title').textContent=mode==='sync' ? '同步一组照片':'给一组照片定调';
-  $('#batch-intro').textContent=mode==='sync' ? '同步所选参数的合成值，保留未勾选的调整。参考照片保持当前编辑。':'让同组照片拥有一致的光色语言，原片和其他调整分别保留。';
+  $('#batch-title').textContent=mode==='sync' ? '同步一组照片':'批量应用风格';
+  $('#batch-intro').textContent=mode==='sync' ? '将参考照片叠加后的参数复制到所选照片，未勾选的参数不变。参考照片保持原样。':'为所选照片应用同一款风格，保留各自的原片和其他调整。';
   $('#batch-sync-view').hidden=mode!=='sync';$('#batch-style-view').hidden=mode!=='style';
   $('#batch-source').innerHTML=photoSessions.map(photo=>`<option value="${photo.id}">${escapeHtml(photo.imageName)}${photo.id===currentPhotoId ? ' · 当前照片':''}</option>`).join('');$('#batch-source').value=currentPhotoId;
   $('#batch-parameters').innerHTML=syncGroups.map(group=>`<details ${['light','color'].includes(group.id) ? 'open':''}><summary><label><input type="checkbox" data-sync-group="${group.id}" ${['light','color'].includes(group.id) ? 'checked':''} />${group.label}</label><span>${group.keys.length} 项</span></summary><div>${group.keys.map(key=>`<label><input type="checkbox" data-sync-key="${key}" ${['light','color'].includes(group.id) ? 'checked':''} /><span>${settingLabels[key] || (key==='monochrome' ? '黑白':'参数')}</span><output data-sync-value="${key}"></output></label>`).join('')}</div></details>`).join('');
@@ -2626,7 +2626,7 @@ function showDraftCrop() {
   $('#crop-angle-value').textContent=`${angle.toFixed(1)}°`;
   $('#crop-coverage').textContent=`画幅保留 ${Math.round(draftCrop.width*draftCrop.height*100)}%${angle ? ` · 拉直后原片面积约 ${Math.round(draftCrop.width*draftCrop.height/scale**2*100)}%`:''}`;
   const protectedKeys=cropProtectedRegions(draftCrop,state.analysisSource==='ai' ? state.analysis?.observations:null,W,H);
-  $('#crop-review-note').textContent=protectedKeys.length ? `注意：可能切到${protectedKeys.map(key=>observationLabels[key]).join('、')}的近似范围，请确认边界。` : state.analysisSource==='ai' ? '视觉定位仅供参考。保留主体、关键光源和有用环境；比例候选是表达选择。' : '比例与轻裁剪是几何候选，尚未识别主体；请确认人物、光源和叙事元素。';
+  $('#crop-review-note').textContent=protectedKeys.length ? `注意：可能切到${protectedKeys.map(key=>observationLabels[key]).join('、')}的近似范围，请确认边界。` : state.analysisSource==='ai' ? '标记位置仅供参考。裁剪时请检查主体、光源和周围环境，也可以试试其他比例。' : '这些裁剪范围仅按比例生成，未识别照片内容；请确认没有裁掉人物、光源或其他重要内容。';
 }
 function openCropEditor(suggestedRect = null) {
   if (!state.image || state.loading) return;
@@ -2711,7 +2711,7 @@ $('#suggestions').addEventListener('click', event => {
   if (!button) return;
   const card = button.closest('.suggestion-card');
   if (button.dataset.action === 'reason') { card.classList.toggle('expanded'); button.textContent = card.classList.contains('expanded') ? '收起原理' : '摄影原理'; return; }
-  if (button.dataset.action === 'edit') { card.classList.toggle('editing'); button.textContent = card.classList.contains('editing') ? '收起参数' : '微调这条建议'; return; }
+  if (button.dataset.action === 'edit') { card.classList.toggle('editing'); button.textContent = card.classList.contains('editing') ? '收起参数' : '微调参数'; return; }
   if(!state.active.has(card.dataset.id)){previewSuggestions([card.dataset.id]);return;}
   const before = beforeEdit();
   state.active.delete(card.dataset.id);
@@ -2788,7 +2788,7 @@ $('#tab-presets').addEventListener('click',event=>{
 $('#style-audition-restore').addEventListener('click',()=>{const id=styleAudition.active?.styleId;endStyleAudition();keyboardInteraction=false;document.querySelector(`.curated-style-card[data-preset="${id}"] .style-audition-toggle`)?.focus({preventScroll:true});});
 $('#style-audition-open').addEventListener('click',()=>{const id=styleAudition.active?.styleId;endStyleAudition();openStyleCollection(id);});
 window.addEventListener('blur',endStyleAudition);
-window.addEventListener('resize',()=>{endStyleAudition();revealCurrentPhotoTab();$('#style-audition-help').textContent=innerWidth<=600 ? '点缩略图试看片，再点恢复；「调整与应用」可选择强度，应用后才保存。':'悬停或聚焦缩略图，临时试看片；点击可停留查看。只有「应用」会保存调整。';});
+window.addEventListener('resize',()=>{endStyleAudition();revealCurrentPhotoTab();$('#style-audition-help').textContent=innerWidth<=600 ? '点缩略图预览，再点恢复；「调整与应用」可选择强度，应用后才保存。':'悬停或聚焦缩略图，临时预览；点击可停留查看。只有「应用」会保存调整。';});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)endStyleAudition();});
 const auditionDialogs=new MutationObserver(records=>{if(records.some(record=>record.target.open))endStyleAudition();});
 document.querySelectorAll('dialog').forEach(dialog=>auditionDialogs.observe(dialog,{attributes:true,attributeFilter:['open']}));
@@ -2825,7 +2825,7 @@ $('#agent-view-photo').addEventListener('click',()=>$('#photo-stage').scrollInto
 $('#agent-focus-clear').addEventListener('click',()=>{const photo=currentPhoto();if(photo){photo.agentFocusId=null;scheduleDraftSave();}renderAgentContext();$('#agent-input').focus({preventScroll:true});});
 $('#agent-prompts').addEventListener('click', event => { const prompt = event.target.closest('[data-agent-prompt]'); if (prompt) askDesignAgent(prompt.dataset.agentPrompt); });
 $('#layer-list').addEventListener('click',event=>{const button=event.target.closest('[data-layer-remove]');if(button) removeAdjustmentLayer(button.dataset.layerRemove);});
-$('#agent-thread').addEventListener('click', event => { if(event.target.closest('[data-agent-cancel]')){cancelAdvisor();return;} const retry=event.target.closest('[data-agent-retry]');if(retry){const message=currentPhoto()?.conversation[Number(retry.dataset.agentRetry)];askDesignAgent(message?.requestQuestion);return;} const choice=event.target.closest('[data-agent-intent]');if(choice){setCreativeIntent(choice.dataset.agentIntent);askDesignAgent('请围绕这一张的创作意图给我建议。');return;} const button = event.target.closest('[data-agent-apply]'); if (button) applyAgentAction(Number(button.dataset.agentApply)); });
+$('#agent-thread').addEventListener('click', event => { if(event.target.closest('[data-agent-cancel]')){cancelAdvisor();return;} const retry=event.target.closest('[data-agent-retry]');if(retry){const message=currentPhoto()?.conversation[Number(retry.dataset.agentRetry)];askDesignAgent(message?.requestQuestion);return;} const choice=event.target.closest('[data-agent-intent]');if(choice){setCreativeIntent(choice.dataset.agentIntent);askDesignAgent('请围绕这一张的调整目标给我建议。');return;} const button = event.target.closest('[data-agent-apply]'); if (button) applyAgentAction(Number(button.dataset.agentApply)); });
 $('#manual-sliders').addEventListener('input', event => {
   const key = event.target.dataset.key;
   if (!key) return;
@@ -3141,7 +3141,7 @@ function renderMaskOverlay(draft=null) {
   for(let y=0;y<canvas.height;y++)for(let x=0;x<canvas.width;x++) {const i=(y*canvas.width+x)*4,p=viewToOriginalPoint({x:(x+.5)/canvas.width,y:(y+.5)/canvas.height},state.crop,state.image.naturalWidth,state.image.naturalHeight),weight=maskWeight({...item,localEnabled:true},p,state.image.naturalWidth,state.image.naturalHeight);data.data[i]=223;data.data[i+1]=164;data.data[i+2]=109;data.data[i+3]=Math.round(weight*100);}
   ctx.putImageData(data,0,0);
 }
-$('#local-tools').addEventListener('click',event=>{const type=event.target.closest('[data-mask-tool]')?.dataset.maskTool;if(!maskTypes[type])return;if(state.annotations.length>=8){showToast('最多保留 8 个局部范围，请先整理已有范围。');return;}maskTool=type;localToolCreating=true;setMarkingPhoto(true);$('#local-tool-hint').textContent=type==='linear' ? '从起点的最强作用，拖向逐渐消退的终点。':type==='brush' ? '拖动绘制笔迹；完成后可调整半径与羽化。':'拖出范围，再调整曝光、颜色与细节。';$('#local-tools').querySelectorAll('button').forEach(button=>button.classList.toggle('active',button.dataset.maskTool===type));showToast(`在照片上拖动绘制${maskTypes[type]}范围。`);});
+$('#local-tools').addEventListener('click',event=>{const type=event.target.closest('[data-mask-tool]')?.dataset.maskTool;if(!maskTypes[type])return;if(state.annotations.length>=8){showToast('最多保留 8 个局部范围，请先整理已有范围。');return;}maskTool=type;localToolCreating=true;setMarkingPhoto(true);$('#local-tool-hint').textContent=type==='linear' ? '从效果最强的位置，拖向效果逐渐消失的位置。':type==='brush' ? '拖动绘制笔迹；完成后可调整半径与羽化。':'拖出范围，再调整曝光、颜色与细节。';$('#local-tools').querySelectorAll('button').forEach(button=>button.classList.toggle('active',button.dataset.maskTool===type));showToast(`在照片上拖动绘制${maskTypes[type]}范围。`);});
 $('#local-select').addEventListener('change',event=>{selectedAnnotationId=event.target.value;renderAnnotations();renderLocalEditor();});
 $('#local-show-mask').addEventListener('change',event=>{showLocalMask=event.target.checked;renderMaskOverlay();});
 $('#local-enabled').addEventListener('change',event=>{const item=selectedAnnotation();if(!item)return;const before=beforeEdit();item.localEnabled=event.target.checked;saveEdit(before);scheduleRender();markAssessmentStale();});
@@ -3165,22 +3165,22 @@ function snapshotAcceptanceSignature(snapshot) {
 // A photo's creative goal lives with its draft, independently of the personal profile.
 function renderCreativeIntent() {
   const value=cleanIntent(state.creativeIntent);
-  $('#photo-intent-value').textContent=value || '先说说想保留的感觉';
+  $('#photo-intent-value').textContent=value || '说说想改哪里，或保留什么';
   $('#photo-intent-open').classList.toggle('has-intent',Boolean(value));
   $('#photo-intent-open').disabled=!state.image;
-  $('#photo-intent-open').title=value || '为当前照片设定创作意图';
+  $('#photo-intent-open').title=value || '设置这张照片的调整目标';
 }
 function setCreativeIntent(value) {
   const photo=currentPhoto();if(!photo)return;
   const next=cleanIntent(value);if(next===cleanIntent(state.creativeIntent))return;
   state.creativeIntent=next;photo.creativeIntent=next;
   cancelReassessment('intent');
-  if(photo.agentBusy){advisorRequests.cancel(photo.id,'intent');photo.agentBusy=false;photo.conversation.push({role:'status',text:'创作意图已更新，请围绕新目标继续对话。'});}
+  if(photo.agentBusy){advisorRequests.cancel(photo.id,'intent');photo.agentBusy=false;photo.conversation.push({role:'status',text:'调整目标已更新，请围绕新目标继续对话。'});}
   for(const task of analysisQueue.tasks.filter(item=>item.photoId===photo.id && ['queued','running'].includes(item.status)))analysisQueue.cancel(task.id,'superseded');
   reassessGeneration++;state.assessmentBusy=false;state.assessment=null;
   renderCreativeIntent();renderPresets();renderAgent();renderDiagnosis();scheduleDraftSave();
   if(state.aiAvailable)analyzeImage(photo);
-  $('#agent-live').textContent=next ? `这张照片的意图：${next}。顾问将优先考虑这一目标。`:'已清除这张照片的意图。';
+  $('#agent-live').textContent=next ? `这张照片的调整目标：${next}。顾问将优先考虑这一目标。`:'已清除这张照片的调整目标。';
 }
 function renderIntentQuestion() {
   const intent=describeIntent($('#intent-input').value);
@@ -3193,7 +3193,7 @@ $('#photo-intent-open').addEventListener('click',()=>{$('#intent-input').value=c
 $('#intent-close').addEventListener('click',()=>$('#intent-dialog').close());
 $('#intent-input').addEventListener('input',renderIntentQuestion);
 $('#intent-dialog').addEventListener('click',event=>{const choice=event.target.closest('[data-intent-example],[data-intent-choice]');if(choice){$('#intent-input').value=choice.dataset.intentExample || choice.dataset.intentChoice;renderIntentQuestion();}});
-$('#intent-save').addEventListener('click',()=>{if(describeIntent($('#intent-input').value).vague)return;setCreativeIntent($('#intent-input').value);$('#intent-dialog').close();showToast(state.aiAvailable ? '已按新意图重新审片，已有编辑保留。':'意图已保存，风格与顾问将优先考虑它。');});
+$('#intent-save').addEventListener('click',()=>{if(describeIntent($('#intent-input').value).vague)return;setCreativeIntent($('#intent-input').value);$('#intent-dialog').close();showToast(state.aiAvailable ? '已按新目标重新审片，已有编辑保留。':'目标已保存，风格推荐和顾问建议会优先参考它。');});
 $('#intent-clear').addEventListener('click',()=>{setCreativeIntent('');$('#intent-dialog').close();});
 
 function renderStyleCollection(ranked) {
@@ -3258,7 +3258,7 @@ async function renderCollectionPreview() {
     const output=await task;
     if(token!==collectionGeneration || !$('#style-collection-dialog').open)return;
     canvas.width=width;canvas.height=height;canvas.getContext('2d').putImageData(new ImageData(output,width,height),0,0);
-    $('#style-detail-status').textContent=collectionHolding ? '当前版本':`${collectionHoverId ? '临时试看片 · ':''}${preset.name} · ${amount}% · 当前编辑未变`;
+    $('#style-detail-status').textContent=collectionHolding ? '当前版本':`${collectionHoverId ? '临时预览 · ':''}${preset.name} · ${amount}% · 当前编辑未变`;
     $('#style-detail-apply').disabled=collectionHolding || Boolean(collectionHoverId);
   } catch {if(token===collectionGeneration)$('#style-detail-status').textContent='预览未完成，请重新选择风格重试。';}
 }

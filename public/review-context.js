@@ -24,7 +24,7 @@ export function reviewBaseline(value) {
 export function reviewContextPrompt(value) {
   const context=reviewContext(value);
   const changed=Object.fromEntries(Object.entries(context.settings).filter(([,value])=>value!==0));
-  return `实际编辑记录（客户端提供、已校验数值）：${JSON.stringify({globalAdjustments:changed,crop:context.crop,localAdjustmentCount:context.localCount})}。这是实际已应用的合成参数，不是新的建议。先区分操作事实与可见结果：没有饱和度、鲜艳度或色温调整时，不能声称用户主动增色或改变白平衡；曝光改变也可能让颜色看起来不同。零局部范围时不能声称做了脸部或天空蒙版。参数不是画质改善的证明，以两张图实际得失为准。`;
+  return `实际编辑记录（客户端提供、已校验数值）：${JSON.stringify({globalAdjustments:changed,crop:context.crop,localAdjustmentCount:context.localCount})}。这是实际已应用的合成参数，不是新的建议。先区分操作事实与可见结果：没有饱和度、鲜艳度或色温调整时，不能声称用户主动增色或改变白平衡；曝光改变也可能让颜色看起来不同。未添加局部调整时不能声称做了脸部或天空蒙版。参数不是画质改善的证明，以两张图实际得失为准。`;
 }
 
 export function anchoredAssessment(assessment,baseline) {
