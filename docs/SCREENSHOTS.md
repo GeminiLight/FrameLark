@@ -4,6 +4,10 @@
 
 `assets/screenshots/studio-overview.png` 来自 2026-10-03 对整合后仓库实际运行的 `npm start` 的截图，视口 1280 × 720。使用内置 `public/assets/alpine-demo.png`，页面标注为示例光色分析，未配置视觉模型。
 
+## 组图空间
+
+`assets/screenshots/series-workspace.png` 来自 2026-10-03 的本地工作台，默认视口 1280 × 720。使用质量检查集中的猫与咖啡静物样张（CC0，来源见 `test/web/fixtures/quality/manifest.json`），展示用途、表达、手动封面顺序及逐张检查入口。未配置云端视觉模型，没有把原片缩略图称为 AI 修片结果。
+
 ## Agent 暗房
 
 截图来自本地 Web UI，使用产品内置的 `alpine-demo.png`。截图日期：2026-10-03；视口：1440 × 960。

@@ -11,7 +11,7 @@ test('Chinese artist requests retrieve style and subject constraints together',a
 test('English artist and technical aliases route without substring false positives',async()=>{
  const artist=await runKnowledge('search',{query:'Saul Leiter'});assert.equal(artist.results[0].presetId,'quiet-film');
  const color=await runKnowledge('search',{query:'orangeLuminance'});assert.equal(color.results[0].id,'color-relations');
- const irrelevant=await runKnowledge('search',{query:'catalog unicorn'});assert.deepEqual(irrelevant.results,[]);
+ const irrelevant=await runKnowledge('search',{query:'unrelated unicorn'});assert.deepEqual(irrelevant.results,[]);
 });
 test('unmatched topics have no fabricated recommendation and section reads are bounded',async()=>{
  const unmatched=await runKnowledge('search',{query:'量子纠缠'});assert.deepEqual(unmatched.results,[]);assert.ok(unmatched.next);
@@ -27,4 +27,10 @@ test('knowledge stays synchronized with real engine and rejects invalid search s
  await assert.rejects(()=>runKnowledge('search',{query:'人像',limit:0}),{code:'LIMIT'});
  await assert.rejects(()=>runKnowledge('search',{query:'人像',limit:9}),{code:'LIMIT'});
  await assert.rejects(()=>runKnowledge('search',{query:''}),{code:'QUERY'});
+});
+test('multi-photo requests discover curation, narrative and purpose knowledge with executable tool references',async()=>{
+ const cull=await runKnowledge('search',{query:'一堆图 选片 连拍 联系表',limit:8});assert.ok(cull.results.some(r=>r.id==='collection-cull'));
+ const sequence=await runKnowledge('search',{query:'组图 叙事 排序',limit:8});assert.ok(sequence.results.some(r=>r.id==='collection-sequence'));
+ const catalog=await runKnowledge('search',{query:'catalog'});assert.equal(catalog.results[0].id,'collection-purpose');
+ const tools=await runKnowledge('search',{query:'collection-export'});assert.equal(tools.results[0].id,'collection-plan-tools');
 });

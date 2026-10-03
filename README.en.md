@@ -126,6 +126,20 @@ node scripts/install-photo-skill.mjs /your/skills/guangjian-retouch
 
 ## Capabilities
 
+### From a folder of photos to a finished set
+
+Ask your agent to review a folder, select a set for a stated purpose, keep specific moments, propose an order, and preview a shared direction before editing. The skill creates stable-ID contact sheets, records selected / reserve / excluded decisions with visual reasons, and exports saved versions in sequence with a manifest. Originals stay intact; nothing is published automatically.
+
+Supported workflows include travel stories, portraits, events, product catalogs, portfolios, and archives. A story or a shared preset is optional. Current intent takes priority over previous preferences.
+
+- **Skill:** up to 500 files per batch, 20 thumbnails per page. The host supplies visual judgment; detail decisions require individual image inspection. Failed exports can be retried separately.
+- **Web UI:** a 2–12 photo workspace for already selected images, with purpose, intent, sequencing, previews and ordered export. Manual order is respected.
+- Changes to the brief, saved images or annotations make earlier curation stale. Web and Skill projects do not automatically synchronize.
+
+[Collection workflow](skills/guangjian-retouch/references/collection-craft.md) · [CLI and tool contracts](skills/guangjian-retouch/references/collection-tools.md) (Chinese)
+
+![The photo-series workspace: purpose, intent, manual order, and individual inspection.](assets/screenshots/series-workspace.png)
+
 | Feature | Support |
 | --- | --- |
 | Light, color, and styles | 31 global controls, 14 presets, a separate style layer, and adjustable strength. |
@@ -191,7 +205,7 @@ Actual local-interface screenshots using the built-in demo image. [Capture notes
 
 ## Photography knowledge
 
-85 sections cover 10 subject and scene playbooks, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
+94 sections cover 10 subject and scene playbooks, collection curation and delivery, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
 
 <details>
 <summary>Knowledge directory and search</summary>
@@ -202,6 +216,7 @@ References are currently written in Chinese.
 | --- | --- |
 | Judgment and composition | [Aesthetic judgment](skills/guangjian-retouch/references/aesthetic-judgment.md) · [Composition](skills/guangjian-retouch/references/composition-craft.md) |
 | Subjects and scenes | [Subject playbooks](skills/guangjian-retouch/references/subject-playbooks.md) |
+| Collections | [Purpose, curation and sequencing](skills/guangjian-retouch/references/collection-craft.md) · [Local collection tools](skills/guangjian-retouch/references/collection-tools.md) |
 | Light, color, and detail | [Light and color](skills/guangjian-retouch/references/light-color.md) · [Local work and output](skills/guangjian-retouch/references/detail-local-crop.md) |
 | Styles and sources | [Style atlas](skills/guangjian-retouch/references/style-atlas.md) · [Sources](skills/guangjian-retouch/references/sources.md) |
 | Cases and feedback | [Casebook](skills/guangjian-retouch/references/casebook.md) · [Learning records](skills/guangjian-retouch/references/learning-memory.md) |

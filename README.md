@@ -133,6 +133,22 @@ node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
 
 ## 功能与范围
 
+### 从一批照片到一组作品
+
+把照片目录交给 Agent，例如：
+
+> 用 $guangjian-retouch 看一下这次海边旅行的照片，选六张，保留松弛感和真实光线。先给我选片和顺序，再试统一风格；第二张合照一定留下。
+
+Skill 按用途整理主题与必留条件，生成带编号的联系表，记录入选、备选和不入选的画面依据，再逐张试片。最后按顺序导出成片与清单；不删除原图、不自动发布。支持旅行分享、人物交付、活动记录、商品展示、作品集和归档，不要求每种用途都编一个故事。
+
+- **Skill**：每批最多 500 个文件，每页 20 张联系表；使用宿主的视觉能力，细节取舍需要打开单图。导出失败可逐张重试。
+- **Web UI**：2–12 张已选照片的组图空间，选择用途、表达与排序依据，再审片、试片和顺序导出；可明确保持自己的顺序。
+- 主题、已保存照片或批注更新后，旧组选片会标为过期，先复看再交付。Web 与 Skill 项目目前不自动同步。
+
+执行命令与 JSON：[组图工具](skills/guangjian-retouch/references/collection-tools.md) · 选片方法：[组图创作](skills/guangjian-retouch/references/collection-craft.md)
+
+![组图空间：选择用途、主题和阅读顺序，再逐张检查。](assets/screenshots/series-workspace.png)
+
 | 功能 | 支持内容 |
 | --- | --- |
 | 光色与风格 | 31 项全局控制、14 款预设、独立风格层与强度调整。 |
@@ -187,7 +203,7 @@ node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
 
 ## 摄影知识
 
-85 个章节，覆盖 10 类题材与场景，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
+94 个章节，覆盖 10 类题材与场景、整组选片与交付，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
 
 <details>
 <summary>知识目录与检索</summary>
@@ -196,6 +212,7 @@ node scripts/install-photo-skill.mjs /你的/skills/guangjian-retouch
 | --- | --- |
 | 判断与构图 | [审美判断](skills/guangjian-retouch/references/aesthetic-judgment.md) · [构图与拍摄](skills/guangjian-retouch/references/composition-craft.md) |
 | 题材与场景 | [题材策略](skills/guangjian-retouch/references/subject-playbooks.md) |
+| 选片与组图 | [用途、主题、取舍与排序](skills/guangjian-retouch/references/collection-craft.md) · [联系表与整组工具](skills/guangjian-retouch/references/collection-tools.md) |
 | 光色与细节 | [光线与色彩](skills/guangjian-retouch/references/light-color.md) · [局部与输出](skills/guangjian-retouch/references/detail-local-crop.md) |
 | 风格与来源 | [风格图谱](skills/guangjian-retouch/references/style-atlas.md) · [来源](skills/guangjian-retouch/references/sources.md) |
 | 案例与反馈 | [案例手册](skills/guangjian-retouch/references/casebook.md) · [学习记录](skills/guangjian-retouch/references/learning-memory.md) |

@@ -6,8 +6,15 @@ import {initProject,loadProject,publicProject,currentVersion,createCandidate,sel
 import {previewPhoto,exportPhoto,createRenderSession} from './render.mjs';
 import {editorControlReference} from './engine/control-reference.js';
 import {letteringCapabilities} from './text-overlays.mjs';
+import {initCollection,inspectCollection,updateCollectionBrief,saveCollectionPlan,collectionSheet,exportCollection} from './collection.mjs';
 const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
   init:'--image <photo> --project <new-folder> [--intent <表达目标>]',
+  'collection-init':'--project <new-collection-folder> --input <JSON|->；images 列表或 directory，最多 500 张，保留原片',
+  'collection-inspect':'--project <collection-folder>；主题、稳定照片 ID、单图项目、取舍、版本、新鲜度和导出队列',
+  'collection-brief':'--project <collection-folder> --input <JSON|->；用途、主题、目标数量、必留照片和约束',
+  'collection-sheet':'--project <collection-folder> [--page 1] [--view current|original|planned] [--selected true]；每页 20 张联系表',
+  'collection-plan':'--project <collection-folder> --input <JSON|->；宿主看图后保存选片理由、备选、叙事顺序和定调参考',
+  'collection-export':'--project <collection-folder> --input <JSON|->；顺序导出已保存版本；失败可重试，不覆盖文件',
   inspect:'读取当前版本、最新批注、意图、候选和真实预览路径；不调用视觉模型',
   controls:'实际参数范围、灰卡响应与风格目录',
   preview:'[--version <id|current|original>] [--max-side 1400] [--region <JSON 原片范围>] [--without-text true]',
@@ -30,7 +37,7 @@ const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <comman
 },notes:['工具只在本地处理像素；审片与对话由宿主 Agent 进行。','JPEG/PNG/WebP/AVIF 输入；8 位 sRGB，PNG/JPEG 输出，8192 px / 1600 万像素上限。','原片字节和编辑方案独立保存；已有文件不会被导出覆盖。']};
 function args(values){const opts={};for(let i=0;i<values.length;i++){if(!values[i].startsWith('--')||values[i+1]===undefined||values[i+1].startsWith('--'))fail('ARGUMENT','每个选项需要一个值；运行 help 查看用法。');opts[values[i].slice(2)]=values[++i];}return opts;}
 async function inspectPreview(session,key,options){try{return await session.previewPhoto(key,options);}catch(error){if(!error.code)throw error;return {error:localFailure(error),available:false};}}
-async function input(file){if(!file)fail('INPUT_REQUIRED','请用 --input 提供 JSON 文件，或 - 从标准输入读取。');let bytes='';if(file==='-'){for await(const part of process.stdin){bytes+=part;if(bytes.length>65536)fail('INPUT_SIZE','方案 JSON 超过 64 KB，请缩短内容。');}}else bytes=await readFile(path.resolve(file),'utf8');if(Buffer.byteLength(bytes)>65536)fail('INPUT_SIZE','方案 JSON 超过 64 KB，请缩短内容。');try{return JSON.parse(bytes);}catch{fail('INVALID_JSON','JSON 无法读取，请检查格式后重试。');}}
+async function input(file,limit=65536){if(!file)fail('INPUT_REQUIRED','请用 --input 提供 JSON 文件，或 - 从标准输入读取。');let bytes='';if(file==='-'){for await(const part of process.stdin){bytes+=part;if(Buffer.byteLength(bytes)>limit)fail('INPUT_SIZE','方案 JSON 超过读取上限，请分批提交。');}}else bytes=await readFile(path.resolve(file),'utf8');if(Buffer.byteLength(bytes)>limit)fail('INPUT_SIZE','方案 JSON 超过读取上限，请分批提交。');try{return JSON.parse(bytes);}catch{fail('INVALID_JSON','JSON 无法读取，请检查格式后重试。');}}
 export async function runCLI(values=process.argv.slice(2)) {
   const [command='help',...rest]=values;if(['help','--help','-h'].includes(command))return help;
   const o=args(rest),folder=o.project&&path.resolve(o.project),revision=o.revision===undefined?undefined:Number(o.revision);
@@ -39,6 +46,12 @@ export async function runCLI(values=process.argv.slice(2)) {
   if(command==='tool-schema'){const {hostToolContract}=await import('./tool-contract.mjs');return hostToolContract();}
   if(!folder)fail('PROJECT_REQUIRED','请用 --project 指定照片项目目录。');
   switch(command){
+    case 'collection-init':return initCollection(folder,await input(o.input,2*1024*1024));
+    case 'collection-inspect':return inspectCollection(folder);
+    case 'collection-brief':return updateCollectionBrief(folder,await input(o.input,2*1024*1024));
+    case 'collection-plan':return saveCollectionPlan(folder,await input(o.input,2*1024*1024));
+    case 'collection-sheet':return collectionSheet(folder,{page:o.page?Number(o.page):1,view:o.view||'current',selected:o.selected==='true'});
+    case 'collection-export':return exportCollection(folder,await input(o.input,2*1024*1024));
     case 'init':if(!o.image)fail('IMAGE_REQUIRED','请用 --image 指定原片。');return initProject(o.image,folder,{intent:o.intent});
     case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,project:{...p,versions:p.versions.map(({id,name,parentId,createdAt})=>({id,name,parentId,createdAt})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
     case 'preview':return previewPhoto(folder,o.version||'current',{maxSide:o['max-side']?Number(o['max-side']):1400,region:o.region?JSON.parse(o.region):undefined,withoutText:o['without-text']==='true'});
@@ -46,7 +59,7 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'candidate':{const result=await createCandidate(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'select':{const result=await selectCandidateItems(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id,{selectionHash:result.candidate.selectionHash,revision:result.project.revision})};}
     case 'guards':{const result=await changeGuards(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate?.id||result.version.id)};}
-    case 'tool':{const {dispatchHostTool}=await import('./tool-contract.mjs');return dispatchHostTool(folder,await input(o.input));}
+    case 'tool':{const {dispatchHostTool}=await import('./tool-contract.mjs');return dispatchHostTool(folder,await input(o.input,2*1024*1024));}
     case 'note':return saveNote(folder,await input(o.input));
     case 'delete-note':return deleteNote(folder,{id:o.id,revision});
     case 'intent':return setIntent(folder,{intent:o.text,revision});

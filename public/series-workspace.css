@@ -5,3 +5,6 @@
 
 .series-brief-summary{padding-bottom:15px;border-bottom:1px solid #ffffff0c}.series-brief-summary>strong{font-size:12px;color:var(--accent);font-weight:500}.series-brief-summary p{font-size:12px;line-height:1.9;color:var(--muted);margin:9px 0}.series-brief-summary small{color:var(--quiet);font-size:11px}.series-brief-summary>div{display:flex;gap:15px;margin-top:12px}.series-brief-summary button{padding:6px 0;color:var(--accent);font-size:11px;border:0;background:none;cursor:pointer}
 .series-dialog[open]{display:flex;flex-direction:column;overflow:hidden}.series-header,.series-footer{flex-shrink:0}.series-body{flex:1 1 auto;min-height:0;max-height:none}.series-footer button{grid-column:auto}
+.series-output-options{margin:16px 0 20px;color:var(--muted);font-size:12px}.series-output-options>summary{padding:8px 0;cursor:pointer;min-height:24px;line-height:24px}.series-output-options[open]>.series-fields{margin-top:12px}.series-output-options .series-hint{margin-bottom:0}.series-brief-summary small{display:block;line-height:1.8}
+#series-brief-fields>.series-fields{margin-bottom:20px}
+.series-grid.is-pair{grid-template-columns:repeat(2,minmax(0,1fr))}@media(min-width:761px){.series-grid.is-pair .series-image{height:235px}}

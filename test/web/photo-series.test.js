@@ -29,9 +29,9 @@ test('stale detection follows edits, notes, membership and intent, while reorder
  a.annotations=[];a.manual.exposure=.2;assert.notEqual(seriesSignature([a,b],brief),base);
 });
 test('series brief and ordered members survive draft storage; removed photos are filtered',()=>{
- assert.deepEqual(restoreSeries(null),{intent:'',platform:'xiaohongshu',ratio:'original',ids:[]});
+ assert.deepEqual(restoreSeries(null),{intent:'',platform:'xiaohongshu',ratio:'original',purpose:'story',sequence:'visual',ids:[]});
  const a=photo('a'),b=photo('b');for(const p of [a,b])p.originalBlob=new Blob(['photo']);
- const series={ids:['b','a'],intent:'旅行随记',platform:'douyin',ratio:'3:4'},draft=buildDraftWorkspace('workspace',[a,b],'a',series);
+ const series={ids:['b','a'],intent:'旅行随记',platform:'douyin',ratio:'3:4',purpose:'travel',sequence:'manual'},draft=buildDraftWorkspace('workspace',[a,b],'a',series);
  assert.deepEqual(restoreSeries(draft.series,['a','b']),series);assert.deepEqual(restoreSeries(draft.series,['a']).ids,['a']);assert.deepEqual(restoreSeries({...series,ids:['b','b','unknown']},['b']).ids,['b']);series.ids.reverse();assert.deepEqual(draft.series.ids,['b','a']);
 });
 test('real multimodal service contract sends each image and sanitized current context together',async()=>{
@@ -40,7 +40,16 @@ test('real multimodal service contract sends each image and sanitized current co
   payload=JSON.parse(init.body);return new Response(JSON.stringify({model:'test-vision',output:[{content:[{type:'output_text',text:JSON.stringify(review())}]}]}),{status:200,headers:{'content-type':'application/json'}});
  }});
  const body={intent:'保留真实光线',platform:'xiaohongshu',photos:['a','b'].map(id=>({id,image:'data:image/png;base64,aGVsbG8=',name:id,settings:{exposure:.2,malicious:'INJECT'},notes:[]}))};
- const result=await reviewPhotoSeries(vision,body);assert.equal(payload.input[0].content.filter(c=>c.type==='input_image').length,2);assert.equal(payload.text.format.name,'photo_series_review');assert.equal(payload.store,false);assert.doesNotMatch(JSON.stringify(payload.input),/INJECT/);assert.match(JSON.stringify(payload.input),/保留真实光线/);assert.equal(result.provenance.source,'vision');assert.equal(result.provenance.promptVersion,'photo-series-2026-10-03-v1');
+ const result=await reviewPhotoSeries(vision,body);assert.equal(payload.input[0].content.filter(c=>c.type==='input_image').length,2);assert.equal(payload.text.format.name,'photo_series_review');assert.equal(payload.store,false);assert.doesNotMatch(JSON.stringify(payload.input),/INJECT/);assert.match(JSON.stringify(payload.input),/保留真实光线/);assert.equal(result.provenance.source,'vision');assert.equal(result.provenance.promptVersion,'photo-series-2026-10-03-v2');
  await assert.rejects(()=>reviewPhotoSeries(vision,{...body,photos:[body.photos[0]]}),/2–12/);await assert.rejects(()=>reviewPhotoSeries(vision,{...body,photos:[body.photos[0],body.photos[0]]}),/不完整/);await assert.rejects(()=>reviewPhotoSeries(vision,{...body,intent:''}),/一句话/);
  assert.ok(seriesSchema(['a','b']).properties.photos.minItems===2);
+});
+test('purpose and sequencing are persistent context, and manual order is enforced before applying AI output',async()=>{
+ const a=photo('a'),b=photo('b'),base=seriesSignature([a,b],{intent:'展示真实颜色'});
+ assert.notEqual(base,seriesSignature([a,b],{intent:'展示真实颜色',purpose:'catalog'}));
+ assert.notEqual(base,seriesSignature([a,b],{intent:'展示真实颜色',sequence:'manual'}));
+ assert.throws(()=>validateSeriesReview(review(),['a','b'],{sequence:'manual'}),/指定的顺序/);
+ assert.equal(validateSeriesReview(review(),['b','a'],{sequence:'manual'}).order[0],'b');
+ const value=review(),vision={request:async()=>({value,provenance:{source:'vision'}})},photos=['a','b'].map(id=>({id,image:'data:image/png;base64,aGVsbG8='}));
+ await assert.rejects(reviewPhotoSeries(vision,{intent:'商品真实颜色',purpose:'catalog',sequence:'manual',photos}),{code:'INVALID_SERIES_REVIEW'});
 });

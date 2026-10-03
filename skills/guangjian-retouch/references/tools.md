@@ -40,7 +40,7 @@
 
 接受使用 `accept --id <candidate> --revision <latest> --selection-hash <preview-hash>`。hash 是组合身份，不证明人看过图；宿主仍须实际检查预览。choices 只记录选中项。旧单组格式仍映射为一个项目，可沿用旧 accept 调用。
 
-`tool-schema` 返回提供给宿主 Agent 的 provider-neutral function 定义；完整输入 schema 在 `schemas/edit-plan.schema.json`。`tool --project <project> --input <call.json>` 接受 `{name,arguments}`，仅允许 `frameyn_propose_edits`、`frameyn_select_edits`、`frameyn_change_guards`。自然语言解析和模型 function calling 由宿主完成；这些定义不会自动注册到模型，也不会启动新的模型服务。不传代码，不使用 eval，不将模型文字拼成 shell。
+`tool-schema` 返回提供给宿主 Agent 的 provider-neutral function 定义；修片输入 schema 在 `schemas/edit-plan.schema.json`。`tool --project <project> --input <call.json>` 接受 `{name,arguments}`，修片操作为 `frameyn_propose_edits`、`frameyn_select_edits`、`frameyn_change_guards`；另有六个组图函数，参见 [组图工具](collection-tools.md)。修片用单图目录，组图用 collection 目录。自然语言解析和模型 function calling 由宿主完成；这些定义不会自动注册到模型，也不会启动新的模型服务。不传代码，不使用 eval，不将模型文字拼成 shell。
 
 ## 批注 JSON
 

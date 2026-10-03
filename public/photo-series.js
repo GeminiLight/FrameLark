@@ -3,11 +3,13 @@ import {photoSnapshot,planStyle} from './batch-edits.js';
 import {cleanIntent} from './creative-intent.js';
 
 export const seriesPlatforms=[{id:'xiaohongshu',label:'小红书'},{id:'douyin',label:'抖音图文'},{id:'general',label:'其他 / 作品集'}];
+export const seriesPurposes=[{id:'story',label:'叙事分享'},{id:'travel',label:'旅行随记'},{id:'portrait',label:'人物交付'},{id:'event',label:'活动记录'},{id:'catalog',label:'商品展示'},{id:'portfolio',label:'作品精选'},{id:'archive',label:'留作记录'}];
+export const seriesSequences=[{id:'visual',label:'视觉节奏'},{id:'chronological',label:'时间顺序'},{id:'emotional',label:'情绪节奏'},{id:'manual',label:'保持顺序'}];
 export const seriesRatios=['original','3:4','4:5','1:1','9:16'];
 export const seriesBounds={exposure:.4,highlights:18,shadows:18,whites:12,blacks:12,warmth:12,tint:10,vibrance:12,saturation:10,contrast:12};
 export function seriesBrief(value={}) {
   value=value&&typeof value==='object'?value:{};
-  return {intent:cleanIntent(value.intent),platform:seriesPlatforms.some(p=>p.id===value.platform)?value.platform:'xiaohongshu',ratio:seriesRatios.includes(value.ratio)?value.ratio:'original'};
+  return {intent:cleanIntent(value.intent),platform:seriesPlatforms.some(p=>p.id===value.platform)?value.platform:'xiaohongshu',ratio:seriesRatios.includes(value.ratio)?value.ratio:'original',purpose:seriesPurposes.some(p=>p.id===value.purpose)?value.purpose:'story',sequence:seriesSequences.some(p=>p.id===value.sequence)?value.sequence:'visual'};
 }
 export function seriesSignature(photos,brief) {
   return JSON.stringify({brief:seriesBrief(brief),photos:photos.map(photo=>{
@@ -32,9 +34,10 @@ export function seriesSchema(ids) {
     }}}
   }};
 }
-export function validateSeriesReview(value,ids) {
+export function validateSeriesReview(value,ids,{sequence='visual'}={}) {
   const complete=list=>Array.isArray(list)&&list.length===ids.length&&new Set(list).size===ids.length&&list.every(id=>ids.includes(id));
   if(!complete(value?.order)||!complete(value?.photos?.map(p=>p.id)))throw new Error('组图结果未覆盖全部照片，请重试。');
+  if(sequence==='manual'&&value.order.some((id,i)=>id!==ids[i]))throw new Error('建议改变了你指定的顺序，请重试。');
   if(!value.sharedStyle||!['none',...presets.map(p=>p.id)].includes(value.sharedStyle.presetId)||!Number.isFinite(value.sharedStyle.amount)||value.sharedStyle.amount<0||value.sharedStyle.amount>70)throw new Error('共同风格结果不可用，请重试。');
   for(const photo of value.photos){
     if(!Array.isArray(photo.changes)||new Set(photo.changes.map(c=>c.key)).size!==photo.changes.length||photo.changes.some(c=>!Object.hasOwn(seriesBounds,c.key)||!Number.isFinite(c.value)||Math.abs(c.value)>seriesBounds[c.key]))throw new Error('逐张调整超出温和处理范围，请重试。');

@@ -1198,6 +1198,123 @@
         "文字JSON",
         "文字参数"
       ]
+    },
+    {
+      "id": "collection-purpose",
+      "kind": "workflow",
+      "file": "collection-craft.md",
+      "section": "用途先行",
+      "tags": [
+        "用途",
+        "旅行随记",
+        "人物交付",
+        "商品",
+        "catalog",
+        "portfolio",
+        "归档"
+      ]
+    },
+    {
+      "id": "collection-brief",
+      "kind": "workflow",
+      "file": "collection-craft.md",
+      "section": "主题与最少追问",
+      "tags": [
+        "主题",
+        "追问",
+        "意图",
+        "必留",
+        "brief"
+      ]
+    },
+    {
+      "id": "collection-cull",
+      "kind": "workflow",
+      "file": "collection-craft.md",
+      "section": "大批量初选与细看",
+      "tags": [
+        "选片",
+        "一堆图",
+        "连拍",
+        "联系表",
+        "culling",
+        "重复帧"
+      ]
+    },
+    {
+      "id": "collection-sequence",
+      "kind": "workflow",
+      "file": "collection-craft.md",
+      "section": "选片与阅读顺序",
+      "tags": [
+        "排序",
+        "组图",
+        "叙事",
+        "封面",
+        "sequence",
+        "photo essay"
+      ]
+    },
+    {
+      "id": "collection-match",
+      "kind": "workflow",
+      "file": "collection-craft.md",
+      "section": "统一观感与逐张修片",
+      "tags": [
+        "统一",
+        "组照",
+        "匹配",
+        "定调",
+        "混合光线",
+        "一致性"
+      ]
+    },
+    {
+      "id": "collection-delivery",
+      "kind": "workflow",
+      "file": "collection-craft.md",
+      "section": "分支、反馈与交付",
+      "tags": [
+        "整组交付",
+        "备选",
+        "导出队列",
+        "换图"
+      ]
+    },
+    {
+      "id": "collection-eval",
+      "kind": "workflow",
+      "file": "collection-craft.md",
+      "section": "情境验收",
+      "tags": [
+        "选片验收",
+        "组图检查",
+        "批量失败"
+      ]
+    },
+    {
+      "id": "collection-import-tools",
+      "kind": "workflow",
+      "file": "collection-tools.md",
+      "section": "导入、意图与联系表",
+      "tags": [
+        "collection-init",
+        "collection-sheet",
+        "联系表工具",
+        "导入整组"
+      ]
+    },
+    {
+      "id": "collection-plan-tools",
+      "kind": "workflow",
+      "file": "collection-tools.md",
+      "section": "选片、顺序与整组导出",
+      "tags": [
+        "collection-plan",
+        "collection-export",
+        "选片工具",
+        "整组导出"
+      ]
     }
   ]
 }
