@@ -1455,8 +1455,27 @@ function reflectPhotoAnalysis(photo) {
   renderAnalysis();renderPresets();renderAgent();renderAnalysisStatus();refreshActions();
 }
 
+let codexModels=[];
+function refreshCodexModelChoices() {
+  for(const tier of Object.keys(tierNames)){
+    const input=$(`#tier-${tier}-model`),select=$(`#tier-${tier}-choice`),value=input.value;
+    select.replaceChildren(...codexModels.map(model=>new Option(model.name,model.id)));
+    if(value&&!codexModels.some(m=>m.id===value)){const option=new Option(value+' · 尚未确认可用',value);option.disabled=true;select.add(option);}
+    select.value=value;
+  }
+}
+function refreshTierEfforts(tier){
+  const model=codexModels.find(m=>m.id===$(`#tier-${tier}-model`).value),select=$(`#tier-${tier}-effort`);
+  for(const option of select.options)option.disabled=Boolean(model&&!model.efforts.includes(option.value));
+  if(select.selectedOptions[0]?.disabled)select.value=model.efforts.includes('medium')?'medium':model.efforts[0];
+}
+for(const tier of Object.keys(tierNames)){
+  const input=$(`#tier-${tier}-model`),select=document.createElement('select');select.id=`tier-${tier}-choice`;select.hidden=true;select.setAttribute('aria-label',tierNames[tier]+'档模型');input.after(select);
+  select.addEventListener('change',()=>{input.value=select.value;refreshTierEfforts(tier);});
+}
 function fillModelTiers(tiers) {
   for(const [tier,entry] of Object.entries(tiers)){$(`#tier-${tier}-model`).value=entry.model;$(`#tier-${tier}-effort`).value=entry.effort;}
+  refreshCodexModelChoices();
 }
 function readModelTiers() {
   return Object.fromEntries(Object.keys(tierNames).map(tier=>[tier,{model:$(`#tier-${tier}-model`).value.trim(),effort:$(`#tier-${tier}-effort`).value}]));
@@ -1467,6 +1486,7 @@ async function discoverLocalCodex() {
   try {
     const response=await fetch('/api/codex-status',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
     const info=await response.json();if(!response.ok)throw new Error(info.error?.message || '暂时无法读取 Codex 状态。');
+    codexModels=info.models;refreshCodexModelChoices();
     $('#vision-model-options').innerHTML=info.models.map(model=>`<option value="${escapeHtml(model.id)}">${escapeHtml(model.name)}</option>`).join('');
     $('#codex-discovery-status').textContent=info.authenticated?'已检测到 Codex 的 ChatGPT 登录。':'请先在终端运行 codex login，使用 ChatGPT 登录。';
     $('#codex-use').hidden=!info.authenticated;
@@ -1479,6 +1499,8 @@ $('#codex-use').addEventListener('click',event=>{
 
 function updateVisionProvider() {
   const codex = $('#vision-provider').value === 'codex';
+  for(const tier of Object.keys(tierNames)){$(`#tier-${tier}-model`).hidden=codex;$(`#tier-${tier}-model`).required=!codex;$(`#tier-${tier}-choice`).hidden=!codex;}
+  refreshCodexModelChoices();
   $('#vision-api-key').closest('label').hidden = codex;
   $('#vision-endpoint').closest('details').hidden = codex;
   $('#vision-endpoint').required = !codex;
