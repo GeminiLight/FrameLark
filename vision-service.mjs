@@ -1,5 +1,6 @@
 import { readFile, mkdir, writeFile, rename, chmod, rm } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
+import {requestCodex} from './codex-vision.mjs';
 
 export const defaultVisionModel = 'gpt-6-astra';
 export const defaultVisionEndpoint = 'https://api.openai.com/v1/responses';
@@ -49,6 +50,11 @@ export function invalidStructuredPaths(value,schema,path='$') {
 
 function validateConfiguration(value) {
   const model = String(value.model || defaultVisionModel).trim();
+  if(value.provider && !['api','codex'].includes(value.provider)) throw new VisionError('INVALID_PROVIDER','不支持的模型来源。',{status:400});
+  if(value.provider === 'codex') {
+    if(!/^[a-zA-Z0-9._:/-]{1,120}$/.test(model)) throw new VisionError('INVALID_MODEL','请填写有效的模型名称。',{status:400});
+    return {provider:'codex',model,apiKey:'',endpoint:defaultVisionEndpoint};
+  }
   const apiKey = String(value.apiKey || '').trim();
   let endpoint;
   try { endpoint = new URL(value.endpoint || defaultVisionEndpoint); }
@@ -121,23 +127,24 @@ async function readEnvironmentFile(path) {
 }
 
 function providerError(status, code, retryAfter) {
-  if (status === 401) return new VisionError('INVALID_API_KEY','密钥未通过验证，请检查接入设置。',{status:401});
+  if (status === 401) return new VisionError('INVALID_API_KEY','密钥未通过验证，请检查连接设置。',{status:401});
   if (status === 403) return new VisionError('MODEL_ACCESS_DENIED','当前密钥没有访问此模型的权限。',{status:403});
-  if (status === 404) return new VisionError('MODEL_NOT_FOUND','服务地址或模型名称不可用，请检查接入设置。',{status:404});
+  if (status === 404) return new VisionError('MODEL_NOT_FOUND','服务地址或模型名称不可用，请检查连接设置。',{status:404});
   if (status === 429 && ['insufficient_quota','billing_hard_limit_reached'].includes(code)) return new VisionError('QUOTA_EXCEEDED','模型服务额度不足，请检查服务账户。',{status:429});
   if (status === 429) return new VisionError('RATE_LIMITED','模型服务请求较多，请稍后重试。',{status:429,retryable:true,retryAfterSeconds:Math.min(60,Math.max(1,Number(retryAfter)||10))});
   if (status === 400 || status === 422) return new VisionError('MODEL_INPUT_UNSUPPORTED','模型未接受图片或结构化审片请求，请检查模型兼容性。',{status:422});
   return new VisionError('PROVIDER_UNAVAILABLE','视觉模型服务暂时不可用，可稍后重试。',{retryable:true});
 }
 
-export async function createVisionService({env = process.env, fetchImpl = fetch, timeoutMs = 110_000, root = process.cwd()} = {}) {
+export async function createVisionService({env = process.env, fetchImpl = fetch, timeoutMs = 110_000, root = process.cwd(), codexRequest = requestCodex} = {}) {
   const settingsFile = resolve(root,'.guangjian','vision.json');
   const cloud=env.VERCEL==='1';
   const fileEnv = cloud ? {}:await readEnvironmentFile(resolve(root,'.env.local'));
   let saved = {};
   try { if(!cloud)saved = JSON.parse(await readFile(settingsFile,'utf8')); }
-  catch (error) { if (error.code !== 'ENOENT') console.warn('视觉接入配置未能读取，请重新设置。'); }
+  catch (error) { if (error.code !== 'ENOENT') console.warn('模型连接配置未能读取，请重新设置。'); }
   let configuration = {
+    provider:cloud || env.OPENAI_API_KEY || fileEnv.OPENAI_API_KEY ? 'api' : saved.provider || 'api',
     apiKey:env.OPENAI_API_KEY || fileEnv.OPENAI_API_KEY || saved.apiKey || '',
     model:env.OPENAI_MODEL || fileEnv.OPENAI_MODEL || saved.model || defaultVisionModel,
     endpoint:env.OPENAI_API_URL || fileEnv.OPENAI_API_URL || saved.endpoint || defaultVisionEndpoint
@@ -145,16 +152,17 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
   let verifiedAt = null;
   let lastError = null;
   let connectionGeneration = 0;
-  const isConfigured = () => Boolean(configuration.apiKey);
+  const isConfigured = () => configuration.provider === 'codex' || Boolean(configuration.apiKey);
   const status = () => ({
     aiAvailable:isConfigured(),model:isConfigured() ? configuration.model : null,
     connectionStatus:!isConfigured() ? 'unconfigured' : lastError ? 'error' : verifiedAt ? 'ready' : 'configured',
     verifiedAt,lastError
   });
-  const publicConfiguration = () => ({...status(),model:configuration.model,endpoint:configuration.endpoint,hasKey:isConfigured()});
+  const publicConfiguration = () => ({...status(),model:configuration.model,endpoint:configuration.endpoint,hasKey:Boolean(configuration.apiKey),provider:configuration.provider || 'api'});
 
   async function request(payload, {candidate = configuration, record = true, signal} = {}) {
     const config = validateConfiguration(candidate);
+    if(cloud && config.provider === 'codex') throw new VisionError('CODEX_LOCAL_ONLY','本机 Codex 仅支持本地工作台。',{status:403});
     const chat = /\/chat\/completions\/?$/.test(new URL(config.endpoint).pathname);
     const controller = new AbortController();
     const cancel = () => controller.abort();
@@ -163,6 +171,9 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
     const timer = setTimeout(() => controller.abort(),timeoutMs);
     const startedAt = Date.now();
     try {
+      let result;
+      if(config.provider === 'codex') result = await codexRequest(payload,{model:config.model,signal:controller.signal});
+      else {
       const response = await fetchImpl(config.endpoint,{
         method:'POST',signal:controller.signal,redirect:'error',
         headers:{'Authorization':'Bearer ' + config.apiKey,'Content-Type':'application/json','User-Agent':'GuangjianPhotoStudio/0.1'},
@@ -173,9 +184,9 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
         try { code = (await response.json()).error?.code || ''; } catch { /* Upstream details must not be reflected or logged. */ }
         throw providerError(response.status,code,response.headers.get('retry-after'));
       }
-      let result;
       try { result = await response.json(); }
       catch { throw new VisionError('INVALID_MODEL_RESPONSE','模型返回了无法读取的结果，请重试。',{retryable:true}); }
+      }
       const output = modelOutput(result,chat);
       let value;
       try { value = JSON.parse(output); }
@@ -188,10 +199,10 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
       const analyzedAt = new Date().toISOString();
       if (record && candidate === configuration) { verifiedAt = analyzedAt; lastError = null; }
       const hostname = new URL(config.endpoint).hostname;
-      const provider = hostname === 'api.openai.com' ? 'OpenAI' : /(^|\.)(kimi\.(com|ai)|moonshot\.(cn|ai))$/.test(hostname) ? 'Kimi' : hostname;
+      const provider = config.provider === 'codex' ? 'Codex Subscription' : hostname === 'api.openai.com' ? 'OpenAI' : /(^|\.)(kimi\.(com|ai)|moonshot\.(cn|ai))$/.test(hostname) ? 'Kimi' : hostname;
       return {value,provenance:{source:'vision',provider,model:typeof result.model === 'string' ? result.model : config.model,responseId:typeof result.id === 'string' ? result.id : null,analyzedAt,elapsedMs:Date.now()-startedAt}};
     } catch (error) {
-      const failure = signal?.aborted ? new VisionError('CANCELLED','这次视觉请求已取消。',{status:499,retryable:true}) : error instanceof VisionError ? error : new VisionError(controller.signal.aborted ? 'MODEL_TIMEOUT' : 'NETWORK_ERROR',controller.signal.aborted ? '视觉审片等待超时，请重试。' : '未能连接视觉模型服务，请检查网络后重试。',{retryable:true});
+      const failure = signal?.aborted ? new VisionError('CANCELLED','这次视觉请求已取消。',{status:499,retryable:true}) : controller.signal.aborted ? new VisionError('MODEL_TIMEOUT','视觉审片等待超时，请重试。',{retryable:true}) : error instanceof VisionError ? error : new VisionError(controller.signal.aborted ? 'MODEL_TIMEOUT' : 'NETWORK_ERROR',controller.signal.aborted ? '视觉审片等待超时，请重试。' : '未能连接视觉模型服务，请检查网络后重试。',{retryable:true});
       if (record && candidate === configuration && failure.code !== 'CANCELLED') lastError = failure.toJSON();
       throw failure;
     } finally { clearTimeout(timer); signal?.removeEventListener('abort',cancel); }
@@ -199,10 +210,10 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
 
   async function connect(value, {signal} = {}) {
     const generation = ++connectionGeneration;
-    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new VisionError('INVALID_REQUEST','接入设置无法读取。',{status:400});
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new VisionError('INVALID_REQUEST','连接设置无法读取。',{status:400});
     const endpoint = value.endpoint || configuration.endpoint;
-    const candidate = validateConfiguration({apiKey:value.apiKey || configuration.apiKey,model:value.model || configuration.model,endpoint});
-    if (!value.apiKey && new URL(candidate.endpoint).origin !== new URL(configuration.endpoint).origin) throw new VisionError('API_KEY_REQUIRED','更换服务时需要重新填写对应密钥。',{status:400});
+    const candidate = validateConfiguration({provider:value.provider || configuration.provider,apiKey:value.apiKey || configuration.apiKey,model:value.model || configuration.model,endpoint});
+    if (candidate.provider !== 'codex' && !value.apiKey && new URL(candidate.endpoint).origin !== new URL(configuration.endpoint).origin) throw new VisionError('API_KEY_REQUIRED','更换服务时需要重新填写对应密钥。',{status:400});
     const bytes = await readFile(new URL('./public/assets/vision-probe.png',import.meta.url));
     const probeSchema = {type:'object',additionalProperties:false,properties:{shape:{type:'string',enum:['circle','square','triangle','other']},foreground:{type:'string',enum:['red','blue','green','yellow','other']},background:{type:'string',enum:['red','blue','green','yellow','other']}},required:['shape','foreground','background']};
     const result = await request({
@@ -212,8 +223,8 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
       text:{format:{type:'json_schema',name:'vision_connection_probe',strict:true,schema:probeSchema}}
     },{candidate,record:false,signal});
     if (result.value.shape !== 'circle' || result.value.foreground !== 'red' || result.value.background !== 'blue') throw new VisionError('VISION_CHECK_FAILED','服务返回了结果，但图片识别校验未通过。请确认模型具备视觉能力。',{status:422});
-    if (generation !== connectionGeneration) throw new VisionError('CONFIGURATION_CHANGED','接入设置已变化，请使用最新一次设置。',{status:409});
-    if (signal?.aborted) throw new VisionError('CANCELLED','这次接入验证已取消。',{status:499,retryable:true});
+    if (generation !== connectionGeneration) throw new VisionError('CONFIGURATION_CHANGED','连接设置已变化，请使用最新一次设置。',{status:409});
+    if (signal?.aborted) throw new VisionError('CANCELLED','这次连接验证已取消。',{status:499,retryable:true});
     if (value.remember === true) {
       const directory = dirname(settingsFile);
       await mkdir(directory,{recursive:true,mode:0o700});
@@ -222,8 +233,8 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
       try {
         await writeFile(temporary,JSON.stringify(candidate),{mode:0o600});
         await chmod(temporary,0o600);
-        if (signal?.aborted) throw new VisionError('CANCELLED','这次接入验证已取消。',{status:499,retryable:true});
-        if (generation !== connectionGeneration) throw new VisionError('CONFIGURATION_CHANGED','接入设置已变化，请使用最新一次设置。',{status:409});
+        if (signal?.aborted) throw new VisionError('CANCELLED','这次连接验证已取消。',{status:499,retryable:true});
+        if (generation !== connectionGeneration) throw new VisionError('CONFIGURATION_CHANGED','连接设置已变化，请使用最新一次设置。',{status:409});
         await rename(temporary,settingsFile);
       } finally { await rm(temporary,{force:true}); }
     }

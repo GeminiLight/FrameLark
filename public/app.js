@@ -1378,6 +1378,15 @@ function reflectPhotoAnalysis(photo) {
   renderAnalysis();renderPresets();renderAgent();renderAnalysisStatus();refreshActions();
 }
 
+function updateVisionProvider() {
+  const codex = $('#vision-provider').value === 'codex';
+  $('#vision-api-key').closest('label').hidden = codex;
+  $('#vision-endpoint').closest('details').hidden = codex;
+  $('#vision-endpoint').required = !codex;
+  $('#vision-codex-note').hidden = !codex;
+}
+$('#vision-provider').addEventListener('change',updateVisionProvider);
+
 async function openVisionSettings() {
   if ($('#help-dialog').open) $('#help-dialog').close();
   $('#vision-settings-error').hidden = true;
@@ -1397,10 +1406,12 @@ async function openVisionSettings() {
     $('#vision-managed-note').hidden=editable;
     $('#vision-settings-title').textContent=editable ? '让顾问真正看见照片':'视觉审片状态';
     $('#vision-managed-note').textContent=settings.hasKey ? '视觉服务由工作台管理员提供。审片仅发送压缩预览，原片与手动调整仍由你掌握。':'这个工作台尚未启用视觉审片。你可以继续手动调色、裁剪、保存版本与导出；当前诊断只提供基础光色统计。';
+    $('#vision-provider').value = settings.provider || 'api';
+    updateVisionProvider();
     $('#vision-model').value = settings.model;
     $('#vision-endpoint').value = settings.endpoint;
     $('#vision-api-key').placeholder = settings.hasKey ? '已配置密钥；留空保留' : '仅交给本机服务';
-    $('#vision-connection-summary').textContent = settings.connectionStatus === 'ready' ? `${settings.model} · 视觉请求已验证` : settings.connectionStatus === 'error' ? `${settings.model} · ${settings.lastError?.message || '上次请求未完成'}` : settings.hasKey ? `${settings.model} · 已配置，等待验证` : '尚未配置视觉服务';
+    $('#vision-connection-summary').textContent = settings.connectionStatus === 'ready' ? `${settings.model} · 视觉请求已验证` : settings.connectionStatus === 'error' ? `${settings.model} · ${settings.lastError?.message || '上次请求未完成'}` : settings.aiAvailable ? `${settings.model} · 已配置，等待验证` : '尚未配置视觉服务';
   } catch {
     $('#vision-connection-summary').textContent = '接入状态暂不可读';
     $('#vision-managed-note').textContent='接入状态暂时无法读取，请稍后重试。照片与已有调整均保留。';
@@ -1428,7 +1439,7 @@ async function connectVision(event) {
   $('#vision-settings-error').hidden = true;
   const timeout = setTimeout(() => controller.abort('timeout'),95_000);
   try {
-    const response = await fetch('/api/vision-config',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:$('#vision-model').value.trim(),apiKey:$('#vision-api-key').value.trim(),endpoint:$('#vision-endpoint').value.trim(),remember:$('#vision-remember').checked})});
+    const response = await fetch('/api/vision-config',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('#vision-provider').value,model:$('#vision-model').value.trim(),apiKey:$('#vision-api-key').value.trim(),endpoint:$('#vision-endpoint').value.trim(),remember:$('#vision-remember').checked})});
     const result = await response.json();
     if (!response.ok) {
       $('#vision-settings-error').textContent = normalizeVisionFailure(result).message;
