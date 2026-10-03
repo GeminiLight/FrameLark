@@ -12,6 +12,8 @@
 
 本地工具在 accept 时记录 choices；临时悬停、试片、取消与生成候选不是认可。accept 可能只表示这次可用，不证明全部参数都是偏好。需要结合选择理由及原片条件。
 
+`accept --by agent` 保存 Agent 试修，不写入用户 choices。明确用户反馈用 `feedback`；拒绝或仅作试片保留的版本不进入 `preferenceChoices`。历史 choices 不删除，实际偏好参考使用 `inspect` 返回的 preferenceChoices；工具成功、Agent 选出的最佳版和用户认可各有不同证据。
+
 有价值的记录包括：
 
 - 原片题材与可见光线；已知来源与显示条件。

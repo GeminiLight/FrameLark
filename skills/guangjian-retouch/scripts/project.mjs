@@ -221,6 +221,8 @@ export async function saveNote(folder,value) {
 export const deleteNote=(folder,value)=>mutate(folder,value.revision,p=>{if(!p.notes.some(n=>n.id===value.id))fail('NOTE_NOT_FOUND','标记已删除。');p.notes=p.notes.filter(n=>n.id!==value.id);return {};});
 export const setIntent=(folder,value)=>mutate(folder,value.revision,p=>{p.intent=text(value.intent);return {};});
 export async function acceptCandidate(folder,value) {
+  const acceptedBy=value.acceptedBy===undefined?'user':value.acceptedBy;
+  if(!['user','agent'].includes(acceptedBy))fail('ACCEPT_SOURCE','接受来源应为 user 或 agent。');
   return mutate(folder,value.revision,async(p,root)=>{
     const existing=p.candidates.find(n=>n.id===value.id);
     if(!existing)fail('CANDIDATE_NOT_FOUND','候选已接受或取消，请读取最新版本。');
@@ -230,9 +232,10 @@ export async function acceptCandidate(folder,value) {
     if(c.selectionHash!==existing.selectionHash||!equal(c.state,existing.state))fail('STALE_SELECTION','候选状态与所选项目不一致，请重新生成。');
     if(c.noChange||!c.selectedItemIds.length)fail('NO_CHANGE','没有选中实际修改，当前版本保持不变。');
     await verifyReferences(root,p,c.state);
-    p.versions.push({...c,baseFingerprint:undefined,planHash:undefined,acceptedAt:now()});p.currentId=c.id;p.acceptedId=c.id;p.candidates=p.candidates.filter(x=>x.id!==c.id);
-    if(c.mode!=='guards')p.choices.push({versionId:c.id,name:c.name,mode:c.mode||'retouch',intent:p.intent,acceptedAt:now(),selectedItemIds:[...c.selectedItemIds],items:c.items.filter(i=>c.selectedItemIds.includes(i.id)),state:structuredClone(c.state)});
-    return {version:c};
+    const version={...c,baseFingerprint:undefined,planHash:undefined,acceptedAt:now(),acceptedBy};
+    p.versions.push(version);p.currentId=c.id;p.acceptedId=c.id;p.candidates=p.candidates.filter(x=>x.id!==c.id);
+    if(c.mode!=='guards'&&acceptedBy==='user')p.choices.push({versionId:c.id,name:c.name,mode:c.mode||'retouch',intent:p.intent,acceptedAt:now(),selectedItemIds:[...c.selectedItemIds],items:c.items.filter(i=>c.selectedItemIds.includes(i.id)),state:structuredClone(c.state)});
+    return {version};
   });
 }
 export const discardCandidate=(folder,value)=>mutate(folder,value.revision,p=>{if(!p.candidates.some(n=>n.id===value.id))fail('CANDIDATE_NOT_FOUND','候选已经取消。');p.candidates=p.candidates.filter(x=>x.id!==value.id);return {};});
@@ -246,7 +249,22 @@ export const restoreVersion=(folder,value)=>mutate(folder,value.revision,async(p
 });
 export const saveReview=(folder,value)=>mutate(folder,value.revision,p=>{const summary=text(value.summary,1200);if(!summary)fail('EMPTY_REVIEW','请写明实际画面观察或保留原片的依据。');
   const review={id:id(),versionId:p.currentId,intent:p.intent,createdAt:now(),source:'host-agent',summary,preserve:Array.isArray(value.preserve)?value.preserve.slice(0,6).map(x=>text(x)):[],model:text(value.model,80)};p.reviews.push(review);p.reviews=p.reviews.slice(-30);return {review};});
+export const saveFeedback=async(folder,value)=>{
+  object(value,['revision','versionId','verdict','reason'],'FEEDBACK_INVALID');
+  if(!Number.isInteger(value.revision)||!['reject','prefer','neutral'].includes(value.verdict)||typeof value.reason!=='string'||!value.reason.trim()||value.reason.length>600)fail('FEEDBACK_INVALID','反馈需最新 revision、已保存 versionId、reject/prefer/neutral 和具体原因。只记录用户明确表达的选择。');
+  return mutate(folder,value.revision,p=>{
+    const version=p.versions.find(v=>v.id===value.versionId);if(!version)fail('VERSION_NOT_FOUND','反馈需对应已保存的版本；试片可以直接取消。');
+    const feedback={id:id(),versionId:version.id,verdict:value.verdict,reason:value.reason.trim(),createdAt:now(),source:'user-feedback'};
+    p.feedback??=[];p.feedback.push(feedback);
+    if(value.verdict==='prefer'&&!p.choices.some(c=>c.versionId===version.id))p.choices.push({versionId:version.id,name:version.name,mode:version.mode||'retouch',intent:p.intent,acceptedAt:feedback.createdAt,source:'user-feedback',selectedItemIds:version.selectedItemIds||[],items:version.items||[],state:structuredClone(version.state)});
+    return {feedback};
+  });
+};
+export function preferenceChoices(p){
+  const latest=new Map((p.feedback||[]).map(f=>[f.versionId,f]));
+  return (p.choices||[]).filter(c=>{const feedback=latest.get(c.versionId);return feedback?feedback.verdict==='prefer':p.versions.find(v=>v.id===c.versionId)?.acceptedBy!=='agent';});
+}
 export const recordExport=(folder,value)=>mutate(folder,undefined,p=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...value,createdAt:now()});return {};});
 export function publicProject(p) {
-  return {...p,protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
+  return {...p,preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
 }

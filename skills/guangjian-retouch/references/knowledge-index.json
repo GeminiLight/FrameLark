@@ -1315,6 +1315,76 @@
         "选片工具",
         "整组导出"
       ]
+    },
+    {
+      "id": "look-direction",
+      "kind": "workflow",
+      "file": "look-development.md",
+      "section": "从画面建立一个可见方向",
+      "tags": [
+        "定调",
+        "不好看",
+        "平庸",
+        "look development"
+      ]
+    },
+    {
+      "id": "look-compare",
+      "kind": "workflow",
+      "file": "look-development.md",
+      "section": "光色和构图分开比较",
+      "tags": [
+        "试片",
+        "look-sheet",
+        "风格比较",
+        "裁剪取舍"
+      ]
+    },
+    {
+      "id": "look-controls",
+      "kind": "workflow",
+      "file": "look-development.md",
+      "section": "让参数服务于光色关系",
+      "tags": [
+        "绿叶",
+        "主辅色",
+        "微调",
+        "调色强度"
+      ]
+    },
+    {
+      "id": "look-subjects",
+      "kind": "workflow",
+      "file": "look-development.md",
+      "section": "题材中的正向处理线索",
+      "tags": [
+        "温润淡彩",
+        "暗色框景",
+        "题材定调"
+      ]
+    },
+    {
+      "id": "look-acceptance",
+      "kind": "workflow",
+      "file": "look-development.md",
+      "section": "对实际试片作取舍",
+      "tags": [
+        "试片验收",
+        "用户认可",
+        "acceptedBy",
+        "preferenceChoices"
+      ]
+    },
+    {
+      "id": "look-tools",
+      "kind": "workflow",
+      "file": "look-development.md",
+      "section": "比较与反馈工具",
+      "tags": [
+        "feedback",
+        "比较工具",
+        "用户拒绝"
+      ]
     }
   ]
 }

@@ -103,6 +103,8 @@ npm run install:skill
 先给我看试片，说明主要变化和代价。
 ```
 
+风格调整可以先生成原片与候选的并排试片，再分别比较光色和构图。Agent 保存的试修不会自动成为你的风格偏好；明确拒绝的版本会从偏好参考中排除。[定调与试片流程](skills/guangjian-retouch/references/look-development.md)
+
 审片可以得出保留原片的结论。AI 使用宿主 Agent 的视觉模型、额度和数据规则，无需另配模型 Key。对话在原 Agent 中继续；Web UI 的「在 Agent 中继续」会复制项目提示。
 
 照片加字是单独的可选模式。例如：

@@ -2,7 +2,8 @@
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {initProject,loadProject,publicProject,currentVersion,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,recordExport,fail,localFailure} from './project.mjs';
+import {initProject,loadProject,publicProject,preferenceChoices,currentVersion,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,saveFeedback,recordExport,fail,localFailure} from './project.mjs';
+import {renderLookSheet} from './look-sheet.mjs';
 import {previewPhoto,exportPhoto,createRenderSession} from './render.mjs';
 import {editorControlReference} from './engine/control-reference.js';
 import {letteringCapabilities} from './text-overlays.mjs';
@@ -28,7 +29,9 @@ const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <comman
   'delete-note':'--id <annotation-id> [--revision <n>]',
   intent:'--text <表达目标> [--revision <n>]',
   review:'--input <review.json|->；保存宿主 Agent 的画面观察与保留依据',
-  accept:'--id <candidate-id> [--revision <n>] [--selection-hash <hash>]；逐项候选必填 revision 和 hash',
+  feedback:'--input <feedback.json|->；记录用户明确的 reject/prefer/neutral，不改像素；拒绝版不再作为偏好证据',
+  'look-sheet':'--input <sheet.json|->；revision、2～6 个 versions；composition 分别看构图，color 按 referenceVersion 同范围看光色',
+  accept:'--id <candidate-id> [--revision <n>] [--selection-hash <hash>] [--by user|agent]；逐项候选必填 revision 和 hash，Agent 试修保存不计为用户偏好',
   discard:'--id <candidate-id> [--revision <n>]',
   restore:'--id <version-id> [--revision <n>]',
   compare:'--a <id|original|current> --b <id|current> [--region <JSON 原片范围>]',
@@ -53,7 +56,7 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'collection-sheet':return collectionSheet(folder,{page:o.page?Number(o.page):1,view:o.view||'current',selected:o.selected==='true'});
     case 'collection-export':return exportCollection(folder,await input(o.input,2*1024*1024));
     case 'init':if(!o.image)fail('IMAGE_REQUIRED','请用 --image 指定原片。');return initProject(o.image,folder,{intent:o.intent});
-    case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,project:{...p,versions:p.versions.map(({id,name,parentId,createdAt})=>({id,name,parentId,createdAt})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
+    case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,project:{...p,preferenceChoices:preferenceChoices(p),versions:p.versions.map(({id,name,parentId,createdAt,acceptedBy})=>({id,name,parentId,createdAt,acceptedBy})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
     case 'preview':return previewPhoto(folder,o.version||'current',{maxSide:o['max-side']?Number(o['max-side']):1400,region:o.region?JSON.parse(o.region):undefined,withoutText:o['without-text']==='true'});
     case 'lettering':{const plan=await input(o.input);if(plan.mode!=='lettering'||!Array.isArray(plan.textOverlays)||['settings','style','crop','locals'].some(k=>plan[k]!==undefined))fail('LETTERING_PLAN','文字模式需 mode: lettering 和 textOverlays；光色、局部和裁剪请在修片候选中调整。');const result=await createCandidate(folder,plan);return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'candidate':{const result=await createCandidate(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
@@ -64,7 +67,9 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'delete-note':return deleteNote(folder,{id:o.id,revision});
     case 'intent':return setIntent(folder,{intent:o.text,revision});
     case 'review':return saveReview(folder,await input(o.input));
-    case 'accept':return acceptCandidate(folder,{id:o.id,revision,selectionHash:o['selection-hash']});
+    case 'accept':return acceptCandidate(folder,{id:o.id,revision,selectionHash:o['selection-hash'],acceptedBy:o.by});
+    case 'feedback':return saveFeedback(folder,await input(o.input));
+    case 'look-sheet':return renderLookSheet(folder,await input(o.input));
     case 'discard':return discardCandidate(folder,{id:o.id,revision});
     case 'restore':return restoreVersion(folder,{id:o.id,revision});
     case 'compare':{const p=await loadProject(folder),{findVersion}=await import('./project.mjs'),b=findVersion(p,o.b||'current'),options={region:o.region?JSON.parse(o.region):undefined,referenceCrop:b.state.crop};return {a:await previewPhoto(folder,o.a||'original',options),b:await previewPhoto(folder,b.id,options),alignment:'同一原片坐标、裁剪与倍率；两侧各自版本的光色与局部处理。完整原构图可单独 preview original 查看。'};}

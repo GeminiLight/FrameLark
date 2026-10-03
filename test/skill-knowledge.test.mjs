@@ -34,3 +34,9 @@ test('multi-photo requests discover curation, narrative and purpose knowledge wi
  const catalog=await runKnowledge('search',{query:'catalog'});assert.equal(catalog.results[0].id,'collection-purpose');
  const tools=await runKnowledge('search',{query:'collection-export'});assert.equal(tools.results[0].id,'collection-plan-tools');
 });
+test('a rejected or indistinguishable look retrieves actual audition and acceptance guidance',async()=>{
+ const taste=await runKnowledge('search',{query:'不好看 风格平庸'});assert.ok(taste.results.some(r=>r.id==='look-direction'));
+ const tools=await runKnowledge('search',{query:'look-sheet'});assert.equal(tools.results[0].id,'look-compare');
+ const evidence=await runKnowledge('search',{query:'preferenceChoices'});assert.equal(evidence.results[0].id,'look-acceptance');
+ const section=await runKnowledge('read',{id:tools.results[0].id});assert.ok(section.text.length>100);
+});

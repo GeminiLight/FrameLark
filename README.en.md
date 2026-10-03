@@ -89,6 +89,8 @@ npm run install:skill
 
 The default destination is `~/.codex/skills/guangjian-retouch`. The first installation prepares image dependencies. The skill keeps the identifier `guangjian-retouch` for compatibility. Reload the skill list or open a new task if it has not appeared.
 
+Compare the original and trial looks on a shared frame before choosing a direction; evaluate cropping separately. Agent-saved trials are not treated as your preferences, and explicitly rejected versions are excluded from preference evidence. [Look development and comparison](skills/guangjian-retouch/references/look-development.md)
+
 Send this to your agent:
 
 ```text

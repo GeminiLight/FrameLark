@@ -40,7 +40,7 @@
 
 接受使用 `accept --id <candidate> --revision <latest> --selection-hash <preview-hash>`。hash 是组合身份，不证明人看过图；宿主仍须实际检查预览。choices 只记录选中项。旧单组格式仍映射为一个项目，可沿用旧 accept 调用。
 
-`tool-schema` 返回提供给宿主 Agent 的 provider-neutral function 定义；修片输入 schema 在 `schemas/edit-plan.schema.json`。`tool --project <project> --input <call.json>` 接受 `{name,arguments}`，修片操作为 `frameyn_propose_edits`、`frameyn_select_edits`、`frameyn_change_guards`；另有六个组图函数，参见 [组图工具](collection-tools.md)。修片用单图目录，组图用 collection 目录。自然语言解析和模型 function calling 由宿主完成；这些定义不会自动注册到模型，也不会启动新的模型服务。不传代码，不使用 eval，不将模型文字拼成 shell。
+`tool-schema` 返回提供给宿主 Agent 的 provider-neutral function 定义；修片输入 schema 在 `schemas/edit-plan.schema.json`。`tool --project <project> --input <call.json>` 接受 `{name,arguments}`，修片操作为 `frameyn_propose_edits`、`frameyn_select_edits`、`frameyn_change_guards`，只读比较为 `frameyn_compare_looks`；另有六个组图函数，参见 [组图工具](collection-tools.md)。修片用单图目录，组图用 collection 目录。自然语言解析和模型 function calling 由宿主完成；这些定义不会自动注册到模型，也不会启动新的模型服务。不传代码，不使用 eval，不将模型文字拼成 shell。
 
 ## 批注 JSON
 
@@ -60,6 +60,8 @@
 
 ## 查看与比较
 
+光色与构图方向比较使用 `look-sheet --input`；2～6 个固定版本，同一 revision。color 共用 referenceVersion 的裁剪与倍率，composition 各自保留画幅并显示保留面积；不会接受试片或写入编辑历史。JSON 及验收方法见 [光色定调](look-development.md)。
+
 ```text
 node <skill>/scripts/cli.mjs inspect --project <project>
 node <skill>/scripts/cli.mjs controls
@@ -73,6 +75,8 @@ compare 两侧使用 B 版相同裁剪范围和倍率；另外查看 original �
 ## 版本与导出
 
 accept/discard/restore 使用 --id，带 --revision 可防止竞态。accept 还核对候选基础照片、意图和批注是否改变。参数渲染不写回原片；接受时记录选择，导出记录版本与实际输出尺寸。
+
+Agent 自行保存试片用 `accept --by agent`；默认 by:user 对应用户明确接受。`feedback --input` 记录用户对已保存版本的明确 reject/prefer/neutral；不改像素或删除历史。后续个人偏好用 `preferenceChoices`，排除拒绝或中性试片。Agent 试修被用户明确 prefer 后，才会成为偏好证据。
 
 share：JPEG 90%、2048 px、96 ppi；print：JPEG 98%、6000 px、300 ppi；original：PNG、8192 px、300 ppi。最长边上限 8192，总输出最多 1600 万像素，不能把「原尺寸」理解为无限尺寸。工具不放大，不复制源 EXIF/GPS。
 

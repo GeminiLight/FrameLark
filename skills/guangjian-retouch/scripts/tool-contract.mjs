@@ -4,6 +4,7 @@ import {settingsBounds, object, fail} from './engine/edit-values.js';
 import {createCandidate, selectCandidateItems, changeGuards} from './project.mjs';
 import {previewPhoto} from './render.mjs';
 import {collectionTools,isCollectionTool,dispatchCollectionTool} from './collection-contract.mjs';
+import {renderLookSheet} from './look-sheet.mjs';
 
 const id={type:'string',pattern:'^[-\\w]{1,80}$'},idList={type:'array',maxItems:32,uniqueItems:true,items:id};
 const number=(minimum,maximum)=>({type:'number',minimum,maximum});
@@ -22,7 +23,8 @@ const guardSchema=record({revision:{type:'integer',minimum:1},operation:{enum:['
 const definitions=[
   {name:'frameyn_propose_edits',description:'Create a previewable structured plan on the inspected fixed base version. Values are absolute targets. Do not execute model-generated code.',parameters:editPlanSchema},
   {name:'frameyn_select_edits',description:'Recompile selected items from the pinned base, then preview their combined result. Requires latest revision and selectionHash.',parameters:selectionSchema},
-  {name:'frameyn_change_guards',description:'Lock accepted parameters/local layers, protect accepted pixels, or propose explicit unlocking. Unlocking produces a candidate to inspect and accept.',parameters:guardSchema}
+  {name:'frameyn_change_guards',description:'Lock accepted parameters/local layers, protect accepted pixels, or propose explicit unlocking. Unlocking produces a candidate to inspect and accept.',parameters:guardSchema},
+  {name:'frameyn_compare_looks',description:'Render 2-6 fixed versions into a comparison sheet without accepting or changing edits. Color mode shares reference framing; composition mode preserves individual crops. Inspect actual images, errors and detail before judging aesthetics.',parameters:record({revision:{type:'integer',minimum:1},versions:{type:'array',minItems:2,maxItems:6,uniqueItems:true,items:id},mode:{enum:['color','composition']},referenceVersion:id},['revision','versions'])}
 ];
 export function hostToolContract(){return {kind:'provider-neutral-host-contract',schemaVersion:2,tools:[...definitions,...collectionTools].map(definition=>({type:'function',function:definition})),execution:'Pass {name, arguments} as JSON to: node cli.mjs tool --project <photo-or-collection-folder> --input <call.json|->. The host agent handles natural-language interpretation and model tool-calling; this runtime makes no model API calls.',boundaries:['Only listed operations and finite allowlisted parameters are accepted.','Tool definitions do not register tools with any model provider automatically.','Collection tools use the collection folder; photo edits use photos/<stable-ID> project folders returned by collection-inspect.','Inspect actual previews; accept is a separate CLI/UI operation with revision and selectionHash.']};}
 export async function dispatchHostTool(folder,call){
@@ -30,6 +32,7 @@ export async function dispatchHostTool(folder,call){
   const methods={frameyn_propose_edits:createCandidate,frameyn_select_edits:selectCandidateItems,frameyn_change_guards:changeGuards};
   if(!call.arguments||typeof call.arguments!=='object'||Array.isArray(call.arguments))fail('INVALID_TOOL_CALL','工具参数必须为 JSON 对象。');
   if(isCollectionTool(call.name))return dispatchCollectionTool(folder,call);
+  if(call.name==='frameyn_compare_looks')return renderLookSheet(folder,call.arguments);
   if(!Object.hasOwn(methods,call.name))fail('UNKNOWN_TOOL','未知工具名；请读取 tool-schema。');
   if(call.name==='frameyn_propose_edits'&&!Array.isArray(call.arguments.items))fail('INVALID_ITEMS','宿主结构化工具需要 items；旧单组格式请使用 candidate 命令。');
   // Explicit dispatch, never eval, Function, shell execution or arbitrary imports.
