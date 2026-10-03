@@ -177,3 +177,17 @@
 @media(prefers-reduced-motion:reduce) {
   #tab-agent .agent-typing::before { animation:none; }
 }
+
+.agent-model-source {display:block;color:var(--muted);font-size:11px;margin:5px 0 10px;}
+.agent-partial {white-space:pre-wrap;color:var(--ink);font-size:13px;line-height:1.8;}
+.agent-tier-label {display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);}
+.vision-model-tiers {border:1px solid var(--line);border-radius:8px;padding:12px;margin:16px 0;}
+.vision-model-tiers legend {font-size:13px;}
+.vision-tier-row {display:grid;grid-template-columns:40px minmax(0,1fr) 85px;gap:10px;align-items:center;margin:10px 0;}
+.vision-tier-row strong {font-size:12px;}
+.vision-model-tiers p,.codex-discovery {font-size:12px;line-height:1.7;color:var(--muted);}
+.codex-discovery button {margin-left:10px;}
+@media(max-width:480px){.vision-tier-row{grid-template-columns:1fr 85px}.vision-tier-row strong{grid-column:1/-1}}
+
+.vision-tier-row label {display:grid;gap:6px;font-size:11px;color:var(--muted);min-width:0;}
+#codex-use,#vision-default-tiers {min-height:36px;padding:7px 10px;border:1px solid var(--line);border-radius:4px;background:transparent;color:var(--ink);font:inherit;font-size:12px;cursor:pointer;}

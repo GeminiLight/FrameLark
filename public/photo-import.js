@@ -16,7 +16,7 @@ export function importProblem(error) {
   const messages={
     EMPTY:['文件是空的','从原照片重新下载或导出，再选择一次。'],
     SIZE:['文件超过 30 MB','导出一份小于 30 MB 的 JPEG/PNG 副本；原文件无需删除。'],
-    HEIC:['暂不支持 HEIC / HEIF','先转换为 JPEG/PNG 再添加。改文件后缀不能转换格式。'],
+    HEIC:['HEIC / HEIF 未能转换','macOS 本地工作台可以自动转换；其他环境请先转为 JPEG/PNG。改文件后缀不能转换格式。'],
     RAW:['暂不支持 RAW / TIFF 原始格式','在相机或照片软件中导出 JPEG/PNG 副本，再继续修片。'],
     FORMAT:['不是支持的照片格式','请选择 JPG、PNG、WebP 或 AVIF；文件内容必须是照片。'],
     HEADER:['照片头信息不完整','重新下载原文件，或从照片软件重新导出 JPEG/PNG。'],
@@ -109,10 +109,10 @@ function avifInfo(b) {
   };
   walk(0,b.length);return {width,height,orientation:1};
 }
-export function inspectPhotoHeader(input,{size=input.byteLength,name='',type=''}={}) {
+export function inspectPhotoHeader(input,{size=input.byteLength,name='',type='',maxBytes=importLimits.bytes}={}) {
   const b=input instanceof Uint8Array ? input:new Uint8Array(input);
   if(!size)throw new PhotoImportError('EMPTY');
-  if(size>importLimits.bytes)throw new PhotoImportError('SIZE');
+  if(size>maxBytes)throw new PhotoImportError('SIZE');
   let format,info;
   if(b[0]===0xff && b[1]===0xd8 && b[2]===0xff){format='jpeg';info=jpegInfo(b);}
   else if(text(b,0,8)==='\x89PNG\r\n\x1a\n'){format='png';info=pngInfo(b);}
@@ -135,13 +135,13 @@ export function inspectPhotoHeader(input,{size=input.byteLength,name='',type=''}
   if(width*height>importLimits.pixels || Math.max(width,height)>importLimits.edge)throw new PhotoImportError('DIMENSIONS',`${width.toLocaleString()} × ${height.toLocaleString()} px`);
   return {format,mime:mime[format],width,height,pixels:width*height,orientation,displayWidth:orientation>=5 ? height:width,displayHeight:orientation>=5 ? width:height};
 }
-export async function inspectPhotoFile(file) {
+export async function inspectPhotoFile(file,{maxBytes=importLimits.bytes}={}) {
   if(!file.size)throw new PhotoImportError('EMPTY');
-  if(file.size>importLimits.bytes)throw new PhotoImportError('SIZE');
+  if(file.size>maxBytes)throw new PhotoImportError('SIZE');
   let bytes;
   try {bytes=await file.slice(0,importLimits.headerBytes).arrayBuffer();}
   catch {throw new PhotoImportError('READ');}
-  const metadata=inspectPhotoHeader(bytes,{size:file.size,name:file.name,type:file.type});
+  const metadata=inspectPhotoHeader(bytes,{size:file.size,name:file.name,type:file.type,maxBytes});
   if(['jpeg','png'].includes(metadata.format)) {
     let tail;
     try {tail=new Uint8Array(await file.slice(Math.max(0,file.size-4096)).arrayBuffer());}
@@ -178,16 +178,18 @@ export function loadPhotoImage(src,{signal,metadata,timeoutMs=importLimits.timeo
     image.src=src;
   });
 }
-export async function runImportBatch(rows,{signal,inspect=inspectPhotoFile,capacity,commit,onChange=()=>{}}) {
+export async function runImportBatch(rows,{signal,inspect=inspectPhotoFile,prepare=async file=>file,capacity,commit,onChange=()=>{}}) {
   for(const row of rows) {
     if(row.status==='success')continue;
     row.status='reading';row.problem=null;onChange(row);
     try {
       if(signal?.aborted)throw new PhotoImportError('CANCELLED');
-      const metadata=await boundedRead(()=>inspect(row.file),signal);
+      const prepared=await boundedRead(()=>prepare(row.file,signal),signal);
+      const metadata=await boundedRead(()=>inspect(prepared,{maxBytes:prepared===row.file?importLimits.bytes:220_000_000}),signal);
+      if(prepared!==row.file)metadata.convertedFrom='HEIC';
       if(signal?.aborted)throw new PhotoImportError('CANCELLED');
       checkImportCapacity(metadata,capacity());
-      row.photo=await commit(row.file,metadata,signal);
+      row.photo=await commit(prepared,metadata,signal,row.file);
       row.status='success';row.metadata={...metadata,displayWidth:row.photo?.width || metadata.displayWidth,displayHeight:row.photo?.height || metadata.displayHeight};
     } catch(error) {row.status='failed';row.problem=importProblem(error);}
     onChange(row);
