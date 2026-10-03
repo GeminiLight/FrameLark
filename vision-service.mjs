@@ -1,8 +1,9 @@
 import { readFile, mkdir, writeFile, rename, chmod, rm } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import {requestCodex} from './codex-vision.mjs';
+import {CodexAppServer,CodexError} from './codex-app-server.mjs';
+import {normalizeModelTiers,routeModel} from './public/model-routing.js';
 
-export const defaultVisionModel = 'gpt-6-astra';
+export const defaultVisionModel = 'gpt-6.1-sol';
 export const defaultVisionEndpoint = 'https://api.openai.com/v1/responses';
 
 export class VisionError extends Error {
@@ -49,11 +50,13 @@ export function invalidStructuredPaths(value,schema,path='$') {
 }
 
 function validateConfiguration(value) {
-  const model = String(value.model || defaultVisionModel).trim();
+  let tiers;
+  try {tiers=normalizeModelTiers(value.tiers,value.model || null);}catch(error){throw new VisionError('INVALID_MODEL',error.message,{status:400});}
+  const model = tiers.standard.model;
   if(value.provider && !['api','codex'].includes(value.provider)) throw new VisionError('INVALID_PROVIDER','不支持的模型来源。',{status:400});
   if(value.provider === 'codex') {
     if(!/^[a-zA-Z0-9._:/-]{1,120}$/.test(model)) throw new VisionError('INVALID_MODEL','请填写有效的模型名称。',{status:400});
-    return {provider:'codex',model,apiKey:'',endpoint:defaultVisionEndpoint};
+    return {provider:'codex',model,tiers,apiKey:'',endpoint:defaultVisionEndpoint};
   }
   const apiKey = String(value.apiKey || '').trim();
   let endpoint;
@@ -67,7 +70,7 @@ function validateConfiguration(value) {
   if (/\/v1\/?$/.test(endpoint.pathname)) endpoint.pathname = endpoint.pathname.replace(/\/$/,'') + '/chat/completions';
   if (!/^[a-zA-Z0-9._:/-]{1,120}$/.test(model)) throw new VisionError('INVALID_MODEL','请填写有效的模型名称。',{status:400});
   if (!apiKey || apiKey.length > 2000 || /[\r\n]/.test(apiKey)) throw new VisionError('AI_NOT_CONFIGURED','尚未配置视觉模型密钥。',{status:503});
-  return {model,apiKey,endpoint:endpoint.href};
+  return {provider:'api',model,tiers,apiKey,endpoint:endpoint.href};
 }
 
 function chatPayload(payload, config) {
@@ -136,9 +139,11 @@ function providerError(status, code, retryAfter) {
   return new VisionError('PROVIDER_UNAVAILABLE','视觉模型服务暂时不可用，可稍后重试。',{retryable:true});
 }
 
-export async function createVisionService({env = process.env, fetchImpl = fetch, timeoutMs = 110_000, root = process.cwd(), codexRequest = requestCodex} = {}) {
+export async function createVisionService({env = process.env, fetchImpl = fetch, timeoutMs = 110_000, root = process.cwd(), codexRequest = null, codexClient = null} = {}) {
   const settingsFile = resolve(root,'.guangjian','vision.json');
   const cloud=env.VERCEL==='1';
+  const codex=codexClient || new CodexAppServer({root});
+  const invokeCodex=codexRequest || ((payload,options)=>codex.request(payload,options));
   const fileEnv = cloud ? {}:await readEnvironmentFile(resolve(root,'.env.local'));
   let saved = {};
   try { if(!cloud)saved = JSON.parse(await readFile(settingsFile,'utf8')); }
@@ -149,6 +154,8 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
     model:env.OPENAI_MODEL || fileEnv.OPENAI_MODEL || saved.model || defaultVisionModel,
     endpoint:env.OPENAI_API_URL || fileEnv.OPENAI_API_URL || saved.endpoint || defaultVisionEndpoint
   };
+  configuration.tiers=normalizeModelTiers(env.OPENAI_MODEL || fileEnv.OPENAI_MODEL ? null:saved.tiers,env.OPENAI_MODEL || fileEnv.OPENAI_MODEL || saved.model || null);
+  configuration.model=configuration.tiers.standard.model;
   let verifiedAt = null;
   let lastError = null;
   let connectionGeneration = 0;
@@ -158,10 +165,16 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
     connectionStatus:!isConfigured() ? 'unconfigured' : lastError ? 'error' : verifiedAt ? 'ready' : 'configured',
     verifiedAt,lastError
   });
-  const publicConfiguration = () => ({...status(),model:configuration.model,endpoint:configuration.endpoint,hasKey:Boolean(configuration.apiKey),provider:configuration.provider || 'api'});
+  const publicConfiguration = () => ({...status(),model:configuration.model,endpoint:configuration.endpoint,hasKey:Boolean(configuration.apiKey),provider:configuration.provider || 'api',tiers:configuration.tiers,transport:configuration.provider==='codex'?'app-server':'http'});
 
-  async function request(payload, {candidate = configuration, record = true, signal} = {}) {
-    const config = validateConfiguration(candidate);
+  async function request(payload, {candidate = configuration, record = true, signal, sessionKey, onEvent, tier='auto', task} = {}) {
+    let selected;
+    const baseConfig=validateConfiguration(candidate);
+    const taskName=task || ({vision_connection_probe:'probe',photo_series_review:'series',photo_analysis:'analysis',photo_reassessment:'assessment'}[payload.text?.format?.name] || 'advisor');
+    try {selected=routeModel(baseConfig.tiers,{task:taskName,tier});}catch(error){throw new VisionError('INVALID_TIER',error.message,{status:400});}
+    const config={...baseConfig,model:selected.model};
+    payload={...payload,reasoning:{...payload.reasoning,effort:selected.effort}};
+    const emit=event=>onEvent?.({...event,model:selected.model,tier:selected.tier});
     if(cloud && config.provider === 'codex') throw new VisionError('CODEX_LOCAL_ONLY','本机 Codex 仅支持本地工作台。',{status:403});
     const chat = /\/chat\/completions\/?$/.test(new URL(config.endpoint).pathname);
     const controller = new AbortController();
@@ -172,8 +185,9 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
     const startedAt = Date.now();
     try {
       let result;
-      if(config.provider === 'codex') result = await codexRequest(payload,{model:config.model,signal:controller.signal});
+      if(config.provider === 'codex') result = await invokeCodex(payload,{model:config.model,effort:selected.effort,signal:controller.signal,sessionKey,onEvent:emit});
       else {
+      emit({type:'progress',stage:'analyzing'});
       const response = await fetchImpl(config.endpoint,{
         method:'POST',signal:controller.signal,redirect:'error',
         headers:{'Authorization':'Bearer ' + config.apiKey,'Content-Type':'application/json','User-Agent':'GuangjianPhotoStudio/0.1'},
@@ -187,6 +201,7 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
       try { result = await response.json(); }
       catch { throw new VisionError('INVALID_MODEL_RESPONSE','模型返回了无法读取的结果，请重试。',{retryable:true}); }
       }
+      emit({type:'progress',stage:'validating'});
       const output = modelOutput(result,chat);
       let value;
       try { value = JSON.parse(output); }
@@ -200,9 +215,9 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
       if (record && candidate === configuration) { verifiedAt = analyzedAt; lastError = null; }
       const hostname = new URL(config.endpoint).hostname;
       const provider = config.provider === 'codex' ? 'Codex Subscription' : hostname === 'api.openai.com' ? 'OpenAI' : /(^|\.)(kimi\.(com|ai)|moonshot\.(cn|ai))$/.test(hostname) ? 'Kimi' : hostname;
-      return {value,provenance:{source:'vision',provider,model:typeof result.model === 'string' ? result.model : config.model,responseId:typeof result.id === 'string' ? result.id : null,analyzedAt,elapsedMs:Date.now()-startedAt}};
+      return {value,provenance:{source:'vision',provider,tier:selected.tier,effort:selected.effort,...(result.threadId?{threadId:result.threadId}:{}),model:typeof result.model === 'string' ? result.model : config.model,responseId:typeof result.id === 'string' ? result.id : null,analyzedAt,elapsedMs:Date.now()-startedAt}};
     } catch (error) {
-      const failure = signal?.aborted ? new VisionError('CANCELLED','这次视觉请求已取消。',{status:499,retryable:true}) : controller.signal.aborted ? new VisionError('MODEL_TIMEOUT','视觉审片等待超时，请重试。',{retryable:true}) : error instanceof VisionError ? error : new VisionError(controller.signal.aborted ? 'MODEL_TIMEOUT' : 'NETWORK_ERROR',controller.signal.aborted ? '视觉审片等待超时，请重试。' : '未能连接视觉模型服务，请检查网络后重试。',{retryable:true});
+      const failure = signal?.aborted ? new VisionError('CANCELLED','这次视觉请求已取消。',{status:499,retryable:true}) : controller.signal.aborted ? new VisionError('MODEL_TIMEOUT','视觉审片等待超时，请重试。',{retryable:true}) : error instanceof CodexError ? new VisionError(error.code,error.message,{status:error.status,retryable:error.retryable}) : error instanceof VisionError ? error : new VisionError(controller.signal.aborted ? 'MODEL_TIMEOUT' : 'NETWORK_ERROR',controller.signal.aborted ? '视觉审片等待超时，请重试。' : '未能连接视觉模型服务，请检查网络后重试。',{retryable:true});
       if (record && candidate === configuration && failure.code !== 'CANCELLED') lastError = failure.toJSON();
       throw failure;
     } finally { clearTimeout(timer); signal?.removeEventListener('abort',cancel); }
@@ -212,8 +227,14 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
     const generation = ++connectionGeneration;
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new VisionError('INVALID_REQUEST','连接设置无法读取。',{status:400});
     const endpoint = value.endpoint || configuration.endpoint;
-    const candidate = validateConfiguration({provider:value.provider || configuration.provider,apiKey:value.apiKey || configuration.apiKey,model:value.model || configuration.model,endpoint});
+    const candidate = validateConfiguration({provider:value.provider || configuration.provider,apiKey:value.apiKey || configuration.apiKey,model:value.model || configuration.model,tiers:value.tiers || (value.model && value.model!==configuration.model ? null:configuration.tiers),endpoint});
     if (candidate.provider !== 'codex' && !value.apiKey && new URL(candidate.endpoint).origin !== new URL(configuration.endpoint).origin) throw new VisionError('API_KEY_REQUIRED','更换服务时需要重新填写对应密钥。',{status:400});
+    if(candidate.provider==='codex'&&!codexRequest) {
+      if(cloud)throw new VisionError('CODEX_LOCAL_ONLY','本机 Codex 仅支持本地工作台。',{status:403});
+      const info=await discoverCodex();
+      if(!info.authenticated)throw new VisionError('CODEX_LOGIN_REQUIRED','请先运行 codex login，使用 ChatGPT 登录。',{status:401});
+      for(const entry of Object.values(candidate.tiers)){const available=info.models.find(item=>item.id===entry.model);if(!available || !available.efforts.includes(entry.effort))throw new VisionError('INVALID_MODEL','所选模型或思考强度不在当前 Codex 列表中。',{status:400});}
+    }
     const bytes = await readFile(new URL('./public/assets/vision-probe.png',import.meta.url));
     const probeSchema = {type:'object',additionalProperties:false,properties:{shape:{type:'string',enum:['circle','square','triangle','other']},foreground:{type:'string',enum:['red','blue','green','yellow','other']},background:{type:'string',enum:['red','blue','green','yellow','other']}},required:['shape','foreground','background']};
     const result = await request({
@@ -243,5 +264,9 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
     lastError = null;
     return publicConfiguration();
   }
-  return {isConfigured,status,publicConfiguration,request,connect};
+  async function discoverCodex(){
+    if(cloud)throw new VisionError('CODEX_LOCAL_ONLY','本机 Codex 仅支持本地工作台。',{status:403});
+    try{return await codex.info();}catch(error){throw new VisionError(error.code || 'CODEX_FAILED',error.message,{status:error.status || 503,retryable:error.retryable});}
+  }
+  return {isConfigured,status,publicConfiguration,request,connect,discoverCodex,close:()=>codex.stop()};
 }

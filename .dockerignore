@@ -3,7 +3,7 @@
 !package.json
 !server.mjs
 !vision-service.mjs
-!codex-vision.mjs
+!codex-app-server.mjs
 !series-review.mjs
 !public/
 !public/**

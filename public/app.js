@@ -1,4 +1,6 @@
 import {exchangeSchema,validateExchange,restoreWebExchange} from './project-exchange.js';
+import {readVisionStream,partialReply} from './vision-stream.js';
+import {defaultModelTiers,tierNames} from './model-routing.js';
 import {importLimits,importAccept,runImportBatch,loadPhotoImage,PhotoImportError} from './photo-import.js';
 import {enhanceSelectControls} from './select-control.js?v=3';
 import {readServiceJSON,requestFailure} from './service-response.js';
@@ -1268,7 +1270,7 @@ function renderReviewWait() {
   const elapsed=elapsedReview(task);
   $('#vision-notice-summary').textContent=task?.status==='queued' ? '等待审片 · 可继续编辑':`${task?.message?.includes('自动重试') ? '校对建议 · 自动重试一次':'正在审片'}${elapsed ? ' · '+elapsed:''}`;
 }
-setInterval(()=>{renderReviewWait();const photo=currentPhoto(),label=$('.agent-typing span');if(photo?.agentBusy&&label){const seconds=Math.floor((Date.now()-photo.agentStartedAt)/1000);label.textContent=seconds<15?'正在查看照片和批注…':`已等待 ${seconds} 秒 · 可以继续查看照片，或取消`; }},1000);
+setInterval(()=>{renderReviewWait();renderAgentProgress();},1000);
 
 function renderReviewConclusion() {
   const analysis = state.analysis;
@@ -1378,12 +1380,35 @@ function reflectPhotoAnalysis(photo) {
   renderAnalysis();renderPresets();renderAgent();renderAnalysisStatus();refreshActions();
 }
 
+function fillModelTiers(tiers) {
+  for(const [tier,entry] of Object.entries(tiers)){$(`#tier-${tier}-model`).value=entry.model;$(`#tier-${tier}-effort`).value=entry.effort;}
+}
+function readModelTiers() {
+  return Object.fromEntries(Object.keys(tierNames).map(tier=>[tier,{model:$(`#tier-${tier}-model`).value.trim(),effort:$(`#tier-${tier}-effort`).value}]));
+}
+async function discoverLocalCodex() {
+  $('#codex-use').hidden=true;
+  $('#codex-discovery-status').textContent='正在检查本机 Codex…';
+  try {
+    const response=await fetch('/api/codex-status',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    const info=await response.json();if(!response.ok)throw new Error(info.error?.message || '暂时无法读取 Codex 状态。');
+    $('#vision-model-options').innerHTML=info.models.map(model=>`<option value="${escapeHtml(model.id)}">${escapeHtml(model.name)}</option>`).join('');
+    $('#codex-discovery-status').textContent=info.authenticated?'已检测到 Codex 的 ChatGPT 登录。':'请先在终端运行 codex login，使用 ChatGPT 登录。';
+    $('#codex-use').hidden=!info.authenticated;
+  }catch(error){$('#codex-discovery-status').textContent=error.message;}
+}
+$('#vision-default-tiers').addEventListener('click',()=>fillModelTiers(defaultModelTiers()));
+$('#codex-use').addEventListener('click',event=>{
+  $('#vision-provider').value='codex';updateVisionProvider();fillModelTiers(defaultModelTiers());$('#vision-remember').checked=true;connectVision(event);
+});
+
 function updateVisionProvider() {
   const codex = $('#vision-provider').value === 'codex';
   $('#vision-api-key').closest('label').hidden = codex;
   $('#vision-endpoint').closest('details').hidden = codex;
   $('#vision-endpoint').required = !codex;
   $('#vision-codex-note').hidden = !codex;
+  $('.vision-remember small').textContent=codex?'仅保存模型与档位；登录信息仍由 Codex 管理。':'密钥保存在本机服务的私有配置中，不进入浏览器存储。';
 }
 $('#vision-provider').addEventListener('change',updateVisionProvider);
 
@@ -1409,6 +1434,9 @@ async function openVisionSettings() {
     $('#vision-provider').value = settings.provider || 'api';
     updateVisionProvider();
     $('#vision-model').value = settings.model;
+    fillModelTiers(settings.tiers || defaultModelTiers());
+    $('#codex-discovery').hidden=!editable;
+    if(editable)discoverLocalCodex();
     $('#vision-endpoint').value = settings.endpoint;
     $('#vision-api-key').placeholder = settings.hasKey ? '已配置密钥；留空保留' : '仅交给本机服务';
     $('#vision-connection-summary').textContent = settings.connectionStatus === 'ready' ? `${settings.model} · 图片识别已验证` : settings.connectionStatus === 'error' ? `${settings.model} · ${settings.lastError?.message || '上次请求未完成'}` : settings.aiAvailable ? `${settings.model} · 已配置，等待验证` : '尚未配置视觉服务';
@@ -1439,7 +1467,7 @@ async function connectVision(event) {
   $('#vision-settings-error').hidden = true;
   const timeout = setTimeout(() => controller.abort('timeout'),95_000);
   try {
-    const response = await fetch('/api/vision-config',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('#vision-provider').value,model:$('#vision-model').value.trim(),apiKey:$('#vision-api-key').value.trim(),endpoint:$('#vision-endpoint').value.trim(),remember:$('#vision-remember').checked})});
+    const response = await fetch('/api/vision-config',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:$('#vision-provider').value,model:$('#tier-standard-model').value.trim(),tiers:readModelTiers(),apiKey:$('#vision-api-key').value.trim(),endpoint:$('#vision-endpoint').value.trim(),remember:$('#vision-remember').checked})});
     const result = await response.json();
     if (!response.ok) {
       $('#vision-settings-error').textContent = normalizeVisionFailure(result).message;
@@ -1758,10 +1786,10 @@ function renderAgent({follow=false}={}) {
     thread.innerHTML = photo.conversation.map((message,index) => message.role === 'status'
       ? `<div class="agent-request-status" role="status">${escapeHtml(message.text)}${message.requestQuestion ? `<button type="button" data-agent-retry="${index}" ${photo.agentBusy ? 'disabled':''}>继续这条提问</button>`:''}</div>` : message.role === 'user'
       ? `<div class="agent-message user">${escapeHtml(message.text)}${agentMessageContext(message,index)}</div>`
-      : `<div class="agent-message assistant" data-reply-id="${escapeHtml(message.id || String(index))}"><div class="agent-message-head"><i><img src="/assets/guangjian-icon.svg?v=4" alt="" /></i>帧映 · ${message.source === 'ai' ? '审美顾问' : '本地引导'}</div>${message.failure ? `<div class="agent-failure"><p>${escapeHtml(message.failure)}</p><button type="button" data-agent-retry="${index}" ${photo.agentBusy || !state.aiAvailable ? 'disabled':''}>用最新批注重试</button></div>`:''}<div class="agent-message-body">${escapeHtml(message.text)}</div>${message.principle ? `<p class="agent-principle"><b>摄影笔记</b> · ${escapeHtml(message.principle)}</p>` : ''}${message.clarification ? `<div class="agent-clarification"><strong>${escapeHtml(message.clarification.question)}</strong>${message.clarification.choices.map(choice=>`<button type="button" data-agent-intent="${escapeHtml(choice)}">${escapeHtml(choice)}</button>`).join('')}</div>` : ''}${agentActionMarkup(message,index)}</div>`).join('');
+      : `<div class="agent-message assistant" data-reply-id="${escapeHtml(message.id || String(index))}"><div class="agent-message-head"><i><img src="/assets/guangjian-icon.svg?v=4" alt="" /></i>帧映 · ${message.source === 'ai' ? '审美顾问' : '本地引导'}</div>${message.provenance?.model ? `<small class="agent-model-source">${escapeHtml(message.provenance.model)} · ${escapeHtml(tierNames[message.provenance.tier] || '标准')}</small>`:''}${message.failure ? `<div class="agent-failure"><p>${escapeHtml(message.failure)}</p><button type="button" data-agent-retry="${index}" ${photo.agentBusy || !state.aiAvailable ? 'disabled':''}>用最新批注重试</button></div>`:''}<div class="agent-message-body">${escapeHtml(message.text)}</div>${message.principle ? `<p class="agent-principle"><b>摄影笔记</b> · ${escapeHtml(message.principle)}</p>` : ''}${message.clarification ? `<div class="agent-clarification"><strong>${escapeHtml(message.clarification.question)}</strong>${message.clarification.choices.map(choice=>`<button type="button" data-agent-intent="${escapeHtml(choice)}">${escapeHtml(choice)}</button>`).join('')}</div>` : ''}${agentActionMarkup(message,index)}</div>`).join('');
   }
   hydrateIcons(thread);
-  if (photo?.agentBusy) thread.insertAdjacentHTML('beforeend','<div class="agent-typing" role="status"><span>正在查看照片和批注…</span></div>');
+  if (photo?.agentBusy) {thread.insertAdjacentHTML('beforeend','<div class="agent-typing" role="status"><span></span><p class="agent-partial"></p></div>');renderAgentProgress();}
   $('#agent-input').value=photo?.agentDraft || '';
   resizeAgentInput();refreshAgentComposer();
   $('#agent-prompts').querySelectorAll('button').forEach(button => { button.disabled = !photo || !state.analysis || Boolean(photo.agentBusy); });
@@ -1773,6 +1801,14 @@ function renderAgent({follow=false}={}) {
   agentReading.set(photo?.id,reading);
   if(thread.clientHeight>0)restoreAgentReading();
 }
+function renderAgentProgress() {
+  const photo=currentPhoto(),label=$('.agent-typing span'),partial=$('.agent-partial');
+  if(!photo?.agentBusy||!label)return;
+  const seconds=Math.floor((Date.now()-photo.agentStartedAt)/1000);
+  label.textContent=[photo.agentProgress || '正在准备照片',photo.agentModel,photo.agentTierUsed?tierNames[photo.agentTierUsed]:'',seconds>0?`${seconds} 秒`:''].filter(Boolean).join(' · ');
+  if(partial)partial.textContent=photo.agentPartial || '';
+}
+
 function restoreAgentReading() {
   const thread=$('#agent-thread'),reading=agentReading.get(currentPhotoId);
   thread.scrollTop=reading?.follow===false ? reading.offset:thread.scrollHeight;
@@ -1841,19 +1877,27 @@ async function askDesignAgent(question, focusId = currentPhoto()?.agentFocusId) 
     focusAnnotation:annotationContext.focusNumber
   };
   photo.conversation.push({role:'user',text,context:{annotations:structuredClone(annotationContext.items),focusNumber:annotationContext.focusNumber}});
-  photo.agentBusy = true;photo.agentStartedAt=Date.now();
+  photo.agentBusy = true;photo.agentStartedAt=Date.now();photo.agentPartial='';photo.agentProgress='正在准备照片';photo.agentModel='';photo.agentTierUsed='';
   scheduleDraftSave();
   $('#agent-annotations').open=false;
   renderAgent({follow:true});
   let answer, source = 'local',deliver=false,failure='';
   try {
     if (state.aiAvailable) {
-      const response = await fetch('/api/design-chat',{method:'POST',signal:request.controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        image:currentAgentPreview(annotationContext.focusId),question:text,history,context:requestContext
+      const response = await fetch('/api/design-chat',{method:'POST',signal:request.controller.signal,headers:{'Content-Type':'application/json','Accept':'application/x-ndjson'},body:JSON.stringify({
+        image:currentAgentPreview(annotationContext.focusId),question:text,history,context:requestContext,sessionKey:photo.projectId || photo.id,tier:$('#agent-model-tier').value
       })});
-      const result=await readServiceJSON(response,'视觉对话');
+      let streamed='';
+      const result=await readVisionStream(response,event=>{
+        if(!advisorRequests.active(request)||!photoSessions.includes(photo))return;
+        if(event.model)photo.agentModel=event.model;
+        if(event.tier)photo.agentTierUsed=event.tier;
+        if(event.type==='delta'){streamed+=event.delta;photo.agentPartial=partialReply(streamed);}
+        if(event.type==='progress')photo.agentProgress=({connecting:'正在连接 Codex',analyzing:'正在分析当前照片',validating:'正在检查建议参数'})[event.stage] || '正在处理';
+        if(currentPhoto()===photo)renderAgentProgress();
+      });
       if(!response.ok)throw Object.assign(new Error(normalizeVisionFailure(result).message),{visionFailure:normalizeVisionFailure(result)});
-      answer=normalizeDesignReply(result.answer);
+      answer={...normalizeDesignReply(result.answer),provenance:result.answer.provenance};
       source = 'ai';
       photo.agentFallback = false;
     } else answer = localDesignReply(text,localContext);
@@ -1882,7 +1926,7 @@ async function askDesignAgent(question, focusId = currentPhoto()?.agentFocusId) 
   if(source==='local' && answer.action.kind==='none' && localContext.currentAdjustments && localContext.analysis?.recommendations?.some(item=>Object.values(item.adjustments).some(Boolean)) && /亮|色|层次|对比/.test(text)) answer.reply+=' 已应用的原片建议不会重复叠加；请结合当前效果继续判断。';
   const actionFingerprint=JSON.stringify({question:text,action:answer.action});
   if(capturedLayers.some(item=>item.fingerprint===actionFingerprint)) {answer.action.kind='none';answer.reply='这组微调已生效。可先对比当前效果；如需继续调整，请具体说明希望保留或改动的部分。';}
-  photo.conversation.push({role:'assistant',text:answer.reply,principle:answer.principle,action:answer.action,clarification:answer.clarification,source,failure,requestQuestion:text,applied:false,id:crypto.randomUUID(),baseSignature,baseIntent,baseAnnotations:annotationContext.signature,actionFingerprint});
+  photo.conversation.push({role:'assistant',text:answer.reply,provenance:answer.provenance,principle:answer.principle,action:answer.action,clarification:answer.clarification,source,failure,requestQuestion:text,applied:false,id:crypto.randomUUID(),baseSignature,baseIntent,baseAnnotations:annotationContext.signature,actionFingerprint});
   if (photo.conversation.length > 24) photo.conversation.splice(0,photo.conversation.length - 24);
   scheduleDraftSave();
   if (currentPhoto() === photo) {
