@@ -1458,6 +1458,118 @@
         "继承",
         "局部"
       ]
+    },
+    {
+      "id": "workflow-1",
+      "kind": "workflow",
+      "file": "reviewed-workflow.md",
+      "section": "结构化诊断",
+      "tags": [
+        "diagnosis",
+        "诊断",
+        "复评",
+        "依据",
+        "画面位置"
+      ]
+    },
+    {
+      "id": "workflow-2",
+      "kind": "workflow",
+      "file": "reviewed-workflow.md",
+      "section": "流程阶段与交付检查",
+      "tags": [
+        "workflow",
+        "流程",
+        "交付",
+        "阶段",
+        "检查"
+      ]
+    },
+    {
+      "id": "workflow-3",
+      "kind": "workflow",
+      "file": "reviewed-workflow.md",
+      "section": "独立复审任务包",
+      "tags": [
+        "review-packet",
+        "独立",
+        "复审",
+        "审片者"
+      ]
+    },
+    {
+      "id": "workflow-4",
+      "kind": "workflow",
+      "file": "reviewed-workflow.md",
+      "section": "调整来源与显式重建",
+      "tags": [
+        "edit-sources",
+        "rebuild",
+        "继承",
+        "重建",
+        "叠加"
+      ]
+    },
+    {
+      "id": "workflow-5",
+      "kind": "workflow",
+      "file": "reviewed-workflow.md",
+      "section": "实际照片参数试条",
+      "tags": [
+        "probe",
+        "试条",
+        "响应",
+        "标定",
+        "校准"
+      ]
+    },
+    {
+      "id": "workflow-6",
+      "kind": "workflow",
+      "file": "reviewed-workflow.md",
+      "section": "照片项目交换",
+      "tags": [
+        "project-import",
+        "project-export",
+        "交换",
+        "继续",
+        "Web UI"
+      ]
+    },
+    {
+      "id": "visual-example-1",
+      "kind": "case",
+      "file": "visual-examples.md",
+      "section": "可复现的视觉对照",
+      "tags": [
+        "examples",
+        "视觉案例",
+        "反例",
+        "实际看图"
+      ]
+    },
+    {
+      "id": "visual-example-2",
+      "kind": "case",
+      "file": "visual-examples.md",
+      "section": "从关系迁移到处理",
+      "tags": [
+        "迁移",
+        "关系",
+        "肤色",
+        "暖木"
+      ]
+    },
+    {
+      "id": "visual-example-3",
+      "kind": "case",
+      "file": "visual-examples.md",
+      "section": "视觉验收的覆盖范围",
+      "tags": [
+        "覆盖",
+        "验收",
+        "照片检查集"
+      ]
     }
   ]
 }

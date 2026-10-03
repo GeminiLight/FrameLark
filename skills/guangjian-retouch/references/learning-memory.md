@@ -32,9 +32,11 @@
 
 ## 本项目与可携带档案
 
-当前工具只保存在这一项目，没有跨项目自动审美画像。Agent 可参考 inspect 返回的 choices；不要声称已经后台训练了个人模型。
+项目内使用 inspect 返回的 preferenceChoices。可携带档案通过 profile 命令明确建立、学习和读取；不会后台自动训练模型。
 
-只有用户要求建立可携带偏好档案时，才在其指定的本地位置整理。默认使用简短、可修改、可删除的事实/假设表，注明来自哪些项目与用户说明；无需把私人原片嵌入公共 Skill。技能成长记录与个人照片分开，不把用户名、私密批注或 API Key 写入分发包。
+只有用户要求建立可携带偏好档案时，才在其指定的本地位置整理。使用 `profile-init --profile <new-file>` 建立档案，`profile-learn --project <folder> --profile <file> --input <JSON>` 输入 revision、versionId、subject、lighting、reason。只有用户明确接受/喜欢或拒绝的已保存版可以学习；Agent 试修不作为偏好。证据绑定项目、源图、版本、参数身份和明确理由，重复证据去重，同版本后续拒绝替换先前喜欢。用户后来标为 neutral 时，再运行 learn 会移出该版已有偏好，不新增记录；项目反馈变化后，应明确同步相应档案。
+
+`profile-read --subject --lighting` 返回匹配条件，当前意图优先，不自动套参数。`profile-edit --input {id,subject,lighting,reason}` 修改条件或理由，`{id,remove:true}` 删除。最多 500 条，不包含照片或模型 Key；用户理由可能私密，档案默认不发布。无需把私人原片嵌入公共 Skill。技能成长记录与个人照片分开，不把用户名、私密批注或 API Key 写入分发包。
 
 ## 知识升级门槛
 

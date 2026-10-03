@@ -1,3 +1,4 @@
+import {exchangeSchema,validateExchange,restoreWebExchange} from './project-exchange.js';
 import {importLimits,importAccept,runImportBatch,loadPhotoImage,PhotoImportError} from './photo-import.js';
 import {enhanceSelectControls} from './select-control.js?v=3';
 import {readServiceJSON,requestFailure} from './service-response.js';
@@ -3300,3 +3301,53 @@ holdStyleButton.addEventListener('pointerdown',event=>{if(event.button!==0)retur
 for(const type of ['pointerup','pointercancel','lostpointercapture','blur'])holdStyleButton.addEventListener(type,()=>setCollectionHold(false));
 holdStyleButton.addEventListener('keydown',event=>{if([' ','Enter'].includes(event.key)){event.preventDefault();setCollectionHold(true);}});
 holdStyleButton.addEventListener('keyup',event=>{if([' ','Enter'].includes(event.key))setCollectionHold(false);});
+
+
+// Explicit project exchange keeps the existing workspace and imports a new photo.
+function portableVersion(snapshot,id,name){
+  if(snapshot.annotations?.some(a=>a.maskType==='brush'))throw new Error('这份版本含画笔范围，请在原工作空间继续；交换不会删除或改写画笔。');
+  const rendered=viewerVersion(snapshot,id,name);
+  return {id,name,role:id==='current'?'working':'edit',state:{settings:rendered.settings,style:null,crop:rendered.crop,locals:rendered.annotations.filter(a=>Object.values(a.localSettings||{}).some(Boolean)).map(a=>({...a,maskType:a.maskType||'rectangle',feather:a.feather??.36,localAmount:a.localAmount??100,localEnabled:a.localEnabled!==false})),textOverlays:[]}};
+}
+const exchangeStatus=message=>{$('#project-exchange-status').textContent=message;};
+async function digestPhoto(bytes){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(n=>n.toString(16).padStart(2,'0')).join('');}
+$('#project-export').addEventListener('click',async()=>{
+  endStyleAudition();saveCurrentPhoto();const photo=currentPhoto();
+  if(!photo?.originalBlob||photo.isDemo){exchangeStatus('请先加入自己的照片，再下载编辑项目。');return;}
+  const button=$('#project-export');button.disabled=true;
+  try{
+    if(photo.originalBlob.size>30*1024*1024)throw new Error('原片超过项目交换的 30 MB 限制，请先转换。');
+    const bytes=new Uint8Array(await photo.originalBlob.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+    const value=validateExchange({schema:exchangeSchema,renderingVersion,source:{name:photo.imageName,mime:photo.originalBlob.type,bytes:bytes.length,checksum:await digestPhoto(bytes),width:photo.image.naturalWidth,height:photo.image.naturalHeight,data:btoa(binary)},intent:photo.creativeIntent||'',notes:photo.annotations.map(a=>({id:a.id,rect:a.rect,note:a.note||'',protect:Boolean(a.protect)})),versions:[{id:'original',name:'原片',role:'original',state:{settings:defaults,style:null,crop:null,locals:[]}},...(photo.versions||[]).map(v=>portableVersion(v.snapshot,v.id,v.label)),portableVersion(photoSnapshot(photo),'current','当前编辑')],currentId:'current'});
+    triggerDownload(new Blob([JSON.stringify(value)],{type:'application/json'}),safeFilename(photo.imageName,'frameyn.json'));
+    exchangeStatus('已下载照片与编辑项目。把文件交给你的 Agent，即可继续精调；原工作区保留。');
+  }catch(e){exchangeStatus(e.message||'项目未能下载，已有编辑保留。');}finally{button.disabled=false;}
+});
+$('#project-import').addEventListener('click',()=>$('#project-file').click());
+$('#project-file').addEventListener('change',async()=>{
+  const file=$('#project-file').files[0];$('#project-file').value='';if(!file)return;
+  if(importingFiles||state.loading){exchangeStatus('照片正在导入，请完成后重试。');return;}
+  const button=$('#project-import');button.disabled=true;importingFiles=true;refreshActions();
+  let added=null;const previousPhotoId=currentPhotoId;
+  try{
+    if(file.size>48*1024*1024)throw new Error('项目文件过大，请在 Agent 暗房继续。');
+    const pack=validateExchange(JSON.parse(await file.text()));
+    if(pack.intent.length>180)throw new Error('意图超过网页的 180 字限制，请在 Agent 暗房继续或先明确精简。');
+    if(pack.versions.filter(v=>v.role==='edit').length>40)throw new Error('网页最多保存 40 个命名版本，请先在 Agent 暗房整理。');
+    const binary=atob(pack.source.data),bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
+    if(bytes.length!==pack.source.bytes||await digestPhoto(bytes)!==pack.source.checksum)throw new Error('原片数据损坏，请重新导出项目。');
+    const photoFile=new File([bytes],pack.source.name,{type:pack.source.mime}),rows=[{id:crypto.randomUUID(),file:photoFile,status:'queued'}];
+    await runImportBatch(rows,{capacity:()=>({count:photoSessions.length,pixels:photoSessions.reduce((sum,p)=>sum+p.image.naturalWidth*p.image.naturalHeight,0)}),commit:async(f,metadata,signal)=>{
+      if(metadata.mime!==pack.source.mime)throw new Error('原片实际格式与项目记录不符。');
+      if(metadata.displayWidth!==pack.source.width||metadata.displayHeight!==pack.source.height)throw new Error('正向照片尺寸与项目记录不一致。');
+      const blob=f.slice(0,f.size,metadata.mime),url=URL.createObjectURL(blob);
+      added=await addPhotoSource(url,pack.source.name,false,false,blob,{metadata,signal,strict:true});
+      Object.assign(added,restoreWebExchange(pack,analyzeLocal(added)),{active:new Set()});
+      return {id:added.id,width:added.image.naturalWidth,height:added.image.naturalHeight};
+    }});
+    if(!added||rows.some(r=>r.status==='failed'))throw new Error(rows.find(r=>r.problem)?.problem?.reason||'项目未能加入，请检查原片格式与空间限制。');
+    nextAnnotationId=Math.max(nextAnnotationId,...added.annotations.map(n=>Number(String(n.id).replace('note-',''))+1).filter(Number.isFinite));
+    activatePhoto(added.id);scheduleDraftSave();renderEditions();exchangeStatus('已新增照片项目，原有照片仍保留。导入版本不自动记为个人偏好。');
+  }catch(e){if(added){for(const task of analysisQueue.tasks.filter(t=>t.photoId===added.id&&['queued','running'].includes(t.status)))analysisQueue.cancel(task.id,'removed');const i=photoSessions.indexOf(added);if(i>=0)photoSessions.splice(i,1);URL.revokeObjectURL(added.src);if(currentPhotoId===added.id){currentPhotoId=null;if(previousPhotoId)activatePhoto(previousPhotoId);}renderPhotoTabs();}exchangeStatus(e.message||'项目未能导入，已有工作保留。');}
+  finally{importingFiles=false;button.disabled=false;refreshActions();}
+});

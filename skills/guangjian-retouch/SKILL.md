@@ -15,6 +15,8 @@ description: 摄影审片、选片与精修：单张诊断，或从一批照片�
 | --- | --- |
 | 更高级、诊断、是否需要修改、解释取舍 | [审美判断](references/aesthetic-judgment.md) |
 | 不好看、风格平庸、精致调色、试片取舍 | [光色定调与试片验收](references/look-development.md) |
+| 自动精修、结构化诊断、独立复审、清理旧图层、项目交换 | [可追踪的审片与交付](references/reviewed-workflow.md) |
+| 需要实际照片对照、识别过度处理、参考处理条件 | [视觉案例](references/visual-examples.md) |
 | 审核成片、发现问题后返修、交付前复看 | [成片审核与返修](references/result-audit.md) |
 | 一堆照片、主题、选片、连拍取舍、排序、统一交付 | [组图创作](references/collection-craft.md)；执行时读 [组图工具](references/collection-tools.md) |
 | 人像、风景、夜景、街头、建筑、静物、宠物等 | [题材策略](references/subject-playbooks.md) |
@@ -54,6 +56,16 @@ description: 摄影审片、选片与精修：单张诊断，或从一批照片�
 5. `collection-export` 按顺序导出已保存版本与 manifest；失败逐张保留并可重试。交付主题、已审阅范围、顺序、取舍理由和备选，供用户继续换图或精调。上传发布和删除照片需用户明确要求。
 
 具体命令和 JSON 见 [组图工具](references/collection-tools.md)。批次最多 500 个文件，联系表每页 20 张；大批分段审阅。不把目前的几何蒙版称为语义选区，不把静态照片工具称为 RAW、视频或印刷排版工具。
+
+## 可追踪的精修
+
+自动精修、返修或正式交付时，读 [可追踪的审片与交付](references/reviewed-workflow.md)，启用 reviewed 流程；人手探索参数可以保持 manual。实际看当前图后记录 `diagnosis`，保存目标、值得保留的关系、具体位置、处理假设和检查点。工具返回当前阶段和下一步；零项问题可以保留原片。
+
+光色判断缺少把握时，读相近 [视觉案例](references/visual-examples.md)，或用 `probe` 看当前照片上的真实参数响应。案例与测量辅助选择，不能替代视觉判断或直接套用配方。
+
+反复被否定或需要独立判断时，准备 `review-packet`，按宿主可用且已授权的能力交给另一位审片者；不提供旧结论或希望得到的答案。区分 self/independent，缺少独立能力时如实自审。审核以 `resolutions` 回答原诊断，Agent 保存交付版须通过当前组合的审核。不要伪造审片者身份、靠 preserved 状态掩盖阻碍或把哈希当审美证明。
+
+旧调整难以理清时先 `edit-sources`，用 `rebuild` 显式重建获准范围，再看试片；未指定范围保留。用户要在网页或自己的 Agent 继续时，用项目交换快照，先核对支持范围与实际导入结果。
 
 ## 审片与候选
 
@@ -101,7 +113,9 @@ description: 摄影审片、选片与精修：单张诊断，或从一批照片�
 
 接受版用 `export` 导出，输出路径必须是新文件。验证实际尺寸，复看成片；若使用有损 JPEG，注意编码后的颜色和细节变化。
 
-个人选择从用户明确接受或 prefer 记录，不把 Agent 试修、审核 ready、浏览和取消当成偏好。后续建议参考 `preferenceChoices`，当前意图始终优先。首版没有跨项目自动审美画像。
+需要跨项目记忆时，经用户要求用 `profile-init/read/learn/edit` 建立可携带本地档案，记录题材、光线和具体理由；参考匹配条件，允许查看、修改与删除，不把单次选择泛化成永久口味。详见 [学习与记忆](references/learning-memory.md)。
+
+个人选择从用户明确接受或 prefer 记录，不把 Agent 试修、审核 ready、浏览和取消当成偏好。后续建议参考 `preferenceChoices`，当前意图始终优先。跨项目档案需明确建立与学习，不会后台自动训练模型。
 
 有价值的反馈保留「条件、意图、可见依据、实际处理、接受/回退原因、适用边界」。新增通用知识要有复现和反例，单张案例保持案例结论；个人档案只在用户要求时建立。
 

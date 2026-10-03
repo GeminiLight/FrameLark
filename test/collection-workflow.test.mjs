@@ -79,7 +79,7 @@ test('ordered exports persist partial success and retry failures without rewriti
   result=await exportCollection(folder,{revision:c.revision,snapshotHash:c.snapshotHash,retryJob:result.job.id});assert.equal(result.job.items[0].error.code,'COLLECTION_OUTPUT_CHANGED');assert.equal(await readFile(result.job.items[0].result.path,'utf8'),'changed');
 });
 test('allowlisted collection tools use their own folder and reject code execution and invalid paths',async t=>{
-  const folder=await fixture(t),contract=hostToolContract();assert.equal(contract.tools.length,10);
+  const folder=await fixture(t),contract=hostToolContract();assert.equal(contract.tools.length,17);
   const c=await dispatchHostTool(folder,{name:'frameyn_collection_inspect',arguments:{}});assert.equal(c.photos.length,2);
   await assert.rejects(dispatchHostTool(folder,{name:'frameyn_collection_plan',arguments:{...plan(c),code:'execute'}}),{code:'INVALID_PLAN'});
   const file=path.join(folder,'collection.json'),raw=JSON.parse(await readFile(file));raw.photos[0].project='../../outside';await writeFile(file,JSON.stringify(raw));

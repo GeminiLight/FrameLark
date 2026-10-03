@@ -5,6 +5,7 @@ import {randomBytes,timingSafeEqual} from 'node:crypto';
 import {Worker} from 'node:worker_threads';
 import {fileURLToPath} from 'node:url';
 import {loadProject,publicProject,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,recordExport,fail,localFailure} from './project.mjs';
+import {editSources} from './workflow.mjs';
 const ui=fileURLToPath(new URL('ui/',import.meta.url));
 export async function serveProject(folder,{port=0,sessionFile,quiet=false}={}) {
   folder=path.resolve(folder);await loadProject(folder);const token=randomBytes(24).toString('hex');
@@ -22,6 +23,7 @@ export async function serveProject(folder,{port=0,sessionFile,quiet=false}={}) {
         const supplied=Buffer.from(String(req.headers['x-guangjian-token']||'')),secret=Buffer.from(token);
         if(supplied.length!==secret.length||!timingSafeEqual(supplied,secret))return json(res,401,{error:{code:'SESSION_REQUIRED',message:'本地预览连接已失效，请从 Agent 重新打开预览地址。'}});
         if(req.headers.origin&&req.headers.origin!==origin)return json(res,403,{error:{message:'请求来源不匹配。'}});
+        if(req.method==='GET'&&url.pathname==='/api/edit-sources')return json(res,200,await editSources(folder,url.searchParams.get('version')||'current'));
         if(req.method==='GET'&&url.pathname==='/api/project')return json(res,200,{...publicProject(await loadProject(folder)),folder});
         if(req.method==='GET'&&url.pathname==='/api/image'){
           const options={maxSide:Number(url.searchParams.get('size'))||1400,withoutText:url.searchParams.get('withoutText')==='true'};if(url.searchParams.has('revision'))options.revision=Number(url.searchParams.get('revision'));if(url.searchParams.has('selectionHash'))options.selectionHash=url.searchParams.get('selectionHash');if(url.searchParams.has('reference')){const p=await loadProject(folder),{findVersion}=await import('./project.mjs');options.referenceCrop=findVersion(p,url.searchParams.get('reference')).state.crop;}

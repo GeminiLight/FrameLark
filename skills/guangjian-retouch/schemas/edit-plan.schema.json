@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Frameyn structured edit plan",
+  "title": "Frameyn edit plan",
   "type": "object",
   "properties": {
     "revision": {
@@ -12,6 +12,14 @@
       "minimum": 1
     },
     "baseVersion": {
+      "type": "string",
+      "pattern": "^[-\\w]{1,80}$"
+    },
+    "actorId": {
+      "type": "string",
+      "pattern": "^[-\\w]{1,80}$"
+    },
+    "diagnosisId": {
       "type": "string",
       "pattern": "^[-\\w]{1,80}$"
     },

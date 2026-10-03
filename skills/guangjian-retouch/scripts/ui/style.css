@@ -15,3 +15,5 @@
 #image-size{white-space:nowrap;flex-shrink:0}.view-footer{gap:12px}.zoom-tools{min-width:0}@media(max-width:960px){.photo-stage.is-comparing{height:34dvh;min-height:260px}.section-foot .text-button{min-height:44px}}@media(max-width:360px){.view-footer{gap:8px}.zoom-tools{gap:3px}.zoom-tools button{padding-left:8px;padding-right:8px}.zoom-tools .icon-button{padding:0;width:32px}}
 
 .candidate-expired{margin-left:8px;font-size:10px;color:var(--muted);font-weight:400}
+
+.source-row{display:grid;gap:4px;padding:11px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.8;overflow-wrap:anywhere}.source-row span{font-variant-numeric:tabular-nums}.diagnosis-finding{padding:12px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:1.9}.diagnosis-finding p{margin-top:5px}

@@ -9,12 +9,13 @@ import {cleanTextOverlays,validateTextComposition,letteringCapabilities} from '.
 import {outputGeometry} from './engine/export-settings.js';
 import {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,object,equal} from './engine/edit-values.js';
 import {hash,legacyHash,pipelineVersion,selectionIdentity} from './engine/edit-identity.js';
-import {normalizePlan,compileSelection,checkProtectedCrop,snapshotItem} from './engine/edit-plan.js';
+import {planKeys,normalizePlan,compileSelection,checkProtectedCrop,snapshotItem} from './engine/edit-plan.js';
 import {emptyGuards,guardsOf,assertGuards,lockState,unlockState,validateGuards,geometryOf,mergeRestoreGuards} from './engine/edit-guards.js';
 import {validateReferences,verifyReferences,protectionLimits} from './reference-store.mjs';
 export {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,hash};
 const text=(v,max=300)=>String(v??'').trim().slice(0,max),id=()=>randomUUID(),now=()=>new Date().toISOString();
-const fingerprint=p=>hash({current:p.currentId,state:currentVersion(p)?.state,source:p.source,intent:p.intent,notes:p.notes,pipeline:pipelineVersion});
+import {contextHash,activeDiagnosis,workflowStatus,assertWorkflowDelivery} from './workflow-state.mjs';
+const fingerprint=contextHash;
 export const currentVersion=p=>p.versions.find(v=>v.id===p.currentId);
 export function localFailure(error){
   const messages={ENOENT:'文件未找到。请检查照片或项目路径，恢复文件后重试；已有编辑保留。',EACCES:'无法读取或保存这个位置。请选择有读写权限的目录，已有编辑保留。',EPERM:'这个位置没有读写权限。请选择可用目录后重试，已有编辑保留。',ENOSPC:'磁盘空间不足。腾出空间后重试；已保存的版本仍保留。',EIO:'文件读取或保存暂时失败。请检查磁盘后重试，已有编辑保留。'};
@@ -81,7 +82,7 @@ async function locked(folder,fn) {
   try{return await fn(folder);}finally{await rm(lock,{recursive:true,force:true});}
 }
 const expect=(p,revision)=>{if(revision!==undefined && revision!==p.revision)fail('STALE_REVISION','照片或批注已更新。请重新读取上下文，再基于最新版本操作。');};
-async function mutate(folder,revision,fn) {
+export async function mutateProject(folder,revision,fn) {
   return locked(folder,async root=>{const p=await loadProject(root);expect(p,revision);const result=await fn(p,root);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,...result};});
 }
 export async function initProject(image,folder,{intent=''}={}) {
@@ -125,6 +126,11 @@ export async function createCandidate(folder,plan) {
     if(prior){if(prior.planHash!==planHash&&!(prior.legacy&&prior.planHash===legacyHash(plan)))fail('REQUEST_CONFLICT','同一请求编号对应不同方案，请使用新编号。');return {project:p,candidate:prior,reused:true};}
     if(!Number.isInteger(plan.revision)||plan.baseVersion!==p.currentId)fail('STALE_REVISION','方案需填写 inspect 返回的 revision 和 currentId。');expect(p,plan.revision);
     if(p.candidates.length>=8)fail('CANDIDATE_LIMIT','最多保留 8 个候选。请接受或取消一个后继续。');
+    object(plan,[...planKeys,'actorId','diagnosisId']);
+    const diagnosis=activeDiagnosis(p);
+    if(plan.actorId!==undefined&&(typeof plan.actorId!=='string'||!plan.actorId.trim()||plan.actorId.length>80))fail('INVALID_PLAN','actorId 需有效宿主身份。');
+    if(plan.diagnosisId!==undefined&&plan.diagnosisId!==diagnosis?.id)fail('DIAGNOSIS_STALE','方案的诊断已过期。');
+    if(p.workflow?.mode==='reviewed'&&plan.mode!=='lettering'&&!diagnosis)fail('DIAGNOSIS_REQUIRED','先看当前照片并记录结构化诊断。');
     const base=currentVersion(p);let source=base;
     if(plan.fromCandidate!==undefined){
       if(typeof plan.fromCandidate!=='string'||!plan.fromCandidate)fail('INVALID_PLAN','fromCandidate 必须是候选编号。');
@@ -134,21 +140,22 @@ export async function createCandidate(folder,plan) {
       source=compileCandidate(p,source);
       if(source.guardOperation)fail('GUARD_SELECTION','解除保护试片需单独预览并接受，不能继续叠加精调。');
     }
-    const normalized=normalizePlan(plan,{base:source.state,notes:p.notes,cleanText:cleanTextOverlays});
+    const executable={...plan};delete executable.actorId;delete executable.diagnosisId;
+    const normalized=normalizePlan(executable,{base:source.state,notes:p.notes,cleanText:cleanTextOverlays});
     if(plan.fromCandidate!==undefined){
       const result=compileSelection(source.state,normalized.items,normalized.selectedItemIds);
       if(result.noChange)fail('NO_CHANGE','这份方案与所选效果一致，可以保留这版，不必重复试片。');
       normalized.items=[snapshotItem(base.state,result.state,plan.name||'整组精调')];
       normalized.selectedItemIds=['whole-plan'];
     }
-    const draft={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:base.id,...(plan.fromCandidate?{refinedFrom:plan.fromCandidate}:{}),baseRevision:plan.revision,createdAt:now(),baseFingerprint:fingerprint(p),goal:text(plan.goal),tradeoff:text(plan.tradeoff),requestId:text(plan.requestId,80),planHash,allowProtectedCrop:plan.allowProtectedCrop===true,...normalized};
+    const draft={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:base.id,...(plan.fromCandidate?{refinedFrom:plan.fromCandidate}:{}),baseRevision:plan.revision,createdAt:now(),baseFingerprint:fingerprint(p),actorId:plan.actorId||diagnosis?.actorId||'host-agent',diagnosisId:diagnosis?.id||null,goal:text(plan.goal),tradeoff:text(plan.tradeoff),requestId:text(plan.requestId,80),planHash,allowProtectedCrop:plan.allowProtectedCrop===true,...normalized};
     const candidate=compileCandidate(p,draft);
     if(candidate.legacy&&candidate.noChange)fail('NO_CHANGE','这份方案与当前效果一致，可以保留当前版本。');
     await verifyReferences(root,p,candidate.state);
     p.candidates.push(candidate);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,candidate};
   });
 }
-export const selectCandidateItems=(folder,value)=>mutate(folder,value.revision,async(p,root)=>{
+export const selectCandidateItems=(folder,value)=>mutateProject(folder,value.revision,async(p,root)=>{
   object(value,['id','revision','selectionHash','selectedItemIds']);
   if(!Number.isInteger(value.revision))fail('STALE_REVISION','选择项目需填写最新 revision。');
   const index=p.candidates.findIndex(c=>c.id===value.id),old=p.candidates[index];
@@ -175,7 +182,7 @@ export async function changeGuards(folder,value,{prepare}={}) {
     const prepared=await (prepare||prepareProtection)(folder,value);
     return commitProtection(folder,value,prepared);
   }
-  return mutate(folder,value.revision,async(p,root)=>{
+  return mutateProject(folder,value.revision,async(p,root)=>{
   const base=currentVersion(p);let state;
   if(value.operation==='lock') state=lockState(base.state,value);
   else if(value.operation==='unlock'){
@@ -193,7 +200,7 @@ export async function changeGuards(folder,value,{prepare}={}) {
 export async function commitProtection(folder,value,prepared) {
   const {verifyPreparedProtection,discardPreparedProtection}=await import('./protection-preparation.mjs');
   try {
-    return await mutate(folder,value.revision,async(p,root)=>{
+    return await mutateProject(folder,value.revision,async(p,root)=>{
       if(prepared.revision!==p.revision||prepared.baseId!==p.currentId||prepared.projectHash!==hash(p))fail('STALE_REVISION','保护准备期间项目已更新，请重新读取后再保护。');
       validateReferences(p,prepared.state);
       await verifyPreparedProtection(root,prepared);
@@ -213,18 +220,18 @@ export async function commitProtection(folder,value,prepared) {
 }
 
 export async function saveNote(folder,value) {
-  return mutate(folder,value.revision,p=>{let note=p.notes.find(n=>n.id===value.id);if(value.id&&!note)fail('NOTE_NOT_FOUND','这处批注已经删除。请读取最新批注。');
+  return mutateProject(folder,value.revision,p=>{let note=p.notes.find(n=>n.id===value.id);if(value.id&&!note)fail('NOTE_NOT_FOUND','这处批注已经删除。请读取最新批注。');
     if(!note){if(p.notes.length>=8)fail('NOTE_LIMIT','最多标记 8 处。请先整理已有批注。');const number=Math.max(p.nextNoteNumber||1,p.notes.reduce((n,x)=>Math.max(n,x.number),0)+1);p.nextNoteNumber=number+1;note={id:id(),number,rect:cleanRect(value.rect),note:'',protect:false};p.notes.push(note);}
     if(value.rect)note.rect=cleanRect(value.rect);if(value.note!==undefined)note.note=text(value.note,600);if(value.protect!==undefined)note.protect=Boolean(value.protect);note.updatedAt=now();return {note};
   });
 }
-export const deleteNote=(folder,value)=>mutate(folder,value.revision,p=>{if(!p.notes.some(n=>n.id===value.id))fail('NOTE_NOT_FOUND','标记已删除。');p.notes=p.notes.filter(n=>n.id!==value.id);return {};});
-export const setIntent=(folder,value)=>mutate(folder,value.revision,p=>{p.intent=text(value.intent);return {};});
+export const deleteNote=(folder,value)=>mutateProject(folder,value.revision,p=>{if(!p.notes.some(n=>n.id===value.id))fail('NOTE_NOT_FOUND','标记已删除。');p.notes=p.notes.filter(n=>n.id!==value.id);return {};});
+export const setIntent=(folder,value)=>mutateProject(folder,value.revision,p=>{p.intent=text(value.intent);return {};});
 export async function acceptCandidate(folder,value) {
   const acceptedBy=value.acceptedBy===undefined?'user':value.acceptedBy;
   if(!['user','agent'].includes(acceptedBy))fail('ACCEPT_SOURCE','接受来源应为 user 或 agent。');
   if(value.requireAudit!==undefined&&typeof value.requireAudit!=='boolean')fail('AUDIT_INVALID','requireAudit 应为布尔值。');
-  return mutate(folder,value.revision,async(p,root)=>{
+  return mutateProject(folder,value.revision,async(p,root)=>{
     const existing=p.candidates.find(n=>n.id===value.id);
     if(!existing)fail('CANDIDATE_NOT_FOUND','候选已接受或取消，请读取最新版本。');
     if(!existing.legacy&&(!Number.isInteger(value.revision)||value.selectionHash!==existing.selectionHash))fail('STALE_SELECTION','请使用已查看组合预览的 revision 和 selectionHash。');
@@ -232,7 +239,8 @@ export async function acceptCandidate(folder,value) {
     const c=compileCandidate(p,existing);
     if(c.selectionHash!==existing.selectionHash||!equal(c.state,existing.state))fail('STALE_SELECTION','候选状态与所选项目不一致，请重新生成。');
     if(c.noChange||!c.selectedItemIds.length)fail('NO_CHANGE','没有选中实际修改，当前版本保持不变。');
-    if(value.requireAudit){
+    assertWorkflowDelivery(p,c,acceptedBy);
+    if(value.requireAudit||acceptedBy==='agent'&&p.workflow?.mode==='reviewed'&&c.mode!=='guards'){
       const audit=[...(p.resultAudits||[])].reverse().find(a=>a.versionId===c.id);
       if(!audit||audit.decision!=='ready'||audit.stateHash!==hash(c.state)||audit.selectionHash!==c.selectionHash||audit.pipeline!==pipelineVersion||audit.sourceChecksum!==p.source.checksum)fail('RESULT_AUDIT_REQUIRED','这份组合尚未通过成片审核。请查看实际预览、记录问题与修正，再提交 ready 审核。');
       const {previewPhoto}=await import('./render.mjs');
@@ -246,8 +254,8 @@ export async function acceptCandidate(folder,value) {
     return {version};
   });
 }
-export const discardCandidate=(folder,value)=>mutate(folder,value.revision,p=>{if(!p.candidates.some(n=>n.id===value.id))fail('CANDIDATE_NOT_FOUND','候选已经取消。');p.candidates=p.candidates.filter(x=>x.id!==value.id);return {};});
-export const restoreVersion=(folder,value)=>mutate(folder,value.revision,async(p,root)=>{
+export const discardCandidate=(folder,value)=>mutateProject(folder,value.revision,p=>{if(!p.candidates.some(n=>n.id===value.id))fail('CANDIDATE_NOT_FOUND','候选已经取消。');p.candidates=p.candidates.filter(x=>x.id!==value.id);return {};});
+export const restoreVersion=(folder,value)=>mutateProject(folder,value.revision,async(p,root)=>{
   const target=p.versions.find(v=>v.id===value.id);if(!target)fail('VERSION_NOT_FOUND','只能恢复已经保存的版本。');
   const base=currentVersion(p),state=structuredClone(target.state);state.guards=mergeRestoreGuards(base.state,target.state);
   assertGuards(base.state,state,{allowGuardChange:true});await verifyReferences(root,p,state);
@@ -255,22 +263,37 @@ export const restoreVersion=(folder,value)=>mutate(folder,value.revision,async(p
   if(!equal(state,target.state)){version={id:id(),name:`恢复：${target.name}`,parentId:base.id,restoredFrom:target.id,createdAt:now(),acceptedAt:now(),state};p.versions.push(version);}
   p.currentId=version.id;return {version};
 });
-export const saveReview=(folder,value)=>mutate(folder,value.revision,p=>{const summary=text(value.summary,1200);if(!summary)fail('EMPTY_REVIEW','请写明实际画面观察或保留原片的依据。');
+export const saveReview=(folder,value)=>mutateProject(folder,value.revision,p=>{const summary=text(value.summary,1200);if(!summary)fail('EMPTY_REVIEW','请写明实际画面观察或保留原片的依据。');
   const review={id:id(),versionId:p.currentId,intent:p.intent,createdAt:now(),source:'host-agent',summary,preserve:Array.isArray(value.preserve)?value.preserve.slice(0,6).map(x=>text(x)):[],model:text(value.model,80)};p.reviews.push(review);p.reviews=p.reviews.slice(-30);return {review};});
 export async function saveResultAudit(folder,value){
-  object(value,['revision','versionId','maxSide','pixelHash','frameSpecHash','selectionHash','decision','summary','checked','strengths','issues'],'AUDIT_INVALID');
+  object(value,['revision','versionId','maxSide','pixelHash','frameSpecHash','selectionHash','decision','summary','checked','strengths','issues','reviewer','resolutions'],'AUDIT_INVALID');
   const nonempty=(s,max)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;
   if(!Number.isInteger(value.revision)||!nonempty(value.versionId,80)||!Number.isInteger(value.maxSide)||value.maxSide<512||value.maxSide>8192||!['ready','revise','reject'].includes(value.decision)||!nonempty(value.summary,1200)||!Array.isArray(value.checked)||value.checked.length<1||value.checked.length>8||value.checked.some(s=>!nonempty(s,300))||!Array.isArray(value.strengths)||value.strengths.length>6||value.strengths.some(s=>!nonempty(s,300))||!Array.isArray(value.issues)||value.issues.length>8)fail('AUDIT_INVALID','审核需版本、真实预览身份、检查位置、观察、保留关系与 ready/revise/reject 决定。');
   for(const issue of value.issues){object(issue,['area','observation','nextAction','severity'],'AUDIT_INVALID');if(!nonempty(issue.area,80)||!nonempty(issue.observation,400)||!nonempty(issue.nextAction,400)||!['blocking','minor'].includes(issue.severity))fail('AUDIT_INVALID','每个问题需位置、可见依据、下一步处理与 blocking/minor 级别。');}
   if(value.decision==='ready'&&value.issues.some(i=>i.severity==='blocking'))fail('AUDIT_NOT_READY','仍有阻碍交付的问题，应先修改或撤回，不能记为 ready。');
   if(value.decision!=='ready'&&!value.issues.length)fail('AUDIT_INVALID','修改或撤回需至少一个具体问题。');
-  return mutate(folder,value.revision,async(p,root)=>{
+  return mutateProject(folder,value.revision,async(p,root)=>{
     const version=findVersion(p,value.versionId);
     if(p.candidates.some(c=>c.id===version.id)&&version.baseFingerprint!==fingerprint(p))fail('STALE_CANDIDATE','审核目标已过期，请重新试片。');
     const {previewPhoto}=await import('./render.mjs');
     const preview=await previewPhoto(root,version.id,{maxSide:value.maxSide});
     if(value.pixelHash!==preview.pixelHash||value.frameSpecHash!==preview.frameSpecHash||value.selectionHash!==preview.selectionHash)fail('AUDIT_PREVIEW_MISMATCH','审核的画面与当前组合不一致，请读取并实际查看最新预览。');
-    const audit={id:id(),versionId:version.id,createdAt:now(),source:'host-agent-result-audit',intent:p.intent,decision:value.decision,summary:value.summary.trim(),checked:value.checked.map(s=>s.trim()),strengths:value.strengths.map(s=>s.trim()),issues:structuredClone(value.issues),selectionHash:preview.selectionHash,stateHash:preview.stateHash,pixelHash:preview.pixelHash,frameSpecHash:preview.frameSpecHash,frameSpec:preview.frameSpec,maxSide:value.maxSide,width:preview.width,height:preview.height,pipeline:preview.pipeline,sourceChecksum:p.source.checksum};
+    let reviewer=null;
+    if(value.reviewer){
+      object(value.reviewer,['id','mode','packetId'],'AUDIT_INVALID');
+      if(!nonempty(value.reviewer.id,80)||!['self','independent'].includes(value.reviewer.mode))fail('AUDIT_INVALID','审片者需有效身份与 self/independent 来源。');
+      if(value.reviewer.mode==='independent'){
+        const packet=(p.reviewPackets||[]).find(r=>r.id===value.reviewer.packetId);
+        if(!packet||packet.versionId!==version.id||packet.contextHash!==fingerprint(p)||packet.images.trial.pixelHash!==preview.pixelHash||packet.images.trial.frameSpecHash!==preview.frameSpecHash||packet.images.trial.selectionHash!==preview.selectionHash)fail('REVIEW_PACKET_STALE','独立复审任务包与这份试片不一致。');
+        if(value.reviewer.id===packet.creatorId)fail('REVIEWER_NOT_INDEPENDENT','同一作者可以自审，不能声明为独立审片者。');
+      }
+      reviewer=structuredClone(value.reviewer);
+    }
+    const diagnosis=(p.diagnoses||[]).find(d=>d.id===version.diagnosisId),resolutions=value.resolutions||[];
+    if(!Array.isArray(resolutions)||resolutions.length>12||new Set(resolutions.map(r=>r.findingId)).size!==resolutions.length)fail('AUDIT_INVALID','诊断复评记录无效。');
+    for(const r of resolutions){object(r,['findingId','status','evidence'],'AUDIT_INVALID');if(!diagnosis?.findings.some(f=>f.id===r.findingId)||!['resolved','preserved','unresolved'].includes(r.status)||!nonempty(r.evidence,500))fail('AUDIT_INVALID','复评需对应诊断编号、结果与可见依据。');}
+    if(value.decision==='ready'&&resolutions.some(r=>r.status==='unresolved'&&diagnosis?.findings.find(f=>f.id===r.findingId)?.priority==='blocking'))fail('AUDIT_NOT_READY','仍有未解决的诊断，不应记录 ready。');
+    const audit={id:id(),versionId:version.id,createdAt:now(),contextHash:fingerprint(p),reviewer,resolutions:structuredClone(resolutions),diagnosisId:version.diagnosisId||null,source:'host-agent-result-audit',intent:p.intent,decision:value.decision,summary:value.summary.trim(),checked:value.checked.map(s=>s.trim()),strengths:value.strengths.map(s=>s.trim()),issues:structuredClone(value.issues),selectionHash:preview.selectionHash,stateHash:preview.stateHash,pixelHash:preview.pixelHash,frameSpecHash:preview.frameSpecHash,frameSpec:preview.frameSpec,maxSide:value.maxSide,width:preview.width,height:preview.height,pipeline:preview.pipeline,sourceChecksum:p.source.checksum};
     p.resultAudits??=[];p.resultAudits.push(audit);p.resultAudits=p.resultAudits.slice(-40);
     return {audit,limitation:'身份核对只确认记录对应哪张预览；审美判断由实际看图的宿主 Agent 提供，工具不会自动评美。'};
   });
@@ -278,7 +301,7 @@ export async function saveResultAudit(folder,value){
 export const saveFeedback=async(folder,value)=>{
   object(value,['revision','versionId','verdict','reason'],'FEEDBACK_INVALID');
   if(!Number.isInteger(value.revision)||!['reject','prefer','neutral'].includes(value.verdict)||typeof value.reason!=='string'||!value.reason.trim()||value.reason.length>600)fail('FEEDBACK_INVALID','反馈需最新 revision、已保存 versionId、reject/prefer/neutral 和具体原因。只记录用户明确表达的选择。');
-  return mutate(folder,value.revision,p=>{
+  return mutateProject(folder,value.revision,p=>{
     const version=p.versions.find(v=>v.id===value.versionId);if(!version)fail('VERSION_NOT_FOUND','反馈需对应已保存的版本；试片可以直接取消。');
     const feedback={id:id(),versionId:version.id,verdict:value.verdict,reason:value.reason.trim(),createdAt:now(),source:'user-feedback'};
     p.feedback??=[];p.feedback.push(feedback);
@@ -290,7 +313,7 @@ export function preferenceChoices(p){
   const latest=new Map((p.feedback||[]).map(f=>[f.versionId,f]));
   return (p.choices||[]).filter(c=>{const feedback=latest.get(c.versionId);return feedback?feedback.verdict==='prefer':p.versions.find(v=>v.id===c.versionId)?.acceptedBy!=='agent';});
 }
-export const recordExport=(folder,value)=>mutate(folder,undefined,p=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...value,createdAt:now()});return {};});
+export const recordExport=(folder,value)=>mutateProject(folder,undefined,p=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...value,createdAt:now()});return {};});
 export function publicProject(p) {
-  return {...p,preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
+  return {...p,workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
 }

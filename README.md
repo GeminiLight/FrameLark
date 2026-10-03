@@ -75,7 +75,7 @@ node skills/guangjian-retouch/scripts/cli.mjs serve \
 
 [打开 Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) 体验多图上传、诊断与内置顾问，目前需要 Vercel 访问权限。视觉模型状态以页面显示为准。
 
-在线应用与 `npm start` 使用本仓库的 `public/`、`api/` 和服务端源码。工作台草稿保存在各自浏览器中；Agent 暗房使用文件项目，两类工作空间不会自动同步。
+在线应用与 `npm start` 使用本仓库的 `public/`、`api/` 和服务端源码。工作台草稿保存在各自浏览器中；Agent 暗房使用文件项目。可主动交换照片项目快照，两类工作空间不会自动同步。
 
 </details>
 
@@ -105,7 +105,20 @@ npm run install:skill
 
 风格调整可以先生成原片与候选的并排试片，再分别比较光色和构图。Agent 保存的试修不会自动成为你的风格偏好；明确拒绝的版本会从偏好参考中排除。[定调与试片流程](skills/guangjian-retouch/references/look-development.md)
 
-交付前，Agent 查看实际成片，记录具体问题，再裁剪、调色或局部返修。`result-audit` 保存对应版本的审核；`accept --by agent --require-audit true` 核对同一组合的通过记录。工具核对身份，审美判断来自宿主实际看图。[成片审核与返修](skills/guangjian-retouch/references/result-audit.md)
+自动精修采用「诊断 → 试片 → 复评 → 接受 → 导出」流程。诊断记录目标、保留关系、具体位置与代价，允许零项调整。reviewed 模式下，Agent 接受前必须有当前组合的通过审核，并逐项回答诊断中的阻碍问题。工具核对版本身份，审美判断来自宿主实际看图。[审片与交付](skills/guangjian-retouch/references/reviewed-workflow.md)
+
+<details>
+<summary>校准、复审与跨工作空间继续</summary>
+
+- **真实对照**：三组有许可的原片、温和试片与过度处理反例；`examples` 打开实际图片，`probe` 在当前照片上比较单个参数。案例用于校准，不直接套配方。
+- **调整来源**：展开查看手动、风格与局部贡献；`rebuild` 清理指定旧层，生成可撤回试片，保留其他调整与约束。
+- **独立复审**：`review-packet` 准备原片、基础版、候选和检查点。宿主另行安排审片者；工具不自动调用第二模型，也不认证身份。
+- **可携带偏好**：按用户要求建立本地档案，记录明确选择及题材、光线、理由；支持修改、删除，当前意图优先。
+- **项目交换**：完整工作台「草稿 → 与 Agent 继续编辑」下载或打开 `.frameyn.json`；Skill 使用 `project-export/import`。交换原片、已保存版本、意图、批注和兼容调整，导入新增项目。文字、画笔、保护约束及对话不在交换范围内。
+
+[流程与命令](skills/guangjian-retouch/references/reviewed-workflow.md) · [视觉案例](skills/guangjian-retouch/references/visual-examples.md) · [偏好档案](skills/guangjian-retouch/references/learning-memory.md)
+
+</details>
 
 审片可以得出保留原片的结论。AI 使用宿主 Agent 的视觉模型、额度和数据规则，无需另配模型 Key。对话在原 Agent 中继续；Web UI 的「在 Agent 中继续」会复制项目提示。
 
@@ -161,12 +174,13 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 | 批注与协作 | 圈选范围、评论；Agent 继续前读取当前版本、意图和全部最新批注。 |
 | 文字点缀（可选） | 留白短句、奶油贴纸、小标题；独立文字层、预览精调，有字 / 无字导出。默认修片不加字。 |
 | 项目与版本 | 候选预览、接受 / 取消、命名版本、恢复与导出记录。 |
+| 审核与继续 | 结构化诊断、对应组合的复评、调整来源、兼容项目交换。 |
 
 - **输入**：静态 JPEG、PNG、WebP、AVIF；8 位 sRGB。最多 30 MB、5000 万像素、最长边 16384 px。
 - **输出**：PNG / JPEG，支持分享、打印与原尺寸预设。最多 8192 px / 1600 万像素，不放大；原尺寸预设也受此限制。
 - **需先转换**：HEIC、RAW、TIFF。当前不支持 RAW 显影、16 位工作流、自动主体分割或生成式增删物体。
 
-本地工具不请求模型 API，预览只监听 `127.0.0.1`。已接受的选择仅在当前照片项目中记录为偏好。
+本地工具不请求模型 API，预览只监听 `127.0.0.1`。用户明确选择保存在照片项目中；可按要求整理为本地偏好档案，不会自动训练或上传。
 
 ## 逐项采纳与保留
 
@@ -207,7 +221,7 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 
 ## 摄影知识
 
-105 个章节，覆盖 10 类题材与场景、定调与成片审核、整组选片与交付，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
+114 个章节，覆盖 10 类题材与场景、定调与成片审核、整组选片与交付，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
 
 <details>
 <summary>知识目录与检索</summary>
@@ -220,6 +234,7 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 | 光色与细节 | [光线与色彩](skills/guangjian-retouch/references/light-color.md) · [局部与输出](skills/guangjian-retouch/references/detail-local-crop.md) |
 | 风格与来源 | [风格图谱](skills/guangjian-retouch/references/style-atlas.md) · [来源](skills/guangjian-retouch/references/sources.md) |
 | 案例与反馈 | [案例手册](skills/guangjian-retouch/references/casebook.md) · [学习记录](skills/guangjian-retouch/references/learning-memory.md) |
+| 校准与交付 | [真实视觉案例](skills/guangjian-retouch/references/visual-examples.md) · [诊断、复审与交换](skills/guangjian-retouch/references/reviewed-workflow.md) |
 | 视频 | [调色与剪辑知识](skills/guangjian-retouch/references/video-craft.md) |
 
 ```sh

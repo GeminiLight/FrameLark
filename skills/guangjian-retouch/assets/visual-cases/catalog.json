@@ -1,0 +1,237 @@
+{
+  "schema": 1,
+  "examples": [
+    {
+      "id": "portrait-natural",
+      "author": "NASA / Eileen Collins",
+      "rights": "public domain",
+      "tags": [
+        "人像",
+        "肤色",
+        "portrait",
+        "skin"
+      ],
+      "intent": "保留日光下自然肤色和表情，不漂白皮肤",
+      "preserve": [
+        "肤色与暖光",
+        "衣服与背景的明暗分离"
+      ],
+      "trial": {
+        "exposure": 0.05,
+        "contrast": 5,
+        "highlights": -5,
+        "shadows": 3,
+        "warmth": -2,
+        "sharpen": 2
+      },
+      "failure": {
+        "exposure": 0.3,
+        "warmth": 50,
+        "saturation": 35,
+        "highlights": 30,
+        "clarity": 35
+      },
+      "check": [
+        "检查脸部是否偏橘",
+        "额头与领口的高光过渡",
+        "真实纹理与锐化边缘"
+      ],
+      "originalChecksum": "74d3ec6cca600b36965c09e909769cea633b52668a183f36ad32f45187784441",
+      "sourceURL": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+      "board": {
+        "file": "portrait-natural-board.png",
+        "fileHash": "a55db3e5c92987530ee83ab9ec9c13256a2168d05fd1137b71d0250ffece718a"
+      },
+      "files": [
+        {
+          "role": "original",
+          "file": "portrait-natural-original.png",
+          "fileHash": "bfca6b75cb76121bd86e89fb5423e0adc1c80e577bea807d52d6650debeab8d7",
+          "pixelHash": "0df3c62c654dd5432e753a8d273e73ad3fb7d5826848b395afaead620b89bdd0",
+          "width": 512,
+          "height": 512
+        },
+        {
+          "role": "trial",
+          "file": "portrait-natural-trial.png",
+          "fileHash": "367875ddd1fe5b95b44905936b5bd1bbc0639e55f3a03027f0630df70d3befc8",
+          "pixelHash": "b6cdc51d01349c10978865da56bd36e20068c6d26040cbf93e7113021391eb2c",
+          "width": 512,
+          "height": 512
+        },
+        {
+          "role": "failure",
+          "file": "portrait-natural-failure.png",
+          "fileHash": "4ad55fc68582cb7936cb45746d80b7d2eecfa8e0bb96972460edf744eeb34f89",
+          "pixelHash": "4bafc35b4dfbc34f99b36af76c65871b85ca050d944f9bdd86d76cfdf7bf1dce",
+          "width": 512,
+          "height": 512
+        }
+      ],
+      "reviewStatus": "illustrative; host visual review required",
+      "limitations": [
+        "低分辨率公开样张；不是所有肤色、相机噪声或高分辨率质量的基准。",
+        "trial 是可比较候选，不是通用最佳参数；failure 针对本条意图制造反例。"
+      ],
+      "hostReview": {
+        "reviewedAt": "2026-10-03",
+        "source": "host-visual-self-review",
+        "scope": "完整并排图与公开原片尺寸；不是独立审美评测",
+        "observations": [
+          "原片与温和试片保留肤色和背景关系；温和版收益较小，不必强求。",
+          "反例中的脸部偏橘、橙色衣服过艳，背景白色也被暖染。"
+        ]
+      }
+    },
+    {
+      "id": "still-life-preserve",
+      "author": "Rachel Michetti / Pikolo Espresso Bar",
+      "rights": "CC0",
+      "tags": [
+        "静物",
+        "咖啡",
+        "暖木",
+        "中性",
+        "still-life"
+      ],
+      "intent": "保留暖木与白瓷的日常温度，原片可以成立",
+      "preserve": [
+        "白瓷与暖木的材料关系",
+        "自然暖光"
+      ],
+      "trial": null,
+      "failure": {
+        "exposure": 0.25,
+        "warmth": -65,
+        "tint": 10,
+        "saturation": -20
+      },
+      "check": [
+        "不能把暖木和奶泡当成灰卡",
+        "检查强行校冷后的杯子与木桌",
+        "保留原片也是有效选择"
+      ],
+      "originalChecksum": "bc7c679e93a04b35aef5c5d644f0293d6aac8df7ccbba06f1d5bdddc0285050b",
+      "sourceURL": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+      "board": {
+        "file": "still-life-preserve-board.png",
+        "fileHash": "a637104fd4cb6aa1a78126ca4a647383c33c444292ce55bf17df597fd2f9c79a"
+      },
+      "files": [
+        {
+          "role": "original",
+          "file": "still-life-preserve-original.png",
+          "fileHash": "d42abdaee74890123fec5dd3011ee25f96e2bc3191e0056d761c916551413072",
+          "pixelHash": "2c9022e5a85bd6baa1679a11f91fa94fd1d69ba879414f5da7c55066ea3b28fc",
+          "width": 600,
+          "height": 400
+        },
+        {
+          "role": "failure",
+          "file": "still-life-preserve-failure.png",
+          "fileHash": "671021b73c158e9a80b8298adc46893ae7d7399620f5939c52e5f77b36a1c262",
+          "pixelHash": "10509d5cc176a3b3c6101c83da840c93f5cbd65c1b1a1bb578c7c5dbc11fdb8c",
+          "width": 600,
+          "height": 400
+        }
+      ],
+      "reviewStatus": "illustrative; host visual review required",
+      "limitations": [
+        "低分辨率公开样张；不是所有肤色、相机噪声或高分辨率质量的基准。",
+        "trial 是可比较候选，不是通用最佳参数；failure 针对本条意图制造反例。"
+      ],
+      "hostReview": {
+        "reviewedAt": "2026-10-03",
+        "source": "host-visual-self-review",
+        "scope": "完整并排图与公开原片尺寸；不是独立审美评测",
+        "observations": [
+          "原片白瓷、咖啡与暖木关系成立，可以保留。",
+          "强行校冷后的杯沿偏蓝，木桌暖色明显减弱，不符合本条意图。"
+        ]
+      }
+    },
+    {
+      "id": "night-layers",
+      "author": "SpaceX",
+      "rights": "public domain",
+      "tags": [
+        "夜景",
+        "火箭",
+        "灯光",
+        "层次",
+        "night"
+      ],
+      "intent": "保留蓝调环境与发射台灯光的层次",
+      "preserve": [
+        "夜景暗部重量",
+        "暖灯与冷天光"
+      ],
+      "trial": {
+        "contrast": 7,
+        "shadows": 3,
+        "highlights": -12,
+        "denoise": 8
+      },
+      "failure": {
+        "exposure": 1.5,
+        "shadows": 50,
+        "blacks": 20,
+        "denoise": 65,
+        "warmth": 40,
+        "contrast": -10,
+        "saturation": 25
+      },
+      "check": [
+        "暗部是否被抬成灰雾",
+        "灯光周边和天空过渡",
+        "降噪是否损失发射台细节"
+      ],
+      "originalChecksum": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+      "sourceURL": "https://scikit-image.org/docs/stable/api/skimage.data.html",
+      "board": {
+        "file": "night-layers-board.png",
+        "fileHash": "edd35dc65a9852c170fd621ea0b8fc9b86e9408ba492a91ef8675e8ebc8c5f0e"
+      },
+      "files": [
+        {
+          "role": "original",
+          "file": "night-layers-original.png",
+          "fileHash": "9b959786a5d8f6281047efb58b869f87a3bb8f65714f5b42b3a80dbcdcb165fa",
+          "pixelHash": "b5652800b82478cf2da9192dbd3b465c3e31d14e3efe5d2611bd1c114da1980b",
+          "width": 640,
+          "height": 427
+        },
+        {
+          "role": "trial",
+          "file": "night-layers-trial.png",
+          "fileHash": "441af79e357bae8deca96876426a0fd6a08670448d10e8f33502ed15004e661c",
+          "pixelHash": "d4eed6f9a72d13ad662d7e0b8423e9682ae82c47711f37c2fbc4ce9796af3e5c",
+          "width": 640,
+          "height": 427
+        },
+        {
+          "role": "failure",
+          "file": "night-layers-failure.png",
+          "fileHash": "5f1efdc4ff4f3f5b04e080fe702983c6450e26c78cbd74c861572e222d77c387",
+          "pixelHash": "fd0f82abcec6a704dc3fee30d06cd214c571d36ff4c4655005e91fc2107c5e73",
+          "width": 640,
+          "height": 427
+        }
+      ],
+      "reviewStatus": "illustrative; host visual review required",
+      "limitations": [
+        "低分辨率公开样张；不是所有肤色、相机噪声或高分辨率质量的基准。",
+        "trial 是可比较候选，不是通用最佳参数；failure 针对本条意图制造反例。"
+      ],
+      "hostReview": {
+        "reviewedAt": "2026-10-03",
+        "source": "host-visual-self-review",
+        "scope": "完整并排图与公开原片尺寸；不是独立审美评测",
+        "observations": [
+          "原片和温和试片保留冷环境与暖灯；温和处理需按真实噪声再判断。",
+          "强提亮反例降低夜景重量、增强灯光与蓝色天空；可以看见过度处理代价。"
+        ]
+      }
+    }
+  ]
+}

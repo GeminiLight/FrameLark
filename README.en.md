@@ -75,7 +75,7 @@ Use a new project directory. Press `Ctrl+C` to stop the server; run `serve` agai
 
 The [Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) offers multiple uploads, diagnosis, and an integrated advisor. It currently requires Vercel access. Check the page for the visual-model connection status.
 
-The online application and `npm start` use this repository's frontend, API routes, and server. Studio drafts live in each browser; the agent darkroom uses file-based projects. These workspaces do not automatically synchronize.
+The online application and `npm start` use this repository's frontend, API routes, and server. Studio drafts live in each browser; the agent darkroom uses file-based projects. You can explicitly exchange photo-project snapshots; the workspaces do not automatically synchronize.
 
 </details>
 
@@ -109,7 +109,20 @@ Show a trial and explain the main changes and tradeoffs.
 
 A review can recommend keeping the original. AI review uses your host agent's visual model, usage limits, and data rules, with no additional model key. Continue the conversation in that agent; “在 Agent 中继续” in the Web UI copies a project prompt.
 
-Before delivery, the agent inspects the actual result, records visible problems, and revises the crop, color or local adjustments. `result-audit` saves the version-specific review; `accept --by agent --require-audit true` checks that the exact combination has a ready audit. The tool verifies image identity; aesthetic judgment comes from the host viewing the image. [Result review and revision](skills/guangjian-retouch/references/result-audit.md)
+Automatic retouching follows diagnosis → trial → review → acceptance → export. Diagnosis records the goal, relationships to preserve, locations, and tradeoffs; it may recommend no changes. In reviewed mode, agent acceptance requires a ready audit of the current combination and a response to every blocking finding. Tools verify version identity; aesthetic judgment comes from the host viewing the image. [Review and delivery](skills/guangjian-retouch/references/reviewed-workflow.md)
+
+<details>
+<summary>Calibration, second review, and project exchange</summary>
+
+- **Actual photographs:** three licensed original / trial / overprocessed comparisons. `examples` opens the images; `probe` compares one control on the current photo without changing history.
+- **Adjustment sources:** inspect manual, style, and local contributions. `rebuild` clears selected old layers in a reversible candidate, preserving other edits and constraints.
+- **Separate review:** `review-packet` prepares originals, base and trial images, and checks. The host arranges the reviewer; tools do not call a second model or authenticate identity.
+- **Portable preferences:** explicitly requested local records of user choices, subjects, light and reasons. Editable and removable; current intent takes priority.
+- **Project exchange:** in the studio, open 草稿 → 与 Agent 继续编辑 to download or open `.frameyn.json`; use `project-export/import` in the Skill. Import adds a new project. Originals, saved versions, intent, comments and compatible edits transfer; lettering, brushes, protection constraints and conversations do not.
+
+[Workflow and commands](skills/guangjian-retouch/references/reviewed-workflow.md) · [Visual examples](skills/guangjian-retouch/references/visual-examples.md) · [Preference records](skills/guangjian-retouch/references/learning-memory.md) (Chinese)
+
+</details>
 
 <details>
 <summary>Update or install into another host</summary>
@@ -151,12 +164,13 @@ Supported workflows include travel stories, portraits, events, product catalogs,
 | Viewing and comparison | Originals and versions, matched position and magnification, 100% viewing, zoom, and pan. |
 | Annotations and collaboration | Region comments; the agent reads the current version, intent, and all latest annotations before continuing. |
 | Projects and versions | Candidate previews, accept / discard, named versions, restoration, and export records. |
+| Review and continuation | Structured diagnosis, combination-specific audits, adjustment sources, and compatible project exchange. |
 
 - **Input:** static JPEG, PNG, WebP, and AVIF; 8-bit sRGB. Up to 30 MB, 50 megapixels, and a 16384 px longest edge.
 - **Output:** PNG / JPEG with sharing, printing, and original-size presets. At most 8192 px / 16 megapixels, without upscaling; the original-size preset has the same limits.
 - **Convert first:** HEIC, RAW, and TIFF. RAW development, a 16-bit workflow, automatic subject segmentation, and generative object editing are not supported.
 
-Local tools make no model API requests. The preview listens only on `127.0.0.1`. Accepted choices are recorded as preferences within the current photo project only.
+Local tools make no model API requests. The preview listens only on `127.0.0.1`. Explicit user choices live in photo projects and can be organized into a local preference file on request, without automatic training or uploads.
 
 ## Selective edits and preservation
 
@@ -209,7 +223,7 @@ Actual local-interface screenshots using the built-in demo image. [Capture notes
 
 ## Photography knowledge
 
-105 sections cover 10 subject and scene playbooks, look development and result review, collection curation and delivery, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
+114 sections cover 10 subject and scene playbooks, look development and result review, collection curation and delivery, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
 
 <details>
 <summary>Knowledge directory and search</summary>
@@ -224,6 +238,7 @@ References are currently written in Chinese.
 | Light, color, and detail | [Light and color](skills/guangjian-retouch/references/light-color.md) · [Local work and output](skills/guangjian-retouch/references/detail-local-crop.md) |
 | Styles and sources | [Style atlas](skills/guangjian-retouch/references/style-atlas.md) · [Sources](skills/guangjian-retouch/references/sources.md) |
 | Cases and feedback | [Casebook](skills/guangjian-retouch/references/casebook.md) · [Learning records](skills/guangjian-retouch/references/learning-memory.md) |
+| Calibration and delivery | [Visual examples](skills/guangjian-retouch/references/visual-examples.md) · [Diagnosis, review and exchange](skills/guangjian-retouch/references/reviewed-workflow.md) |
 | Video | [Color and editing knowledge](skills/guangjian-retouch/references/video-craft.md) |
 
 ```sh
