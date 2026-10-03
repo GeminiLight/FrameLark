@@ -35,7 +35,9 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
       response.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-store','X-Accel-Buffering':'no'});send({revision:data.revision});
       const close=await bridge.subscribe(id,send);response.once('close',close);if(response.destroyed)close();return true;
     }
-    if(operation==='save'&&request.method==='POST'){json(response,200,await bridge.save(id,await body()));return true;}
+    if(operation==='save'&&request.method==='POST'){json(response,200,await bridge.save(id,await body(4*1024*1024)));return true;}
+    if(operation==='versions'&&request.method==='POST'){json(response,200,await bridge.edition(id,await body()));return true;}
+    if(operation==='versions/rename'&&request.method==='POST'){json(response,200,await bridge.renameVersion(id,await body()));return true;}
     if(operation==='candidate'&&request.method==='POST'){json(response,200,await bridge.propose(id,await body()));return true;}
     if(['select','accept','discard','restore'].includes(operation)&&request.method==='POST'){json(response,200,await bridge.candidate(id,operation,await body()));return true;}
     if(operation==='preview'&&request.method==='GET'){

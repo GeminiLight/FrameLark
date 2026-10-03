@@ -28,17 +28,16 @@ export class ProjectBridge {
     if(p.id!==id)throw Object.assign(new Error('项目内容已变化，请重新打开。'),{code:'PROJECT_CHANGED'});
     return {runtime,p,path:entry.path};
   }
-  view(p,path){
-    const current=p.versions.find(v=>v.id===p.currentId),guards=current.state.guards || {},unsupported=Boolean(current.state.textOverlays?.length||Object.values(guards).some(v=>v.length));
-    const union=new Set([...p.notes.map(n=>n.id),...current.state.locals.map(n=>n.id)]);
-    const movedMask=current.state.locals.some(l=>{const n=p.notes.find(n=>n.id===l.id);return n&&JSON.stringify(n.rect)!==JSON.stringify(l.rect);});
+  view(p,path,runtime){
+    const current=p.versions.find(v=>v.id===p.currentId),limitations=runtime.workspaceLimitations(p);
     return {id:p.id,path,name:p.source.name,source:p.source,revision:p.revision,currentId:p.currentId,intent:p.intent,notes:p.notes,current:current.state,
-      supported:p.workflow?.mode!=='reviewed'&&!unsupported&&!movedMask&&union.size<=8,limitations:p.workflow?.mode==='reviewed'?'这个项目已启用诊断与复审流程，请在 Skill 中继续。':movedMask?'标记位置与已保存的局部范围不同，请用 Agent 暗房继续。':unsupported?'这个版本包含文字或保护设置，请用 Agent 暗房继续。':union.size>8?'当前批注与局部范围合计超过 8 个，请用 Agent 暗房继续。':'',
-      versions:p.versions.map(v=>({id:v.id,name:v.name,at:v.createdAt})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn})=>({id,title,dependsOn})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
+      supported:!limitations,limitations,
+      versions:p.versions.map((v,index)=>({id:v.id,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,state:v.state,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn})=>({id,title,dependsOn})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
       exports:(p.exports||[]).map(e=>({path:e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
   }
   fingerprint(p){return this.hash?.({current:p.currentId,state:p.versions.find(v=>v.id===p.currentId)?.state,source:p.source,intent:p.intent,notes:p.notes,pipeline:this.pipeline});}
-  async get(id){const {runtime,p,path}=await this.resolve(id);this.hash=runtime.hash;const {pipelineVersion}=await import('./skills/photo-retouch/scripts/engine/edit-identity.js');this.pipeline=pipelineVersion;return this.view(p,path);}
+  async mutationView(runtime,p,path){this.hash=runtime.hash;const {pipelineVersion}=await import('./skills/photo-retouch/scripts/engine/edit-identity.js');this.pipeline=pipelineVersion;return this.view(p,path,runtime);}
+  async get(id){const {runtime,p,path}=await this.resolve(id);return this.mutationView(runtime,p,path);}
   async list(){return Object.entries(await this.registry()).map(([id,r])=>({id,...r}));}
   async create(bytes,name){
     const runtime=await this.runtime(),scratch=await mkdtemp(join(tmpdir(),'frameyn-project-import-'));
@@ -48,7 +47,9 @@ export class ProjectBridge {
       const folder=join(parent,randomUUID());await runtime.initProject(image,folder);return await this.register(folder);
     }finally{await rm(scratch,{recursive:true,force:true});}
   }
-  async save(id,value){const {runtime,path}=await this.resolve(id);await runtime.saveWorkspaceSnapshot(path,value);return this.get(id);}
+  async save(id,value){const {runtime,path}=await this.resolve(id),result=await runtime.saveWorkspaceSnapshot(path,value);return this.mutationView(runtime,result.project,path);}
+  async edition(id,value){const {runtime,path}=await this.resolve(id),result=await runtime.saveWorkspaceEdition(path,value);return this.mutationView(runtime,result.project,path);}
+  async renameVersion(id,value){const {runtime,path}=await this.resolve(id),result=await runtime.renameWorkspaceVersion(path,value);return this.mutationView(runtime,result.project,path);}
   async propose(id,{revision,baseVersion,patch,goal='',tradeoff=''}){
     const {runtime,path,p}=await this.resolve(id),before=runtime.currentVersion(p).state;
     const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b),items=[];
@@ -73,18 +74,19 @@ export class ProjectBridge {
     }
     if(!items.length)throw new Error('这份方案与当前项目版本相同。');
     const result=await runtime.createCandidate(path,{revision,baseVersion,requestId:randomUUID(),name:String(goal||'网页候选').slice(0,40),goal,tradeoff,items});
-    return {...await this.get(id),candidateId:result.candidate.id};
+    return {...await this.mutationView(runtime,result.project,path),candidateId:result.candidate.id};
   }
   async original(id){const {path}=await this.resolve(id);return readFile(join(path,'source/original.bin'));}
   async source(id){const {path}=await this.resolve(id);return readFile(join(path,'source/normalized.png'));}
   async candidate(id,operation,value){
     const {runtime,path,p}=await this.resolve(id);
-    if(operation==='select')await runtime.selectCandidateItems(path,value);
-    else if(operation==='accept')await runtime.acceptCandidate(path,{...value,acceptedBy:'user'});
-    else if(operation==='discard')await runtime.discardCandidate(path,value);
-    else if(operation==='restore')await runtime.restoreVersion(path,value);
+    let result;
+    if(operation==='select')result=await runtime.selectCandidateItems(path,value);
+    else if(operation==='accept')result=await runtime.acceptCandidate(path,{...value,acceptedBy:'user'});
+    else if(operation==='discard')result=await runtime.discardCandidate(path,value);
+    else if(operation==='restore'){const target=runtime.findVersion(p,value.id),limitations=runtime.workspaceLimitations(p,target.state,target.workspaceNotes||p.notes);if(limitations)throw Object.assign(new Error(limitations),{code:'WORKSPACE_UNSUPPORTED'});result=await runtime.restoreVersion(path,value);}
     else throw new Error('不支持的项目操作。');
-    return this.get(id);
+    return this.mutationView(runtime,result.project,path);
   }
   async render(action,folder,key,options,signal) {
     if(signal?.aborted)throw Object.assign(new Error('操作已取消。'),{code:'CANCELLED'});

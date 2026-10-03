@@ -22,6 +22,12 @@
 .review-on-demand-note{font-size:12px;color:var(--muted);line-height:1.7;margin:0 0 22px}
 .agent-connect-banner{display:grid;gap:10px;padding:14px 0;border-bottom:1px solid var(--line);font-size:12px;color:var(--muted);line-height:1.7}
 .agent-connect-banner button{justify-self:start;color:var(--surface);background:var(--accent)}
+.right-panel.agent-active .panel-scroll{display:flex;flex-direction:column;overflow:hidden}
+#tab-agent .agent-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#647074 transparent;scroll-padding:12px}
+#tab-agent .agent-connect-banner,#tab-agent .agent-welcome,#tab-agent .agent-annotations{flex:none}
+#tab-agent .agent-thread:not(.empty){flex:none;height:auto;min-height:0;max-height:none;overflow:visible}
+#tab-agent .agent-latest{position:sticky;bottom:8px;right:auto;align-self:flex-end;flex:none;margin-top:-38px}
+.agent-composer-wrap{position:relative;z-index:3;flex:none}
 .agent-header h2{font-size:16px}
 .agent-welcome{padding-top:24px}
 .agent-welcome>img,.agent-welcome>span{display:none}
@@ -40,7 +46,11 @@
 .photo-proposal button:focus-visible,.more-tools-dialog button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media(max-width:960px){
   .mobile-spaces{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .right-panel,.right-panel.agent-active{height:clamp(480px,70dvh,760px);min-height:480px}
+  .right-panel,.right-panel.agent-active{height:clamp(560px,calc(100dvh - 126px),760px);min-height:560px;scroll-margin-bottom:70px}
+  #tab-agent .agent-header{padding:12px 0}
+  #tab-agent .agent-header>div{display:flex;align-items:center;gap:10px;min-width:0}
+  #tab-agent .agent-header h2{white-space:nowrap}
+  #tab-agent .agent-photo-context{padding:8px 0}
   .work-area{padding-bottom:8px}
   .page-heading{align-items:center;flex-wrap:wrap;gap:10px}
   .photo-proposal{margin-top:4px}
@@ -65,3 +75,17 @@
 .export-dialog .export-kicker{display:none}
 
 .project-version small{display:block;font-size:10px;color:var(--muted);margin-top:3px}
+
+@media(min-width:961px) and (max-height:720px){
+  #tab-agent .agent-header{padding:8px 0}
+  #tab-agent .agent-header>div{display:flex;align-items:center;gap:12px;min-width:0}
+  #tab-agent .agent-header h2{white-space:nowrap}
+  #tab-agent .agent-photo-context{padding:6px 0}
+  #tab-agent .agent-photo-context>img{width:28px;height:28px}
+  #tab-agent .agent-composer-wrap{padding:8px 0}
+  #tab-agent .agent-compose{padding:8px 10px}
+  #tab-agent .agent-compose textarea{height:44px;min-height:44px}
+  #tab-agent .agent-welcome{padding-top:16px}
+  #tab-agent .agent-welcome h3{font-size:22px}
+  #tab-agent .agent-prompts{margin-top:12px}
+}
