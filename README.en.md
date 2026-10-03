@@ -109,6 +109,8 @@ Show a trial and explain the main changes and tradeoffs.
 
 A review can recommend keeping the original. AI review uses your host agent's visual model, usage limits, and data rules, with no additional model key. Continue the conversation in that agent; “在 Agent 中继续” in the Web UI copies a project prompt.
 
+Before delivery, the agent inspects the actual result, records visible problems, and revises the crop, color or local adjustments. `result-audit` saves the version-specific review; `accept --by agent --require-audit true` checks that the exact combination has a ready audit. The tool verifies image identity; aesthetic judgment comes from the host viewing the image. [Result review and revision](skills/guangjian-retouch/references/result-audit.md)
+
 <details>
 <summary>Update or install into another host</summary>
 
@@ -207,7 +209,7 @@ Actual local-interface screenshots using the built-in demo image. [Capture notes
 
 ## Photography knowledge
 
-94 sections cover 10 subject and scene playbooks, collection curation and delivery, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
+104 sections cover 10 subject and scene playbooks, look development and result review, collection curation and delivery, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
 
 <details>
 <summary>Knowledge directory and search</summary>

@@ -40,3 +40,7 @@ test('a rejected or indistinguishable look retrieves actual audition and accepta
  const evidence=await runKnowledge('search',{query:'preferenceChoices'});assert.equal(evidence.results[0].id,'look-acceptance');
  const section=await runKnowledge('read',{id:tools.results[0].id});assert.ok(section.text.length>100);
 });
+test('result review requests retrieve the concrete revision loop and delivery gate',async()=>{
+ const result=await runKnowledge('search',{query:'成片审核 返修 require-audit',limit:8});assert.ok(result.results.some(r=>r.id==='audit-loop'));
+ const section=await runKnowledge('read',{id:'audit-loop'});assert.ok(section.text.includes('revise'));assert.ok(section.text.includes('require-audit true'));
+});

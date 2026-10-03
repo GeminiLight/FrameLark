@@ -1385,6 +1385,61 @@
         "比较工具",
         "用户拒绝"
       ]
+    },
+    {
+      "id": "audit-view",
+      "kind": "craft",
+      "file": "result-audit.md",
+      "section": "先看结果再判断",
+      "tags": [
+        "审核",
+        "成片",
+        "不好看",
+        "复看",
+        "result-audit"
+      ]
+    },
+    {
+      "id": "audit-priorities",
+      "kind": "craft",
+      "file": "result-audit.md",
+      "section": "审核问题的优先顺序",
+      "tags": [
+        "构图",
+        "主次",
+        "裁剪",
+        "调色",
+        "返修",
+        "问题"
+      ]
+    },
+    {
+      "id": "audit-loop",
+      "kind": "craft",
+      "file": "result-audit.md",
+      "section": "记录决定并继续修改",
+      "tags": [
+        "审核",
+        "返修",
+        "接受",
+        "ready",
+        "revise",
+        "reject",
+        "require-audit"
+      ]
+    },
+    {
+      "id": "audit-boundaries",
+      "kind": "craft",
+      "file": "result-audit.md",
+      "section": "收尾与适用边界",
+      "tags": [
+        "审核",
+        "交付",
+        "停止",
+        "取舍",
+        "试修"
+      ]
     }
   ]
 }

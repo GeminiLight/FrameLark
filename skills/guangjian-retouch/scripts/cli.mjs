@@ -2,7 +2,7 @@
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {initProject,loadProject,publicProject,preferenceChoices,currentVersion,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,saveFeedback,recordExport,fail,localFailure} from './project.mjs';
+import {initProject,loadProject,publicProject,preferenceChoices,currentVersion,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,saveResultAudit,saveFeedback,recordExport,fail,localFailure} from './project.mjs';
 import {renderLookSheet} from './look-sheet.mjs';
 import {previewPhoto,exportPhoto,createRenderSession} from './render.mjs';
 import {editorControlReference} from './engine/control-reference.js';
@@ -29,9 +29,10 @@ const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <comman
   'delete-note':'--id <annotation-id> [--revision <n>]',
   intent:'--text <表达目标> [--revision <n>]',
   review:'--input <review.json|->；保存宿主 Agent 的画面观察与保留依据',
+  'result-audit':'--input <audit.json|->；实际看成片后记录 ready/revise/reject、问题与下一步；核对版本和预览身份',
   feedback:'--input <feedback.json|->；记录用户明确的 reject/prefer/neutral，不改像素；拒绝版不再作为偏好证据',
   'look-sheet':'--input <sheet.json|->；revision、2～6 个 versions；composition 分别看构图，color 按 referenceVersion 同范围看光色',
-  accept:'--id <candidate-id> [--revision <n>] [--selection-hash <hash>] [--by user|agent]；逐项候选必填 revision 和 hash，Agent 试修保存不计为用户偏好',
+  accept:'--id <candidate-id> [--revision <n>] [--selection-hash <hash>] [--by user|agent] [--require-audit true]；逐项候选必填 revision 和 hash，Agent 试修保存不计为用户偏好',
   discard:'--id <candidate-id> [--revision <n>]',
   restore:'--id <version-id> [--revision <n>]',
   compare:'--a <id|original|current> --b <id|current> [--region <JSON 原片范围>]',
@@ -67,7 +68,8 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'delete-note':return deleteNote(folder,{id:o.id,revision});
     case 'intent':return setIntent(folder,{intent:o.text,revision});
     case 'review':return saveReview(folder,await input(o.input));
-    case 'accept':return acceptCandidate(folder,{id:o.id,revision,selectionHash:o['selection-hash'],acceptedBy:o.by});
+    case 'result-audit':return saveResultAudit(folder,await input(o.input));
+    case 'accept':if(o['require-audit']!==undefined&&!['true','false'].includes(o['require-audit']))fail('AUDIT_INVALID','--require-audit 应为 true 或 false。');return acceptCandidate(folder,{id:o.id,revision,selectionHash:o['selection-hash'],acceptedBy:o.by,requireAudit:o['require-audit']===undefined?undefined:o['require-audit']==='true'});
     case 'feedback':return saveFeedback(folder,await input(o.input));
     case 'look-sheet':return renderLookSheet(folder,await input(o.input));
     case 'discard':return discardCandidate(folder,{id:o.id,revision});

@@ -60,6 +60,8 @@
 
 ## 查看与比较
 
+`result-audit --input` 保存针对已实际查看预览的宿主审核，核对 versionId、revision、maxSide、pixelHash、frameSpecHash 和 selectionHash；ready/revise/reject、检查范围、问题与下一步会随项目保留。JSON 与返修流程见 [成片审核](result-audit.md)。工具不自动评美；Agent 交付保存用 `accept --by agent --require-audit true`，要求同一组合最新审核为 ready，阻止未审核、待返修或旧组合的审核被沿用。
+
 光色与构图方向比较使用 `look-sheet --input`；2～6 个固定版本，同一 revision。color 共用 referenceVersion 的裁剪与倍率，composition 各自保留画幅并显示保留面积；不会接受试片或写入编辑历史。JSON 及验收方法见 [光色定调](look-development.md)。
 
 ```text

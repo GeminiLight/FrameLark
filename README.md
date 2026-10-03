@@ -105,6 +105,8 @@ npm run install:skill
 
 风格调整可以先生成原片与候选的并排试片，再分别比较光色和构图。Agent 保存的试修不会自动成为你的风格偏好；明确拒绝的版本会从偏好参考中排除。[定调与试片流程](skills/guangjian-retouch/references/look-development.md)
 
+交付前，Agent 查看实际成片，记录具体问题，再裁剪、调色或局部返修。`result-audit` 保存对应版本的审核；`accept --by agent --require-audit true` 核对同一组合的通过记录。工具核对身份，审美判断来自宿主实际看图。[成片审核与返修](skills/guangjian-retouch/references/result-audit.md)
+
 审片可以得出保留原片的结论。AI 使用宿主 Agent 的视觉模型、额度和数据规则，无需另配模型 Key。对话在原 Agent 中继续；Web UI 的「在 Agent 中继续」会复制项目提示。
 
 照片加字是单独的可选模式。例如：
@@ -205,7 +207,7 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 
 ## 摄影知识
 
-94 个章节，覆盖 10 类题材与场景、整组选片与交付，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
+104 个章节，覆盖 10 类题材与场景、定调与成片审核、整组选片与交付，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
 
 <details>
 <summary>知识目录与检索</summary>
