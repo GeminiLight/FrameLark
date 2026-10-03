@@ -34,7 +34,7 @@ export function enhanceSelectControls(root=document) {
     let signature='',selectedValue=select.value;
     const enabled=index=>options[index]&&!options[index].disabled&&!options[index].closest('optgroup')?.disabled;
     const indexes=()=>options.map((_,i)=>i).filter(enabled);
-    const name=()=>select.getAttribute('aria-label') || labelText || select.title || '选择选项';
+    const name=()=>select.getAttribute('aria-label') || labelText || select.title || '请选择';
     function sync() {
       options=visibleOptions(select);
       const nextSignature=options.map(option=>`${option.value}\0${option.textContent}\0${option.disabled}\0${option.closest('optgroup')?.disabled}`).join('\n');

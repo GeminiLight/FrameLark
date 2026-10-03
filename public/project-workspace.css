@@ -1,0 +1,27 @@
+.project-dialog,.project-preview{box-sizing:border-box;width:min(760px,calc(100vw - 28px));max-height:calc(100dvh - 36px);overflow:auto;padding:24px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink)}
+.project-preview{width:min(1100px,calc(100vw - 28px))}
+.project-dialog::backdrop,.project-preview::backdrop{background:#12181ccc}
+.project-dialog header,.project-preview header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.project-dialog h2,.project-preview h2{margin:0;font-size:21px;font-weight:500}
+.project-dialog h3{font-size:14px;margin:22px 0 10px}
+.project-dialog p,.project-preview p{font-size:12px;color:var(--muted);line-height:1.8}
+.project-dialog button,.project-preview button{min-height:38px;padding:8px 12px;border:1px solid var(--line);border-radius:5px;background:transparent;color:var(--ink);font:inherit;font-size:12px;cursor:pointer}
+.project-dialog button:disabled,.project-preview button:disabled{opacity:.5;cursor:default}
+.project-dialog header button,.project-preview header button{border:0;font-size:24px}
+#project-register{display:grid;gap:8px;margin-top:20px;font-size:12px}
+#project-register>div{display:flex;gap:8px}
+#project-path{box-sizing:border-box;min-width:0;flex:1;border:1px solid var(--line);border-radius:4px;background:var(--paper);color:var(--ink);padding:10px;font:inherit}
+.project-path{overflow-wrap:anywhere}
+.project-buttons,.project-version{display:flex;gap:10px;align-items:center;justify-content:space-between;margin:10px 0}
+.project-candidate{border:1px solid var(--line);border-radius:6px;padding:12px;margin:10px 0;font-size:12px}
+.project-candidate label{display:flex;gap:8px;align-items:center;margin:8px 0}
+.project-recent{display:grid;gap:5px;width:100%;text-align:left;margin:8px 0}
+.project-recent small{color:var(--muted);overflow-wrap:anywhere}
+.project-preview-images{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+.project-preview-images figure{margin:0;min-width:0}
+.project-preview-images img{display:block;width:100%;max-height:60vh;object-fit:contain;background:var(--paper)}
+.project-preview-images figcaption{font-size:12px;color:var(--muted);margin:8px 0}
+.project-sync-status{font-size:11px;color:var(--muted);padding:0 12px 10px;overflow-wrap:anywhere}
+.project-error,#project-notice{color:var(--accent)}
+.project-version{font-size:12px}
+@media(max-width:600px){.project-preview-images{grid-template-columns:1fr}.project-preview-images img{max-height:35vh}}

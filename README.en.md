@@ -75,7 +75,7 @@ Use a new project directory. Press `Ctrl+C` to stop the server; run `serve` agai
 
 The [Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) offers multiple uploads, diagnosis, and an integrated advisor. It currently requires Vercel access. Check the page for the visual-model connection status.
 
-The online application and `npm start` use this repository's frontend, API routes, and server. Studio drafts live in each browser; the agent darkroom uses file-based projects. You can explicitly exchange photo-project snapshots; the workspaces do not automatically synchronize.
+The online application and `npm start` use this repository's frontend, API routes, and server. Studio drafts live in each browser; the agent darkroom uses file-based projects. Browser drafts remain separate; opening a shared file project synchronizes annotations, candidates, versions, and export records with the Skill. Portable project files remain available for explicit snapshot exchange.
 
 </details>
 
@@ -151,7 +151,7 @@ Supported workflows include travel stories, portraits, events, product catalogs,
 
 - **Skill:** up to 500 files per batch, 20 thumbnails per page. The host supplies visual judgment; detail decisions require individual image inspection. Failed exports can be retried separately.
 - **Web UI:** a 2–12 photo workspace for already selected images, with purpose, intent, sequencing, previews and ordered export. Manual order is respected.
-- Changes to the brief, saved images or annotations make earlier curation stale. Web and Skill projects do not automatically synchronize.
+- Changes to the brief, saved images or annotations make earlier curation stale. Browser drafts remain separate; shared file projects synchronize with the Skill.
 
 [Collection workflow](skills/photo-retouch/references/collection-craft.md) · [CLI and tool contracts](skills/photo-retouch/references/collection-tools.md) (Chinese)
 
@@ -168,7 +168,7 @@ Supported workflows include travel stories, portraits, events, product catalogs,
 
 - **Input:** static JPEG, PNG, WebP, and AVIF; 8-bit sRGB. Up to 30 MB, 50 megapixels, and a 16384 px longest edge.
 - **Output:** PNG / JPEG with sharing, printing, and original-size presets. At most 8192 px / 16 megapixels, without upscaling; the original-size preset has the same limits.
-- **Convert first:** HEIC, RAW, and TIFF. RAW development, a 16-bit workflow, automatic subject segmentation, and generative object editing are not supported.
+- **HEIC / HEIF:** The macOS local workspace can convert static images. Other environments, RAW, and TIFF require conversion first. RAW development, a 16-bit workflow, automatic subject segmentation, and generative object editing are not supported.
 
 Local tools make no model API requests. The preview listens only on `127.0.0.1`. Explicit user choices live in photo projects and can be organized into a local preference file on request, without automatic training or uploads.
 
@@ -285,3 +285,9 @@ npm test
 ## Contributors
 
 Thanks to [Yijie Xu (@yeahjack)](https://github.com/yeahjack) for selective edit acceptance, parameter and local-layer locks, protected regions, and rendering and preview responsiveness improvements: [#1](https://github.com/GeminiLight/frameyn/pull/1), [#2](https://github.com/GeminiLight/frameyn/pull/2).
+
+## Shared local projects
+
+After `npm run setup`, use **文件项目** in the Web workspace to save the current photo or open an existing Skill project. Both surfaces share annotations, candidates, saved versions and export records, with revision checks for concurrent edits. `npm run photo -- studio --project /path/to/project` returns a link to the same project in the complete workspace. Protected or lettering projects continue in the standalone darkroom.
+
+The macOS local workspace can convert static HEIC/HEIF images with the system decoder and preserve original bytes. Other platforms, RAW and TIFF still require conversion.

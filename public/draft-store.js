@@ -2,9 +2,10 @@ import {adjustmentKeys,renderingVersion} from './editor-engine.js';
 import {cleanIntent} from './creative-intent.js';
 import {validCrop} from './crop-utils.js';
 export const draftVersion=1;
-const fields=['imageName','creativeIntent','analysisIntent','subject','subjectSource','analysis','active','manual','advisorLayers','crop','compare','annotations','presetId','presetAmount','analysisSource','analysisStatus','analysisError','analysisProvenance','originalRecommendations','assessment','exported','lastExportSignature','history','conversation','versions','agentFallback','agentDraft','agentFocusId','acceptedSignature','acceptedRecordId'];
+const fields=['sourceOriginalBlob','originalFileName','imageName','creativeIntent','analysisIntent','subject','subjectSource','analysis','active','manual','advisorLayers','crop','compare','annotations','presetId','presetAmount','analysisSource','analysisStatus','analysisError','analysisProvenance','originalRecommendations','assessment','exported','lastExportSignature','history','conversation','versions','agentFallback','agentDraft','agentFocusId','acceptedSignature','acceptedRecordId'];
 export function serializeDraftPhoto(photo) {
-  if(photo.isDemo || !(photo.originalBlob instanceof Blob)) return null;
+  // An unsynchronized file edit still needs a recoverable browser copy.
+  if(photo.isDemo || photo.projectId&&!photo.projectPending || !(photo.originalBlob instanceof Blob)) return null;
   const result={id:photo.id,originalBlob:photo.originalBlob};
   for(const key of fields) result[key]=structuredClone(key==='active' ? [...photo.active] : photo[key]);
   return result;

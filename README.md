@@ -49,6 +49,16 @@ docker compose up -d --build
 
 [部署与模型配置](docs/DEPLOYMENT.md) · [部署到 Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
 
+### 与 Codex 继续同一个项目
+
+运行 `npm run setup` 后，网页的“文件项目”可将当前照片存到本机，或打开已有 Skill 项目。后续批注、候选、版本和导出记录共用同一份文件；未保存的并发修改会提示冲突。
+
+```sh
+npm run photo -- studio --project /你的/照片项目
+```
+
+打开返回的地址即可继续。含文字或保护设置的项目仍可使用下方的独立暗房。详情见 [文件项目说明](docs/DEPLOYMENT.md#网页与-skill-共享文件项目)。
+
 ### Agent 暗房
 
 围绕文件项目与自己的 Agent 协作时，准备图片处理依赖并创建项目：
@@ -75,7 +85,7 @@ node skills/photo-retouch/scripts/cli.mjs serve \
 
 [打开 Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) 体验多图上传、诊断与内置顾问，目前需要 Vercel 访问权限。视觉模型状态以页面显示为准。
 
-在线应用与 `npm start` 使用本仓库的 `public/`、`api/` 和服务端源码。工作台草稿保存在各自浏览器中；Agent 暗房使用文件项目。可主动交换照片项目快照，两类工作空间不会自动同步。
+在线应用与 `npm start` 使用本仓库的 `public/`、`api/` 和服务端源码。工作台草稿保存在各自浏览器中；Agent 暗房使用文件项目，浏览器草稿独立保存；通过“文件项目”打开后，可与 Skill 共用批注、候选、版本和导出记录。 也可通过便携项目文件手动交换快照。
 
 </details>
 
@@ -160,7 +170,7 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 
 - **Skill**：每批最多 500 个文件，每页 20 张联系表；使用宿主的视觉能力，细节取舍需要打开单图。导出失败可逐张重试。
 - **Web UI**：2–12 张已选照片的组图空间，选择用途、表达与排序依据，再审片、试片和顺序导出；可明确保持自己的顺序。
-- 主题、已保存照片或批注更新后，旧组选片会标为过期，先复看再交付。Web 与 Skill 项目目前不自动同步。
+- 主题、已保存照片或批注更新后，旧组选片会标为过期，先复看再交付。Web 浏览器草稿独立保存；文件项目可与 Skill 同步。
 
 执行命令与 JSON：[组图工具](skills/photo-retouch/references/collection-tools.md) · 选片方法：[组图创作](skills/photo-retouch/references/collection-craft.md)
 
@@ -178,7 +188,7 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 
 - **输入**：静态 JPEG、PNG、WebP、AVIF；8 位 sRGB。最多 30 MB、5000 万像素、最长边 16384 px。
 - **输出**：PNG / JPEG，支持分享、打印与原尺寸预设。最多 8192 px / 1600 万像素，不放大；原尺寸预设也受此限制。
-- **需先转换**：HEIC、RAW、TIFF。当前不支持 RAW 显影、16 位工作流、自动主体分割或生成式增删物体。
+- **HEIC / HEIF**：macOS 本地版可自动转换静态照片，并保留原文件。其他环境及 RAW、TIFF 仍需先转换。当前不支持 RAW 显影、16 位工作流、自动主体分割或生成式增删物体。
 
 本地工具不请求模型 API，预览只监听 `127.0.0.1`。用户明确选择保存在照片项目中；可按要求整理为本地偏好档案，不会自动训练或上传。
 
