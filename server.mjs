@@ -216,6 +216,11 @@ export async function handleRequest(request, response) {
 
 async function routeRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  const localVisionCalls=['/api/analyze','/api/reassess','/api/design-chat','/api/series-review'];
+  if(!cloudDeployment && request.method==='POST' && localVisionCalls.includes(url.pathname) &&
+    (!canAccessLocalFiles(request) || request.headers['content-type']?.split(';')[0].trim().toLowerCase()!=='application/json')) {
+    return sendJson(response,403,{error:{code:'FORBIDDEN_ORIGIN',message:'请从本机工作台发起视觉请求。',retryable:false}});
+  }
   if(await handleProjectRoutes(request,response,url,{bridge:projects,readBody,allowed:canAccessLocalFiles,cloud:cloudDeployment}))return;
   if(url.pathname==='/api/codex-status' && request.method==='POST'){
     if(!canConfigureVision(request))return sendJson(response,403,{error:{code:'FORBIDDEN_ORIGIN',message:'请在本机工作台中检查 Codex 登录。'}});

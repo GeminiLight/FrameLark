@@ -9,6 +9,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
   document.body.insertAdjacentHTML('beforeend',`<dialog id="project-dialog" class="project-dialog"><header><h2>文件项目</h2><button type="button" id="project-close" aria-label="关闭文件项目">×</button></header><p>照片、批注和版本保存在本机，网页与 Codex Skill 共用同一个项目。</p><button type="button" id="project-create">将当前照片保存为文件项目</button><form id="project-register"><label for="project-path">已有项目的文件夹路径</label><div><input id="project-path" placeholder="包含 project.json 的文件夹" /><button type="submit">打开</button></div></form><p id="project-notice" role="status"></p><section id="project-details"></section><h3>最近项目</h3><div id="project-recent"></div></dialog>
   <dialog id="project-preview" class="project-preview"><header><h2 id="project-preview-title">比较方案</h2><button type="button" id="project-preview-close" aria-label="关闭项目预览">×</button></header><div class="project-preview-images"><figure><figcaption>当前版本</figcaption><img id="project-before" alt="项目当前版本" /></figure><figure><figcaption>候选方案</figcaption><img id="project-after" alt="项目候选预览" /></figure></div><p id="project-preview-note"></p><button type="button" id="project-accept" disabled>应用这个方案</button></dialog>`);
   const $=id=>document.getElementById(id),links=new Map();let selected=null,previewToken=null,available=false,updating=false;
+  const pendingLoads=new Map();let loadQueue=Promise.resolve();
   const notice=text=>{$('project-notice').textContent=text;};
   function status(photo=getPhoto()){
     const node=$('project-sync-status'),link=photo&&links.get(photo.id);node.hidden=!photo?.projectId;
@@ -42,7 +43,13 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     link.events.onerror=()=>{link.error='项目更新连接已断开，正在重连。';status();};
     link.events.onopen=()=>{link.error=null;status();};status(photo);
   }
-  async function load(id){
+  function load(id){
+    if(pendingLoads.has(id))return pendingLoads.get(id);
+    // Serialize different imports as well: capacity checks see every prior insertion.
+    const pending=loadQueue.catch(()=>{}).then(()=>loadProject(id)).finally(()=>pendingLoads.delete(id));
+    pendingLoads.set(id,pending);loadQueue=pending;return pending;
+  }
+  async function loadProject(id){
     const data=await projectRequest(`/api/projects/${id}`);render(data);
     if(!data.supported){notice(data.limitations);if(!$('project-dialog').open)$('project-dialog').showModal();return null;}
     const existing=getPhotos().find(p=>p.projectId===id),link=existing&&links.get(existing.id);
