@@ -11,8 +11,7 @@ export function photoPhase({hasPhoto=true,loading=false,analyzing=false,analysis
 
 export function editorTab(name) {
   if(name==='suggestions')return 'diagnosis';
-  if(name==='presets')return 'adjust';
-  return ['diagnosis','adjust','agent'].includes(name) ? name:'diagnosis';
+  return ['diagnosis','adjust','presets','agent'].includes(name) ? name:'diagnosis';
 }
 
 export function inspectionVisibility({hasPhoto=true,edited=false,past=0,future=0,sources=0,versions=0}={}) {
