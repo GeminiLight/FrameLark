@@ -1,4 +1,10 @@
 export const tierNames={fast:'快速',standard:'标准',deep:'深入'};
+export const reasoningEfforts=['none','minimal','low','medium','high','xhigh','max','ultra'];
+export function modelEffortChoices(provider,modelId,models=[]) {
+  if(provider!=='codex')return ['low','medium','high','xhigh','max'];
+  const model=models.find(item=>item.id===modelId);
+  return model ? reasoningEfforts.filter(effort=>model.efforts.includes(effort)):[...reasoningEfforts];
+}
 export function defaultModelTiers() {
   return {fast:{model:'gpt-6.1-sol',effort:'low'},standard:{model:'gpt-6.1-sol',effort:'medium'},deep:{model:'gpt-6-astra',effort:'high'}};
 }
@@ -6,7 +12,7 @@ export function normalizeModelTiers(value,legacyModel=null) {
   const defaults=defaultModelTiers(),result={};
   for(const tier of Object.keys(defaults)) {
     const entry=value?.[tier] || (legacyModel?{model:legacyModel,effort:defaults[tier].effort}:defaults[tier]);
-    if(typeof entry.model!=='string'||!/^[a-zA-Z0-9._:/-]{1,120}$/.test(entry.model)||!['low','medium','high','xhigh','max'].includes(entry.effort))throw new Error('请为每个档位选择有效的模型和思考强度。');
+    if(typeof entry.model!=='string'||!/^[a-zA-Z0-9._:/-]{1,120}$/.test(entry.model)||!reasoningEfforts.includes(entry.effort))throw new Error('请为每个档位选择有效的模型和思考强度。');
     result[tier]={model:entry.model,effort:entry.effort};
   }
   return result;

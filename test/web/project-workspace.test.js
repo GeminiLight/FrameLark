@@ -2,17 +2,37 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createProjectWorkspace} from '../../public/project-workspace.js';
 
-function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onUpdate=()=>{},getVersions=()=>[]}={}){
+function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onLoad=()=>photo,onUpdate=()=>{},getVersions=()=>[]}={}){
   const previous={document:globalThis.document,location:globalThis.location,history:globalThis.history,EventSource:globalThis.EventSource,fetch:globalThis.fetch};
   const nodes=new Map(),events=[];
   const node=id=>{if(!nodes.has(id))nodes.set(id,{hidden:false,listeners:{},addEventListener(type,fn){this.listeners[type]=fn;},insertAdjacentHTML(){},showModal(){this.open=true;},close(){this.open=false;}});return nodes.get(id);};
   globalThis.document={querySelector:node,getElementById:node,body:node('body')};globalThis.location={href:'http://localhost:3177/'};globalThis.history={replaceState(){}};
-  globalThis.EventSource=class{constructor(){events.push(this);}close(){}};globalThis.fetch=fetchImpl;
-  const workspace=createProjectWorkspace({getPhoto:()=>photo,getPhotos:()=>[photo],getPatch:()=>patch,getVersions,onLoad:()=>photo,onUpdate,notify(){}});
+  globalThis.EventSource=class{constructor(){events.push(this);}close(){this.closed=true;}};globalThis.fetch=fetchImpl;
+  const workspace=createProjectWorkspace({getPhoto:()=>photo,getPhotos:()=>[photo],getPatch:()=>patch,getVersions,onLoad,onUpdate,notify(){}});
   t.after(()=>{workspace.close();Object.assign(globalThis,previous);});return {workspace,photo,patch,events,node};
 }
 const data=(revision=1)=>({id:'project',path:'/tmp/owned-project',name:'test',revision,currentId:'current',supported:true,current:{},candidates:[],versions:[],exports:[]});
 const response=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+
+test('opening the same file project twice shares one pending import',async t=>{
+  let release,ready,loads=0;const waiting=new Promise(resolve=>{ready=resolve;});
+  const env=fixture(t,{fetchImpl:async()=>response(data()),onLoad:async()=>{loads++;ready();await new Promise(resolve=>{release=resolve;});return env.photo;}});
+  const first=env.workspace.load('project');await waiting;
+  const second=env.workspace.load('project');await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(loads,1,'one source decode and one photo insertion');
+  release();await Promise.all([first,second]);assert.equal(env.events.length,1);
+});
+
+test('different imports serialize, and a failed open does not block the next one',async t=>{
+  let release,ready;const waiting=new Promise(resolve=>{ready=resolve;}),opened=[];
+  const env=fixture(t,{fetchImpl:async url=>response({...data(),id:url.split('/').at(-1)}),onLoad:async d=>{
+    opened.push(d.id);if(d.id==='first'){ready();await new Promise(resolve=>{release=resolve;});throw Error('broken image');}return env.photo;
+  }});
+  const first=env.workspace.load('first'),rejected=assert.rejects(first,/broken image/);await waiting;
+  const next=env.workspace.load('second');await new Promise(resolve=>setImmediate(resolve));assert.deepEqual(opened,['first']);
+  release();await rejected;await next;assert.deepEqual(opened,['first','second']);assert.equal(env.photo.projectId,'second');
+  env.workspace.release(env.photo);assert.equal(env.events[0].closed,true);assert.equal(env.workspace.hasPending(),false);
+});
 
 test('an external event during a candidate mutation is drained before it finishes',async t=>{
   let finish,getCount=0,updated;

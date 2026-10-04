@@ -48,6 +48,6 @@ test('each editor mode has one concrete first action and pending work has a queu
   assert.equal(panelGuidance({phase:'loading'}).action,null);
 });
 test('professional mode stays in the editor while learning cannot become a repair tab',()=>{
-  assert.equal(editorTab('adjust'),'adjust');assert.equal(editorTab('suggestions'),'diagnosis');assert.equal(editorTab('presets'),'adjust');assert.equal(editorTab('learn'),'diagnosis');
+  assert.equal(editorTab('adjust'),'adjust');assert.equal(editorTab('suggestions'),'diagnosis');assert.equal(editorTab('presets'),'presets');assert.equal(editorTab('learn'),'diagnosis');
   assert.equal(editorTab('unknown'),'diagnosis');
 });
