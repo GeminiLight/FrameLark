@@ -46,7 +46,7 @@ import { observationLabels, verdictLabels, normalizeObservations, reviewSourceLa
 import { tasteStorageKey,createAcceptedRecord,sanitizeTasteRecords,summarizeTaste,rememberedStyleAmount } from './taste-memory.js?v=2';
 
 let studioTab='agent',workspaceSpace='studio',nextPanelAction=null;
-const inspectorPositions={diagnosis:0,adjust:0};
+const inspectorPositions={diagnosis:0,adjust:0,presets:0};
 let slidersInitialized=false;
 
 const icons = {
@@ -74,6 +74,7 @@ const icons = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   palette: '<circle cx="12" cy="12" r="9"/><path d="M7 8h.01M12 6h.01M17 8h.01M6 13h.01"/><path d="M15 17c0-1.4 1-2 2-2h3"/>',
   sliders: '<path d="M4 5h16M4 12h16M4 19h16"/><circle cx="9" cy="5" r="2" fill="currentColor" stroke="none"/><circle cx="16" cy="12" r="2" fill="currentColor" stroke="none"/><circle cx="8" cy="19" r="2" fill="currentColor" stroke="none"/>',
+  settings: '<path d="m9.5 3-.6 2.2-2 .9-2.1-.6-2 3.5 1.6 1.6v2.8l-1.6 1.6 2 3.5 2.1-.6 2 .9.6 2.2h5l.6-2.2 2-.9 2.1.6 2-3.5-1.6-1.6v-2.8l1.6-1.6-2-3.5-2.1.6-2-.9-.6-2.2Z"/><circle cx="12" cy="12" r="3"/>',
   layers: '<path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/>',
   focus: '<circle cx="12" cy="12" r="3"/><path d="M3 9V5a2 2 0 0 1 2-2h4m6 0h4a2 2 0 0 1 2 2v4m0 6v4a2 2 0 0 1-2 2h-4m-6 0H5a2 2 0 0 1-2-2v-4"/>',
   crop: '<path d="M6 2v15a1 1 0 0 0 1 1h15M2 6h15a1 1 0 0 1 1 1v15"/>',
@@ -659,9 +660,9 @@ function activatePhoto(id) {
   $('#workspace-title').title = photo.imageName;
   $('#agent-context-photo').title = photo.imageName;
   $('#heading-counter').textContent = `${String(photoSessions.indexOf(photo) + 1).padStart(2, '0')} / ${String(photoSessions.length).padStart(2, '0')}`;
-  if (studioTab==='adjust' && !Object.keys(state.presetThumbs).length) buildPresetThumbs(photo.image);
+  if (studioTab==='presets' && !Object.keys(state.presetThumbs).length) buildPresetThumbs(photo.image);
   renderSliders();
-  if(studioTab==='adjust')renderPresets();
+  if(studioTab==='presets')renderPresets();
   sizePhotoStage();
   setCompare(state.compare);
   scheduleRender();
@@ -945,7 +946,7 @@ function refreshActions() {
   document.querySelectorAll('[data-editor-action="reassess"]').forEach(button => { button.disabled = !edited || state.assessmentBusy || busy; });
   const needsReview = edited && !state.assessment;
   $('#panel-diagnosis').classList.toggle('needs-review', needsReview);
-  $('#panel-diagnosis').setAttribute('aria-label', needsReview ? '详细分析，有调整待复评' : '详细分析');
+  $('#panel-diagnosis').setAttribute('aria-label', needsReview ? '审片，有调整待复评' : '审片');
   const pieces = [];
   if (state.advisorLayers.some(item=>!item.annotationId)) pieces.push('顾问微调');
   if (state.active.size) pieces.push(`${state.active.size} 项建议`);
@@ -1024,11 +1025,12 @@ function showWorkspaceSpace(space) {
   if(changed)window.scrollTo({top:0,behavior:'instant'});
 }
 $('#more-tools').addEventListener('click',()=>$('#more-tools-dialog').showModal());
+$('#mobile-settings-button').addEventListener('click',()=>$('#more-tools-dialog').showModal());
 $('#more-tools-close').addEventListener('click',()=>$('#more-tools-dialog').close());
 $('#more-tools-dialog').addEventListener('click',event=>{
   const tool=event.target.closest('[data-workspace-tool]')?.dataset.workspaceTool;if(!tool)return;
   $('#more-tools-dialog').close();
-  if(tool==='models')openVisionSettings();else if(tool==='projects')projectWorkspace.open();else if(tool==='drafts')$('#draft-status').click();else if(tool==='learn')$('#nav-learn').click();else if(tool==='profile')$('#profile-button').click();else if(tool==='help')$('#help-button').click();
+  if(tool==='models')openVisionSettings();else if(tool==='projects')projectWorkspace.open();else if(tool==='drafts')$('#draft-status').click();else if(tool==='help')$('#help-button').click();
 });
 $('#try-example').addEventListener('click',async()=>{await addPhotoSource('/assets/alpine-demo.png','清晨的山脊',true);selectTab('agent');});
 $('#empty-projects').addEventListener('click',()=>projectWorkspace.open());
@@ -1036,7 +1038,7 @@ $('#empty-projects').addEventListener('click',()=>projectWorkspace.open());
 $('#nav-learn').addEventListener('click',()=>showWorkspaceSpace('learn'));
 document.querySelectorAll('.mobile-spaces [data-space]').forEach(button=>button.addEventListener('click',()=>{
   button.focus({preventScroll:true});
-  if(button.dataset.space==='more')$('#more-tools-dialog').showModal();else if(button.dataset.space==='library')$('#nav-library').click();else if(button.dataset.space==='profile')$('#nav-profile').click();else showWorkspaceSpace(button.dataset.space);
+  if(button.dataset.space==='library')$('#nav-library').click();else if(button.dataset.space==='profile')$('#profile-button').click();else showWorkspaceSpace(button.dataset.space);
 }));
 $('#learn-practice').addEventListener('click',()=>{showWorkspaceSpace('studio');if(!state.image){fileInput.click();return;}selectTab('adjust');focusLightControls();});
 
@@ -2146,19 +2148,18 @@ function selectTab(name) {
   if(previous!=='agent')inspectorPositions[previous]=scroller.scrollTop;
   studioTab=editorTab(name);showWorkspaceSpace('studio');
   $('.right-panel').dataset.view=studioTab;
-  const headings={diagnosis:'详细分析',adjust:'手动调整',agent:'对话修图'};
+  const headings={diagnosis:'审阅照片',adjust:'精修照片',presets:'风格库',agent:'审美顾问'};
   document.querySelectorAll('.panel-tab').forEach(tab=>{
     const selected=tab.dataset.tab===studioTab;
     tab.classList.toggle('active',selected);tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected ? 0:-1;
   });
-  for(const [id,mode] of [['inspector-review','diagnosis'],['inspector-adjust','adjust'],['tab-agent','agent']]){const selected=studioTab===mode;const pane=$(`#${id}`);pane.hidden=!selected;pane.classList.toggle('active',selected);}
+  for(const [id,mode] of [['inspector-review','diagnosis'],['inspector-adjust','adjust'],['tab-presets','presets'],['tab-agent','agent']]){const selected=studioTab===mode;const pane=$(`#${id}`);pane.hidden=!selected;pane.classList.toggle('active',selected);}
   $('#tab-adjust').classList.toggle('active',studioTab==='adjust');
-  $('#tab-presets').classList.toggle('active',studioTab==='adjust');
   $('.right-panel').classList.toggle('agent-active',studioTab==='agent');$('.panel-heading h2').textContent=headings[studioTab];
-  $('#inspector-description').textContent=studioTab==='adjust' ? '可以选择风格，也可以直接调整光色和细节。':'看看分析结果，试试调整效果。';
+  $('#inspector-description').textContent=studioTab==='adjust' ? '微调光色、构图与细节，保留已有建议和风格。':studioTab==='presets' ? '先试看片，再选择强度；应用后仍可继续精修。':'看看分析结果，试试调整效果。';
   $('#analysis-source-button').hidden=studioTab!=='diagnosis';
   $('#analysis-mode').hidden=studioTab!=='diagnosis';
-  if(studioTab==='adjust'){buildPresetThumbs(state.image);renderPresets();}
+  if(studioTab==='presets'){buildPresetThumbs(state.image);renderPresets();}
   if(studioTab==='agent')renderAgent();
   renderAnalysisStatus();refreshActions();
   scroller.scrollTop=studioTab==='agent' ? 0:inspectorPositions[studioTab] || 0;
