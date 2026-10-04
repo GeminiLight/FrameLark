@@ -203,3 +203,19 @@ test('macOS HEIC import preserves original bytes and creates a usable normalized
   assert.equal(project.source.format,'heic');assert.deepEqual(await readFile(join(folder,'source/original.bin')),raw);
   const info=await sharp(await readFile(join(folder,'source/normalized.png'))).metadata();assert.equal(info.width,128);assert.equal(info.height,96);
 });
+
+
+test('automatic masked candidates need no saved note, preserve exclusions through accept and reopening',async t=>{
+ const {bridge,data}=await fixture(t),snapshot=snapshotFromProject(data),excluded={x:.2,y:.2,width:.1,height:.1};
+ snapshot.annotations.push({id:'auto-light',rect:{x:0,y:0,width:1,height:1},note:'提亮并排除灯光',hasNote:false,hasLocal:true,localSettings:{exposure:.2},feather:0,exclude:[excluded]});
+ snapshot.crop={x:0,y:0,width:1,height:1,angle:1};
+ const proposed=await bridge.propose(data.id,{revision:data.revision,baseVersion:data.currentId,patch:workspacePatch(snapshot),goal:'扶正并保护灯光'});
+ assert.equal((await loadProject(data.path)).notes.length,0);assert.equal((await bridge.get(data.id)).current.locals.length,0);
+ const candidate=proposed.candidates[0];
+ const accepted=await bridge.candidate(data.id,'accept',{id:candidate.id,revision:proposed.revision,selectionHash:candidate.selectionHash});
+ assert.deepEqual(accepted.current.locals[0].exclude,[excluded]);assert.equal(accepted.current.crop.angle,1);
+ const restored=snapshotFromProject(await bridge.get(data.id));
+ const saved=await bridge.save(data.id,{...workspacePatch(restored),revision:accepted.revision,baseVersion:accepted.currentId});
+ assert.deepEqual(saved.current.locals[0].exclude,[excluded]);assert.equal((await loadProject(data.path)).notes.length,0);
+ const exported=await bridge.export(data.id,{versionId:saved.currentId,options:{format:'png',maxSide:2048}});assert.ok((await stat(exported.path)).size>0);
+});

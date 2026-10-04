@@ -17,32 +17,34 @@ export class VisionError extends Error {
   toJSON() { return {code:this.code,message:this.message,retryable:this.retryable,retryAfterSeconds:this.retryAfterSeconds}; }
 }
 
-export function validateStructured(value, schema) {
-  if (schema.anyOf) return schema.anyOf.some(candidate => validateStructured(value,candidate));
+export function validateStructured(value, schema, root=schema) {
+  if(schema.$ref){const name=/^#\/\$defs\/([a-zA-Z0-9_-]+)$/.exec(schema.$ref)?.[1],target=name&&root.$defs?.[name];return Boolean(target&&validateStructured(value,target,root));}
+  if (schema.anyOf) return schema.anyOf.some(candidate => validateStructured(value,candidate,root));
   const types = Array.isArray(schema.type) ? schema.type : [schema.type];
   const actual = value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value;
   if (!types.includes(actual)) return false;
   if (schema.enum && !schema.enum.includes(value)) return false;
   if (actual === 'number') return Number.isFinite(value) && (schema.minimum === undefined || value >= schema.minimum) && (schema.maximum === undefined || value <= schema.maximum);
   if (actual === 'string') return value.length <= (schema.maxLength ?? 4000) && value.trim().length >= (schema.minLength ?? 0);
-  if (actual === 'array') return value.length <= (schema.maxItems ?? 20) && value.length >= (schema.minItems ?? 0) && value.every(item => validateStructured(item,schema.items));
+  if (actual === 'array') return value.length <= (schema.maxItems ?? 20) && value.length >= (schema.minItems ?? 0) && value.every(item => validateStructured(item,schema.items,root));
   if (actual !== 'object') return true;
   if (!schema.required?.every(key => Object.hasOwn(value,key))) return false;
   if (schema.additionalProperties === false && Object.keys(value).some(key => !Object.hasOwn(schema.properties,key))) return false;
-  return Object.entries(value).every(([key,item]) => !schema.properties[key] || validateStructured(item,schema.properties[key]));
+  return Object.entries(value).every(([key,item]) => !schema.properties[key] || validateStructured(item,schema.properties[key],root));
 }
 
 // Diagnostics include schema-owned paths only, never model text or upstream details.
-export function invalidStructuredPaths(value,schema,path='$') {
-  if(validateStructured(value,schema))return [];
+export function invalidStructuredPaths(value,schema,path='$',root=schema) {
+  if(schema.$ref){const name=/^#\/\$defs\/([a-zA-Z0-9_-]+)$/.exec(schema.$ref)?.[1],target=name&&root.$defs?.[name];return target?invalidStructuredPaths(value,target,path,root):[path];}
+  if(validateStructured(value,schema,root))return [];
   if(schema.anyOf)return [path];
   const actual=value===null ? 'null':Array.isArray(value) ? 'array':typeof value;
   const types=Array.isArray(schema.type) ? schema.type:[schema.type];
   if(!types.includes(actual))return [path];
-  if(actual==='array')return value.length>(schema.maxItems ?? 20) || value.length<(schema.minItems ?? 0) ? [path]:value.flatMap((item,index)=>invalidStructuredPaths(item,schema.items,`${path}[${index}]`)).slice(0,12);
+  if(actual==='array')return value.length>(schema.maxItems ?? 20) || value.length<(schema.minItems ?? 0) ? [path]:value.flatMap((item,index)=>invalidStructuredPaths(item,schema.items,`${path}[${index}]`,root)).slice(0,12);
   if(actual==='object') {
     const missing=(schema.required || []).filter(key=>!Object.hasOwn(value,key)).map(key=>`${path}.${key}`);
-    const malformed=Object.entries(schema.properties || {}).filter(([key])=>Object.hasOwn(value,key)).flatMap(([key,item])=>invalidStructuredPaths(value[key],item,`${path}.${key}`));
+    const malformed=Object.entries(schema.properties || {}).filter(([key])=>Object.hasOwn(value,key)).flatMap(([key,item])=>invalidStructuredPaths(value[key],item,`${path}.${key}`,root));
     const extra=schema.additionalProperties===false && Object.keys(value).some(key=>!Object.hasOwn(schema.properties,key));
     return [...missing,...malformed,...(extra ? [path+'.unexpectedField']:[])].slice(0,12);
   }

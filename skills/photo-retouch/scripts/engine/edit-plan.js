@@ -1,10 +1,11 @@
+import {normalizeToolPlan,compileToolPlan} from './photo-tools/registry.js';
 import {presetById} from './presets.js';
 import {validCrop} from './crop-utils.js';
 import {originalToViewPoint} from './photo-geometry.js';
 import {cleanSettings, cleanRect, object, ids, bounded, equal, fail} from './edit-values.js';
 
 const patchKeys = ['settings', 'style', 'crop', 'locals', 'textOverlays'];
-export const planKeys = ['revision', 'baseRevision', 'baseVersion', 'fromCandidate', 'requestId', 'name', 'goal', 'tradeoff', 'mode', 'allowProtectedCrop', 'items', 'selectedItemIds', ...patchKeys];
+export const planKeys = ['revision', 'baseRevision', 'baseVersion', 'fromCandidate', 'requestId', 'name', 'goal', 'tradeoff', 'mode', 'allowProtectedCrop', 'items', 'operations', 'selectedItemIds', ...patchKeys];
 
 // Legacy refinement is frozen into one selectable delta against the accepted
 // base. It never depends on a mutable candidate or implicitly accepts it.
@@ -22,7 +23,7 @@ export function snapshotItem(base, state, title = '整组精调') {
 }
 
 function localLayer(patch, base, notes) {
-  object(patch, ['annotationId', 'settings', 'remove', 'feather', 'maskType', 'start', 'end', 'enabled', 'amount'], 'INVALID_LOCAL');
+  object(patch, ['annotationId', 'settings', 'remove', 'feather', 'maskType', 'start', 'end', 'enabled', 'amount', 'rect', 'note', 'exclude'], 'INVALID_LOCAL');
   ids([patch.annotationId], 'INVALID_LOCAL');
   const existing = base.locals.find(l => l.id === patch.annotationId);
   if (patch.remove !== undefined && typeof patch.remove !== 'boolean') fail('INVALID_LOCAL', 'remove 必须是布尔值。');
@@ -31,9 +32,10 @@ function localLayer(patch, base, notes) {
     if (!existing) fail('LOCAL_NOT_FOUND', '要移除的局部层不存在。');
     return {id: patch.annotationId, remove: true};
   }
-  const note = notes.find(n => n.id === patch.annotationId);
+  const note = notes.find(n => n.id === patch.annotationId) || (patch.rect ? {id:patch.annotationId,rect:cleanRect(patch.rect),note:String(patch.note||'').slice(0,600)}:null);
   if (!note) fail('NOTE_NOT_FOUND', '局部标记已更新或删除，请重新读取批注。');
   const layer = structuredClone(existing || {id: note.id, maskType: 'rectangle', feather: .36, localAmount: 100, localEnabled: true, localSettings: {}});
+  if(patch.exclude!==undefined){if(!Array.isArray(patch.exclude)||patch.exclude.length>8)fail('INVALID_MASK','排除范围无效。');layer.exclude=patch.exclude.map(r=>cleanRect(r));}
   layer.rect = cleanRect(note.rect); layer.note = note.note;
   layer.localSettings = {...layer.localSettings, ...cleanSettings(patch.settings)};
   if (patch.feather !== undefined) layer.feather = bounded(patch.feather, 0, 1, 'INVALID_FEATHER');
@@ -101,6 +103,14 @@ export function normalizePlan(plan, context) {
   if (plan.allowProtectedCrop !== undefined && typeof plan.allowProtectedCrop !== 'boolean') fail('INVALID_PLAN', 'allowProtectedCrop 必须是布尔值。');
   if (plan.baseRevision !== undefined && plan.baseRevision !== plan.revision) fail('STALE_REVISION', 'baseRevision 必须与读取的 revision 一致。');
   for (const key of ['name', 'goal', 'tradeoff', 'requestId']) if (plan[key] !== undefined && typeof plan[key] !== 'string') fail('INVALID_PLAN', `${key} 必须是字符串。`);
+  if(plan.operations!==undefined){
+    if(plan.items!==undefined||patchKeys.some(k=>plan[k]!==undefined))fail('AMBIGUOUS_PLAN','工具组合不能与旧 patch 格式混用。');
+    const operations=normalizeToolPlan(plan.operations,{state:context.base,source:context.source,notes:context.notes});
+    const compiled=compileToolPlan(context.base,operations,{source:context.source,notes:context.notes,namespace:context.toolNamespace,selected:plan.selectedItemIds});
+    const all=compileToolPlan(context.base,operations,{source:context.source,notes:context.notes,namespace:context.toolNamespace});
+    const items=all.records.map(r=>({id:r.id,title:r.operation.title,dependsOn:r.operation.dependsOn,operation:r.operation,patch:r.effect,writePaths:r.writePaths}));
+    return {items,legacy:false,selectedItemIds:compiled.selectedItemIds};
+  }
   const legacy = plan.items === undefined;
   if (!legacy && patchKeys.some(k => plan[k] !== undefined)) fail('AMBIGUOUS_PLAN', 'items 不能与顶层调整混用。');
   if (legacy && plan.selectedItemIds !== undefined) fail('AMBIGUOUS_PLAN', '逐项选择需提供 items。');
@@ -140,7 +150,12 @@ export function selectionIds(items, selected) {
   return items.filter(i => chosen.has(i.id)).map(i => i.id);
 }
 
-export function compileSelection(base, items, selected) {
+export function compileSelection(base, items, selected,context={}) {
+  if(items.some(item=>item.operation)){
+    if(items.some(item=>!item.operation))fail('AMBIGUOUS_PLAN','工具组合与旧 patch 项目不能混合。');
+    const result=compileToolPlan(base,items.map(i=>i.operation),{source:context.source,notes:context.notes,namespace:context.toolNamespace,selected});
+    return {state:result.state,selectedItemIds:result.selectedItemIds,noChange:result.noChange};
+  }
   const selectedItemIds = selectionIds(items, selected), chosen = new Set(selectedItemIds), state = structuredClone(base);
   for (const item of items) if (chosen.has(item.id)) {
     const patch = item.patch;

@@ -24,6 +24,7 @@ test('App Server streams, reuses a photo thread, resumes after restart, and isol
   assert.ok(events.filter(e=>e.type==='delta').length===2);assert.equal(JSON.parse(a.output_text).reply,'人物在左边，可以保留原片。');
   app.stop();app=env.client();const resumed=await app.request(payload(),{model:'gpt-6.1-sol',sessionKey:'photo-a'});assert.equal(resumed.threadId,a.threadId);
   const calls=(await readFile(env.log,'utf8')).trim().split('\n').map(JSON.parse);
+  assert.equal(calls.find(c=>c.method==='initialize').params.capabilities.experimentalApi,true);
   assert.ok(calls.some(c=>c.method==='thread/resume'&&c.params.threadId===a.threadId));
   const started=calls.find(c=>c.method==='thread/start');assert.equal(started.params.sandbox,'read-only');assert.equal(started.params.config['mcp_servers.unrelated.enabled'],false);
   assert.deepEqual(started.params.environments,[]);

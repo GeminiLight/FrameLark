@@ -13,7 +13,7 @@ export function partialReply(json) {
   try{return JSON.parse('"'+fragment+'"').slice(0,700);}catch{return '';}
 }
 
-export async function readVisionStream(response,onEvent=()=>{}) {
+export async function readVisionStream(response,onEvent=()=>{},{maxBytes=1_000_000}={}) {
   if(!response.headers.get('content-type')?.includes('application/x-ndjson'))return readServiceJSON(response,'视觉对话');
   const reader=response.body.getReader(),decoder=new TextDecoder();let buffer='',result,failed,total=0;
   const consume=line=>{
@@ -26,7 +26,7 @@ export async function readVisionStream(response,onEvent=()=>{}) {
   try {
     while(true){
       const {value,done}=await reader.read();if(done)break;
-      total+=value.length;if(total>1_000_000)throw new Error('回复数据过大，请重试。');
+      total+=value.length;if(total>maxBytes)throw new Error('回复数据过大，请重试。');
       buffer+=decoder.decode(value,{stream:true});let end;
       while((end=buffer.indexOf('\n'))!==-1){consume(buffer.slice(0,end));buffer=buffer.slice(end+1);}
     }

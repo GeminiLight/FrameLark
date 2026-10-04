@@ -59,6 +59,8 @@ npm run photo -- studio --project /你的/照片项目
 
 打开返回的地址即可继续。含文字或保护设置的项目仍可使用下方的独立暗房。详情见 [文件项目说明](docs/DEPLOYMENT.md#网页与-skill-共享文件项目)。
 
+对话建议可拆为工具组合，逐项比较与勾选，复用区域或对象蒙版。工具目录、参数 Schema 和依赖编译在 Web 与 Skill 中共享；本机运行 `npm run setup` 后，每项工具可在独立子进程执行并保留中间预览。对象定位目前使用明确的几何蒙版。详见 [工具架构](docs/PHOTO_TOOLS_ARCHITECTURE.md) 与 [Skill 用法](skills/photo-retouch/references/tool-composition.md)。
+
 ### Agent 暗房
 
 围绕文件项目与自己的 Agent 协作时，准备图片处理依赖并创建项目：

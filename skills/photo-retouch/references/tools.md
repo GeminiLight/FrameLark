@@ -4,6 +4,8 @@
 
 ## 候选 JSON
 
+复合编辑优先使用动态工具目录和 `compose`，目标可以是整张、区域、对象范围、批注或前一步生成的蒙版。见 [工具组合](tool-composition.md)。下方旧候选与 `items` 格式继续兼容。
+
 使用 inspect 刚返回的 revision/currentId。用 JSON 文件或 stdin 提交，避免 shell 转义用户文本。
 
 ```json

@@ -1,7 +1,8 @@
+import {readVisionStream} from './vision-stream.js';
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-export async function projectRequest(url,{method='GET',value,body,headers={},signal}={}) {
-  const response=await fetch(url,{method,signal,headers:{...(value?{'Content-Type':'application/json'}:{}),...headers},body:value?JSON.stringify(value):body});
-  const result=await response.json();if(!response.ok)throw Object.assign(new Error(result.error?.message || '项目操作未完成。'),{code:result.error?.code,status:response.status});return result;
+export async function projectRequest(url,{method='GET',value,body,headers={},signal,onEvent}={}) {
+  const response=await fetch(url,{method,signal,headers:{...(value?{'Content-Type':'application/json'}:{}),...headers,...(onEvent?{Accept:'application/x-ndjson'}:{})},body:value?JSON.stringify(value):body});
+  const result=onEvent?await readVisionStream(response,onEvent,{maxBytes:8*1024*1024}):await response.json();if(!response.ok)throw Object.assign(new Error(result.error?.message || '项目操作未完成。'),{code:result.error?.code,status:response.status});return result;
 }
 export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=()=>[],onLoad,onUpdate,onVersions=()=>{},onState=()=>{},notify}) {
   document.querySelector('.heading-actions').insertAdjacentHTML('afterbegin','<button type="button" class="draft-status" id="project-open" hidden>文件项目</button>');
@@ -112,13 +113,13 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     if(link.dirty||getVersions(photo).some(v=>!link.data.versions.some(saved=>saved.id===v.id)))return flush(photo);
     await drainRemote(photo);return link.data;
   }
-  async function mutate(photo,operation,value,baseline,{reload=false}={}){
+  async function mutate(photo,operation,value,baseline,{reload=false,signal,onEvent}={}){
     const link=links.get(photo.id);if(!link)throw new Error('项目未连接。');
     while(link.busy)await link.promise;
     if(links.get(photo.id)!==link)throw new Error('项目已切换，请在当前项目重试。');
     const beforeReload=reload?JSON.stringify(getPatch(photo)):null;
     link.busy=true;link.error=null;status();
-    link.promise=projectRequest(`/api/projects/${link.data.id}/${operation}`,{method:'POST',value}).then(async data=>{
+    link.promise=projectRequest(`/api/projects/${link.data.id}/${operation}`,{method:'POST',value,signal,onEvent}).then(async data=>{
       if(links.get(photo.id)!==link)return data;
       if(reload){
         if(JSON.stringify(getPatch(photo))!==beforeReload){link.conflict=true;throw new Error('恢复已写入文件项目，但等待期间有新的网页修改。已保留这些修改，请先另存副本或重新读取项目。');}
@@ -130,13 +131,13 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
       if(baseline)link.baseline=JSON.stringify(baseline);
       link.dirty=JSON.stringify(getPatch(photo))!==link.baseline;
       if(selected?.id===data.id)render(data);return data;
-    }).catch(error=>{if(error.status===409)link.conflict=true;link.error=error.message;throw error;}).finally(()=>{link.busy=false;status();});
+    }).catch(error=>{if(error.status===409)link.conflict=true;link.error=error.name==='AbortError'||error.code==='CANCELLED'?null:error.message;throw error;}).finally(()=>{link.busy=false;status();});
     const data=await link.promise;
     if(links.get(photo.id)!==link)throw new Error('项目已切换，旧操作的结果保留在原文件项目中。');
     // Applying a preview commits the browser snapshot immediately after this return.
     // Wait for schedule() to observe that snapshot before reconciling remote edits.
     if(baseline&&link.dirty)return data;
-    await drainRemote(photo);return {...link.data,candidateId:data.candidateId,remoteUpdated:link.data.revision!==data.revision};
+    await drainRemote(photo);return {...link.data,candidateId:data.candidateId,toolRun:data.toolRun,remoteUpdated:link.data.revision!==data.revision};
   }
   async function open(section){notice(available?'':'请先运行 npm run setup，安装本地图片处理依赖后刷新页面。');render(getPhoto()?.projectId?links.get(getPhoto().id)?.data:null);$('project-dialog').showModal();try{if(getPhoto()?.projectId){await flush(getPhoto());render(links.get(getPhoto().id)?.data);}await recent();if(['versions','exports'].includes(section))$('project-details').querySelector(`[data-project-section="${section}"]`)?.setAttribute('open','');}catch(error){notice(error.message);}}
   $('project-open').addEventListener('click',open);$('project-close').addEventListener('click',()=>$('project-dialog').close());
@@ -191,6 +192,11 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     async saveEdition(photo,name,kind='manual'){const patch=JSON.parse(JSON.stringify(getPatch(photo)));await flush(photo);return mutate(photo,'versions',{revision:photo.projectRevision,baseVersion:photo.projectCurrentId,name,kind,patch});},
     async renameEdition(photo,id,name){await flush(photo);return mutate(photo,'versions/rename',{revision:photo.projectRevision,id,name});},
     async restoreEdition(photo,id){await flush(photo);return mutate(photo,'restore',{revision:photo.projectRevision,id},null,{reload:true});},
+    async proposeTools(photo,value,{signal,onEvent}={}){
+      await flush(photo);const data=await mutate(photo,'tools',{...value,revision:photo.projectRevision,baseVersion:photo.projectCurrentId},undefined,{signal,onEvent});
+      const candidate=data.candidates.find(c=>c.id===data.candidateId);if(!candidate||!data.toolRun)throw new Error('工具候选已变化，请重新生成。');
+      return {run:data.toolRun,token:{projectId:photo.projectId,id:candidate.id,revision:data.revision,selectionHash:candidate.selectionHash}};
+    },
     async propose(photo,patch,explanation){await flush(photo);const data=await mutate(photo,'candidate',{revision:photo.projectRevision,baseVersion:photo.projectCurrentId,patch,goal:explanation.goal,tradeoff:explanation.tradeoff});const candidate=data.candidates.find(c=>c.id===data.candidateId);return {projectId:photo.projectId,id:candidate.id,revision:data.revision,selectionHash:candidate.selectionHash};},
     async accept(photo,token,patch){const {id,revision,selectionHash}=token;return mutate(photo,'accept',{id,revision,selectionHash},patch);},
     async discard(photo,token){if(!token)return;try{if(photo&&links.has(photo.id))await mutate(photo,'discard',{id:token.id});else if(token.projectId)await projectRequest(`/api/projects/${token.projectId}/discard`,{method:'POST',value:{id:token.id}});}catch{/* It may already have been accepted or discarded elsewhere. */}},

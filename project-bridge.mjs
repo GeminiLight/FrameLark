@@ -1,3 +1,4 @@
+import {versionToolRuns} from './public/photo-tools/history.js';
 import {Worker} from 'node:worker_threads';
 import {readFile,writeFile,mkdir,rename,realpath,mkdtemp,rm,stat} from 'node:fs/promises';
 import {watch} from 'node:fs';
@@ -30,9 +31,9 @@ export class ProjectBridge {
   }
   view(p,path,runtime){
     const current=p.versions.find(v=>v.id===p.currentId),limitations=runtime.workspaceLimitations(p);
-    return {id:p.id,path,name:p.source.name,source:p.source,revision:p.revision,currentId:p.currentId,intent:p.intent,notes:p.notes,current:current.state,
+    return {id:p.id,path,name:p.source.name,source:p.source,revision:p.revision,currentId:p.currentId,intent:p.intent,notes:p.notes,current:current.state,toolRuns:versionToolRuns(current),
       supported:!limitations,limitations,
-      versions:p.versions.map((v,index)=>({id:v.id,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,state:v.state,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn})=>({id,title,dependsOn})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
+      versions:p.versions.map((v,index)=>({id:v.id,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,toolRuns:versionToolRuns(v),state:v.state,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn,operation,execution})=>({id,title,dependsOn,operation,execution})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
       exports:(p.exports||[]).map(e=>({path:e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
   }
   fingerprint(p){return this.hash?.({current:p.currentId,state:p.versions.find(v=>v.id===p.currentId)?.state,source:p.source,intent:p.intent,notes:p.notes,pipeline:this.pipeline});}
@@ -53,7 +54,7 @@ export class ProjectBridge {
   async propose(id,{revision,baseVersion,patch,goal='',tradeoff=''}){
     const {runtime,path,p}=await this.resolve(id),before=runtime.currentVersion(p).state;
     const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b),items=[];
-    const sameLocal=(a,b)=>a&&[...new Set([...Object.keys(a.localSettings||{}),...Object.keys(b.localSettings||{})])].every(k=>(a.localSettings?.[k]||0)===(b.localSettings?.[k]||0))&&['rect','maskType','feather','localAmount','localEnabled','start','end','points','brushRadius'].every(k=>same(a[k],b[k]));
+    const sameLocal=(a,b)=>a&&[...new Set([...Object.keys(a.localSettings||{}),...Object.keys(b.localSettings||{})])].every(k=>(a.localSettings?.[k]||0)===(b.localSettings?.[k]||0))&&['rect','maskType','feather','localAmount','localEnabled','start','end','points','brushRadius','exclude'].every(k=>same(a[k],b[k]));
     const global={};if(!same(before.settings,patch.settings))global.settings=patch.settings;
     if(!same(before.style,patch.style))global.style=patch.style;
     if(Object.keys(global).length)items.push({id:'global',title:'光色与风格',patch:global});
@@ -67,14 +68,24 @@ export class ProjectBridge {
         if(sameLocal(existing,a))continue;
         throw new Error('文件项目的候选暂不支持修改画笔范围，请先用矩形、径向或渐变。');
       }
-      if(a.hasNote===false){if(sameLocal(existing,a))continue;throw new Error('请先为这个局部范围补充批注，再生成项目候选。');}
+      if(sameLocal(existing,a))continue;
       const local={annotationId:a.id,settings:a.localSettings,maskType:a.maskType||'rectangle',feather:a.feather??.36,enabled:a.localEnabled!==false,amount:a.localAmount??100};
+      if(!p.notes.some(n=>n.id===a.id)){local.rect=a.rect;local.note=a.note;}
+      if(a.exclude!==undefined)local.exclude=a.exclude;
       if(local.maskType==='linear'){local.start=a.start;local.end=a.end;}
       items.push({id:'local-'+a.id,title:'局部调整',patch:{locals:[local]}});
     }
     if(!items.length)throw new Error('这份方案与当前项目版本相同。');
     const result=await runtime.createCandidate(path,{revision,baseVersion,requestId:randomUUID(),name:String(goal||'网页候选').slice(0,40),goal,tradeoff,items});
     return {...await this.mutationView(runtime,result.project,path),candidateId:result.candidate.id};
+  }
+  async proposeTools(id,value,options={}){
+    const {runtime,path,p}=await this.resolve(id),limitations=runtime.workspaceLimitations(p);
+    if(limitations)throw Object.assign(new Error(limitations),{code:'WORKSPACE_UNSUPPORTED'});
+    const {createToolCandidate}=await import('./skills/photo-retouch/scripts/tool-candidates.mjs');
+    const {publicToolRun}=await import('./photo-tool-service.mjs');
+    const result=await createToolCandidate(path,{revision:value.revision,baseVersion:value.baseVersion,requestId:randomUUID(),name:String(value.name||'工具组合').slice(0,40),goal:String(value.goal||''),tradeoff:String(value.tradeoff||''),operations:value.operations,selectedItemIds:value.selectedItemIds},{...options,namespace:value.namespace});
+    return {...await this.mutationView(runtime,result.project,path),candidateId:result.candidate.id,toolRun:{...publicToolRun(result.toolRun),history:result.candidate.toolRuns,label:result.candidate.name}};
   }
   async original(id){const {path}=await this.resolve(id);return readFile(join(path,'source/original.bin'));}
   async source(id){const {path}=await this.resolve(id);return readFile(join(path,'source/normalized.png'));}

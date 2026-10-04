@@ -20,14 +20,14 @@ export function transformRect(rect,transform) {
   const right=Math.min(1,Math.max(...points.map(p=>p.x))),bottom=Math.min(1,Math.max(...points.map(p=>p.y)));
   return right>x && bottom>y ? {x,y,width:right-x,height:bottom-y}:null;
 }
-export function drawPhotoSource(context,image,crop,width,height,sourceRect=null) {
-  const W=image.naturalWidth,H=image.naturalHeight,area=crop || full;
+export function drawPhotoSource(context,image,crop,width,height,sourceRect=null,sourceDimensions=null) {
+  const W=sourceDimensions?.width||image.naturalWidth,H=sourceDimensions?.height||image.naturalHeight,area=crop || full;
   const rect=sourceRect || {x:area.x*W,y:area.y*H,width:area.width*W,height:area.height*H};
   const {c,s,scale}=straightenTransform(W,H,crop?.angle);
   context.save();context.clearRect(0,0,width,height);
   context.scale(width/rect.width,height/rect.height);context.translate(-rect.x,-rect.y);
   context.translate(W/2,H/2);context.transform(scale*c,scale*s,-scale*s,scale*c,0,0);context.translate(-W/2,-H/2);
-  context.drawImage(image,0,0);context.restore();
+  if(sourceDimensions)context.drawImage(image,0,0,W,H);else context.drawImage(image,0,0);context.restore();
 }
 export function ratioCrop(ratio,width,height,base=full) {
   const r=Number(ratio);if(!Number.isFinite(r)||r<=0)return {...base};
