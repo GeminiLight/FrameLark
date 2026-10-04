@@ -39,9 +39,10 @@ export function createPhotoViewer(dialog,{prefix="viewer",onState=()=>{}}={}) {
         const anchor=originalToViewPoint(center,{x:0,y:0,width:1,height:1,angle:version.crop?.angle},W,H);
         const pad=32/Math.min(1,1400/Math.max(W,H));
         const rect={x:anchor.x*W-width/zoom/2-pad,y:anchor.y*H-height/zoom/2-pad,width:width/zoom+2*pad,height:height/zoom+2*pad};
-        const rw=Math.ceil(rect.width*zoom),rh=Math.ceil(rect.height*zoom);
+        const density=Math.max(1,window.devicePixelRatio || 1);
+        const rw=Math.ceil(rect.width*zoom*density),rh=Math.ceil(rect.height*zoom*density);
         const source=document.createElement('canvas');source.width=rw;source.height=rh;
-        const ctx=source.getContext('2d',{willReadFrequently:true});
+        const ctx=source.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingQuality='high';
         drawPhotoSource(ctx,sourceImage,version.crop,rw,rh,rect);
         const output=await renderer.render({pixels:ctx.getImageData(0,0,rw,rh).data,width:rw,height:rh,settings:version.settings,annotations:version.annotations,
           crop:{x:rect.x/W,y:rect.y/H,width:rect.width/W,height:rect.height/H,angle:version.crop?.angle || 0},frame:{fullWidth:W,fullHeight:H,sourceRect:rect,angle:version.crop?.angle || 0}});
@@ -54,11 +55,11 @@ export function createPhotoViewer(dialog,{prefix="viewer",onState=()=>{}}={}) {
           }
         }
         ctx.putImageData(new ImageData(output,rw,rh),0,0);
-        canvas.width=width;canvas.height=height;
-        const out=canvas.getContext('2d');out.fillStyle='#161a1c';out.fillRect(0,0,width,height);
+        canvas.width=Math.round(width*density);canvas.height=Math.round(height*density);
+        const out=canvas.getContext('2d');out.setTransform(density,0,0,density,0,0);out.imageSmoothingQuality='high';out.fillStyle='#161a1c';out.fillRect(0,0,width,height);
         const crop=version.crop || {x:0,y:0,width:1,height:1};
         out.save();out.beginPath();out.rect((crop.x-anchor.x)*W*zoom+width/2,(crop.y-anchor.y)*H*zoom+height/2,crop.width*W*zoom,crop.height*H*zoom);out.clip();
-        out.drawImage(source,pad*zoom,pad*zoom,width,height,0,0,width,height);out.restore();
+        out.drawImage(source,pad*zoom*density,pad*zoom*density,width*density,height*density,0,0,width,height);out.restore();
       }));
       if(token===generation){element('progress').textContent=single ? '原片细节 · 双击查看该处 · 拖动平移':'两侧共享位置与倍率 · 双击查看该处细节 · 拖动平移';onState('ready');}
     } catch {if(token===generation){element('progress').textContent='细节未能读取，请降低倍率重试。';onState('failed');}}

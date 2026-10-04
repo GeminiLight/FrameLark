@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
+import {checkPhotoToolUI} from './check-photo-tool-ui.mjs';
 
 // Exercise rendered navigation, not just the presence of controls in the HTML.
 // Use a separate cloud-mode server with no model credentials or user drafts.
@@ -82,6 +83,7 @@ try {
     }
     assert.equal(await evaluate(`JSON.stringify(document.documentElement.scrollWidth>innerWidth)`),false,'No horizontal overflow at '+w);
   }
+  await checkPhotoToolUI({browser,evaluate,visible,frame});
   const errors=await browser('errors');assert.equal(errors,'','No browser errors');
   console.log('Rendered navigation passed: learning, profile, preferences, four inspector modes, unchanged edits, draft write barriers/failure recovery and three screen sizes.');
 } finally {

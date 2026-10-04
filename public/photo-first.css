@@ -92,3 +92,44 @@
   #tab-agent .agent-welcome h3{font-size:22px}
   #tab-agent .agent-prompts{margin-top:12px}
 }
+
+/* Keep metadata above the reading column, never beside streamed prose. */
+#tab-agent .agent-typing{display:block;width:100%;min-width:0;padding:8px 0}
+#tab-agent .agent-typing::before{display:none}
+#tab-agent .agent-typing>span{display:block;font-size:11px;line-height:1.6;color:var(--muted);margin-bottom:12px}
+#tab-agent .agent-partial{margin:0;font-size:14px;line-height:1.9;color:var(--ink);white-space:pre-wrap;overflow-wrap:anywhere}
+.page-heading{flex-wrap:wrap;gap:10px 18px}
+.page-heading>div:first-child{flex:1 1 220px;min-width:0;max-width:100%}
+.page-heading #workspace-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:20px;line-height:1.4}
+.page-heading .photo-state{flex:none}
+.heading-actions{flex-wrap:wrap;gap:8px;max-width:100%;margin-left:auto}
+.advisor-steps{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.advisor-steps label{display:flex;align-items:center;gap:6px;font-size:12px;padding:8px 10px;border:1px solid var(--line);border-radius:5px}
+.advisor-steps input{accent-color:var(--accent)}
+
+#advisor-mask-toggle{align-self:flex-start;min-height:32px;padding:6px 10px;border:1px solid var(--line);border-radius:4px;color:var(--ink);background:var(--paper);font:inherit;font-size:12px;margin-bottom:8px}
+#advisor-mask-toggle[hidden],.advisor-steps[hidden]{display:none}
+.vision-tier-row select{width:100%;min-width:0;padding:10px;border:1px solid var(--line);border-radius:5px;background:var(--paper);color:var(--ink);font:inherit;font-size:13px}
+
+#advisor-preview-dialog .advisor-steps{max-height:80px;overflow-y:auto;margin:8px 0}
+#advisor-preview-dialog #advisor-mask-toggle{margin:0 0 0 auto}
+#advisor-preview-dialog .advisor-preview-tools .viewer-controls{flex:1}
+#advisor-preview-dialog .advisor-preview-summary strong{font-size:13px;line-height:1.5}
+#advisor-preview-dialog h2{font-size:18px;margin-bottom:8px}
+#advisor-preview-dialog .preview-tradeoff{margin:4px 0 8px}
+#advisor-preview-dialog .viewer-choices{margin-bottom:6px}
+/* Reserve the action row before allocating the remaining height to the photo. */
+#advisor-preview-dialog .advisor-preview-summary{max-height:30%;overflow-y:auto;flex:0 1 auto}
+#advisor-preview-dialog .advisor-preview-tools,#advisor-preview-dialog footer{flex:none}
+#advisor-preview-dialog .viewer-panes{min-height:0;flex:1 1 120px}
+
+@media(max-width:600px){
+ #advisor-preview-dialog .viewer-controls{flex-wrap:wrap;min-width:0;row-gap:6px}
+ #advisor-preview-dialog #advisor-mask-toggle{margin-left:0}
+ #advisor-preview-dialog .advisor-steps{max-height:96px}
+}
+
+.advisor-steps label small{font-size:10px;color:var(--muted);margin-left:4px}
+#advisor-tool-status{font-size:12px;color:var(--muted);line-height:1.6;margin:0 0 8px}
+#advisor-tool-status[hidden],#advisor-tool-retry[hidden]{display:none}
+#advisor-tool-retry{align-self:flex-start;min-height:36px;padding:7px 12px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:4px;font:inherit;font-size:12px;margin-bottom:8px}
