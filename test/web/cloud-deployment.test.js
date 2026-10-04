@@ -36,3 +36,22 @@ test('function request bodies support parsed platform input and retain the size 
   assert.equal((await readBody(streamed,4)).toString(),'abcd');
   await assert.rejects(()=>readBody(streamed,3),error=>error.status===413);
 });
+
+test('malformed page URLs return a safe error and the next request still works',async()=>{
+  for(const request of [
+    {method:'GET',url:'/%E0%A4%A',headers:{host:'guangjian.example'}},
+    {method:'GET',url:'/',headers:{host:'['}}
+  ]){
+    const failed=response();await handleRequest(request,failed);
+    assert.equal(failed.status,400);assert.equal(failed.payload.error.code,'INVALID_REQUEST_URL');
+    assert.doesNotMatch(JSON.stringify(failed.payload),/URIError|ERR_INVALID_URL|node:|server\.mjs|\/Users\//);
+    const ready=response();await handleRequest({method:'GET',url:'/api/status',headers:{host:'guangjian.example'}},ready);
+    assert.equal(ready.status,200);
+  }
+});
+
+test('a request error after headers closes its own response without writing a second header',async()=>{
+  const failed=response();failed.headersSent=true;failed.destroy=()=>{failed.destroyed=true;};
+  await handleRequest({method:'GET',url:'/%E0%A4%A',headers:{host:'guangjian.example'}},failed);
+  assert.equal(failed.destroyed,true);assert.equal(failed.status,undefined);
+});

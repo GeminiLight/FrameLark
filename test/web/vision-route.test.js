@@ -53,6 +53,25 @@ test('vision route calls the configured image model and returns actionable analy
   assert.ok(status?.ok, 'app server starts with vision model enabled');
   assert.deepEqual(await status.json(), {aiAvailable:true,model:'gpt-6-astra',connectionStatus:'configured',verifiedAt:null,lastError:null});
 
+  // A cross-origin simple POST must not spend the local user's model credentials.
+  for(const path of ['/api/analyze','/api/reassess','/api/design-chat','/api/series-review']) {
+    for(const headers of [
+      {Origin:'https://unrelated.example','Content-Type':'text/plain','Sec-Fetch-Site':'cross-site'},
+      {'Content-Type':'application/json','Sec-Fetch-Site':'cross-site'},
+      {Host:'unrelated.example','Content-Type':'application/json'},
+      {Origin:base,'Content-Type':'text/plain'}
+    ]){
+      // Native fetch normalizes Host, so use HTTP directly for the rebinding case.
+      const denied=await new Promise((resolve,reject)=>{
+        const request=http.request(base+path,{method:'POST',headers},response=>{const chunks=[];response.on('data',chunk=>chunks.push(chunk));response.on('end',()=>resolve(new Response(Buffer.concat(chunks),{status:response.statusCode})));});
+        request.once('error',reject);request.end(JSON.stringify({image:'data:image/png;base64,aGVsbG8='}));
+      });
+      assert.equal(denied.status,403,path+' rejects a foreign browser before invoking the provider');
+      assert.equal((await denied.json()).error.code,'FORBIDDEN_ORIGIN');
+    }
+  }
+  assert.equal(requests.length,0);
+
   const result = await fetch(`${base}/api/analyze`, {
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({image:'data:image/png;base64,aGVsbG8=',creativeIntent:'保留清晨的安静',trials:[{image:'data:image/png;base64,aGVsbG8=',settings:{exposure:.7,instructions:'TRIAL_INJECTION'}}],photoReference:{width:3,height:1,mean:.3,p10:.1,p50:.3,p90:.6,darkFraction:.05,brightFraction:0,gridMean:[.1,.2,.3,null,null,null,null,null,null],instructions:'METERING_INJECTION'}})

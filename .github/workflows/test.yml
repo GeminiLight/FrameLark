@@ -47,6 +47,9 @@ jobs:
           package-manager-cache: false
       - run: npm run engine:check
       - run: npm run test:web
+      - run: npm install --global agent-browser@0.38.1
+      - run: agent-browser install --with-deps
+      - run: npm run test:navigation
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10

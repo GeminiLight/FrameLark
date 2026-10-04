@@ -1,10 +1,12 @@
 /* Photo-first flow using the existing optical-neutral darkroom tokens and UI face.
    Photos carry the visual identity; controls use 12–14px, headings 20–24px. */
-.side-nav .secondary-nav,#profile-button,#mobile-profile-button,#mobile-help-button{display:none}
-.mobile-spaces [data-space="learn"],.mobile-spaces [data-space="profile"]{display:none}
+.sidebar-utilities{display:flex;justify-content:center;gap:2px;width:100%}
+.sidebar-utilities .sidebar-help{width:34px;min-width:0;min-height:40px}
 .inspector-navigation.panel-tabs{justify-content:flex-start;gap:4px;padding:8px 14px;min-height:62px}
 .inspector-navigation .panel-tab{flex:1;min-width:0;padding:0 8px;font-size:12px;white-space:nowrap}
 .inspector-navigation .panel-tab.active{border-color:var(--line);background:var(--accent-soft);color:var(--ink)}
+.right-panel[data-view="presets"] .photo-intent-entry,.right-panel[data-view="presets"] #vision-notice{display:none}
+#tab-presets.adjustment-style{padding-bottom:0;margin-bottom:0;border-bottom:0}
 .workspace.empty{grid-template-columns:1fr}
 .workspace.empty .work-area{max-width:1000px;width:100%;margin:auto}
 .empty-workspace{border:0;text-align:center;min-height:400px;gap:14px}
@@ -45,7 +47,8 @@
 .more-tools-dialog>button:hover{background:var(--paper)}
 .photo-proposal button:focus-visible,.more-tools-dialog button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 @media(max-width:960px){
-  .mobile-spaces{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mobile-spaces{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .photo-topbar #mobile-settings-button{display:grid;flex:none;width:44px;min-width:44px;height:44px}
   .right-panel,.right-panel.agent-active{height:clamp(560px,calc(100dvh - 126px),760px);min-height:560px;scroll-margin-bottom:70px}
   #tab-agent .agent-header{padding:12px 0}
   #tab-agent .agent-header>div{display:flex;align-items:center;gap:10px;min-width:0}

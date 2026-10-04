@@ -221,7 +221,24 @@ function cancelOnDisconnect(response) {
 }
 
 export async function handleRequest(request, response) {
+  try { await routeRequest(request,response); }
+  catch(error) {
+    if(response.destroyed || response.writableEnded)return;
+    if(response.headersSent){response.destroy();return;}
+    const invalidUrl=error instanceof URIError || error.code==='ERR_INVALID_URL';
+    const code=invalidUrl?'INVALID_REQUEST_URL':'REQUEST_FAILED';
+    if(!invalidUrl)console.warn('Request failed: '+code);
+    return sendJson(response,invalidUrl?400:500,{error:{code,message:invalidUrl?'页面地址无法读取，请从工作台首页重新打开。':'这次请求未完成，请重试。已有编辑仍保留。',retryable:!invalidUrl}});
+  }
+}
+
+async function routeRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  const localVisionCalls=['/api/analyze','/api/reassess','/api/design-chat','/api/series-review'];
+  if(!cloudDeployment && request.method==='POST' && localVisionCalls.includes(url.pathname) &&
+    (!canAccessLocalFiles(request) || request.headers['content-type']?.split(';')[0].trim().toLowerCase()!=='application/json')) {
+    return sendJson(response,403,{error:{code:'FORBIDDEN_ORIGIN',message:'请从本机工作台发起视觉请求。',retryable:false}});
+  }
   if(await handlePhotoToolRoutes(request,response,url,{readBody,allowed:canAccessLocalFiles,cloud:cloudDeployment}))return;
   if(await handleProjectRoutes(request,response,url,{bridge:projects,readBody,allowed:canAccessLocalFiles,cloud:cloudDeployment}))return;
   if(url.pathname==='/api/codex-status' && request.method==='POST'){
