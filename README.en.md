@@ -1,11 +1,11 @@
-# Zhenhao · 帧好
+# FrameLark · 帧好
 
-![Xiaozhen, the Zhenhao photography companion](docs/images/xiaozhen-character-board.png)
+![Xiaozhen, the FrameLark photography companion](docs/images/xiaozhen-character-board.png)
 
 [![Open the Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "Online demo · Vercel access required")
 [![Install the agent skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
 [![Start the local Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
-[![Deploy to Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FZhenhao)
+[![Deploy to Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FFrameLark)
 [![Browse photography knowledge](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#photography-knowledge)
 
 **Photo retouching with a complete Web studio, an Online Demo, and an agent skill.**
@@ -16,9 +16,9 @@ Upload photos, adjust color, compare styles, curate a series, and export in your
 
 ## Meet Xiaozhen · 小帧
 
-**Xiaozhen is Zhenhao’s photography companion: a curious little bird with an eye for photographs.** It helps you notice light, consider composition, and refine the feeling you want to keep.
+**Xiaozhen is FrameLark’s photography companion: a curious little bird with an eye for photographs.** It helps you notice light, consider composition, and refine the feeling you want to keep.
 
-Its graphite feathers, cream chest, apricot wings, and upward gaze stay consistent. The pencil texture adds warmth to the welcome screen, advisor avatar, and agent darkroom while your photograph remains the focus. The product is **Zhenhao · 帧好**; the companion is **Xiaozhen · 小帧**.
+Its graphite feathers, cream chest, apricot wings, and upward gaze stay consistent. The pencil texture adds warmth to the welcome screen, advisor avatar, and agent darkroom while your photograph remains the focus. The product is **FrameLark · 帧好**; the companion is **Xiaozhen · 小帧**.
 
 [Transparent avatar](public/assets/xiaozhen-avatar.png) · [Character guidelines](docs/WEB_DESIGN.md#品牌与小帧)
 
@@ -46,11 +46,11 @@ The retouching skill checks which image-generation or editing tools the host act
 
 ## Get started
 
-Requires **Node.js 20.9+**. Commands use macOS / Linux shell syntax. Cloning a private repository requires GitHub access.
+Requires **Node.js 20.9+**. Commands use macOS / Linux shell syntax.
 
 ```sh
-git clone https://github.com/GeminiLight/Zhenhao.git
-cd Zhenhao
+git clone https://github.com/GeminiLight/FrameLark.git
+cd FrameLark
 ```
 
 ### Web UI
@@ -69,7 +69,7 @@ Or run with Docker:
 docker compose up -d --build
 ```
 
-[Deployment and model settings](docs/DEPLOYMENT.md) · [Deploy to Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FZhenhao)
+[Deployment and model settings](docs/DEPLOYMENT.md) · [Deploy to Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FFrameLark)
 
 ### Agent darkroom
 
@@ -306,7 +306,7 @@ npm test
 
 ## Contributors
 
-Thanks to [Yijie Xu (@yeahjack)](https://github.com/yeahjack) for selective edit acceptance, parameter and local-layer locks, protected regions, and rendering and preview responsiveness improvements: [#1](https://github.com/GeminiLight/Zhenhao/pull/1), [#2](https://github.com/GeminiLight/Zhenhao/pull/2).
+Thanks to [Yijie Xu (@yeahjack)](https://github.com/yeahjack) for selective edit acceptance, parameter and local-layer locks, protected regions, and rendering and preview responsiveness improvements: [#1](https://github.com/GeminiLight/FrameLark/pull/1), [#2](https://github.com/GeminiLight/FrameLark/pull/2).
 
 ## Shared local projects
 

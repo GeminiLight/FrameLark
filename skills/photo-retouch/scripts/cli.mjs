@@ -16,7 +16,7 @@ import {previewPhoto,exportPhoto,createRenderSession} from './render.mjs';
 import {editorControlReference} from './engine/control-reference.js';
 import {letteringCapabilities} from './text-overlays.mjs';
 import {initCollection,inspectCollection,updateCollectionBrief,saveCollectionPlan,collectionSheet,exportCollection} from './collection.mjs';
-const help={name:'帧好 · 小帧的本地修片工作台',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
+const help={name:'FrameLark · 帧好 · 本地修片',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
   init:'--image <photo> --project <new-folder> [--intent <表达目标>]',
   'collection-init':'--project <new-collection-folder> --input <JSON|->；images 列表或 directory，最多 500 张，保留原片',
   'collection-inspect':'--project <collection-folder>；主题、稳定照片 ID、单图项目、取舍、版本、新鲜度和导出队列',

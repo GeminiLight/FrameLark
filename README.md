@@ -1,11 +1,11 @@
-# 帧好 · AI 摄影工作台
+# 帧好 · FrameLark
 
 ![小帧，帧好的摄影伙伴：观察、发现与取景](docs/images/xiaozhen-character-board.png)
 
 [![打开 Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "在线体验 · 需要 Vercel 访问权限")
 [![安装 Agent Skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
 [![启动本地 Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
-[![部署到 Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FZhenhao)
+[![部署到 Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FFrameLark)
 [![浏览摄影知识](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#摄影知识)
 
 **照片精修，提供完整 Web 工作台、Online Demo 和 Agent Skill。**
@@ -18,7 +18,7 @@
 
 **小帧是帧好的摄影伙伴，一只有「摄影眼」的观察小鸟。** 它好奇、细心，陪你看光落在哪里、构图如何取舍，再把照片修成想留下的样子。
 
-石墨灰的羽毛、奶油白的胸口、杏橙色的翅膀和向光看的眼神，是小帧的固定特征。彩铅质感保留手绘温度；它出现在欢迎区、顾问头像和 Agent 暗房，编辑时仍以照片为主角。产品名是 **帧好（Zhenhao）**，摄影伙伴叫 **小帧**。
+石墨灰的羽毛、奶油白的胸口、杏橙色的翅膀和向光看的眼神，是小帧的固定特征。彩铅质感保留手绘温度；它出现在欢迎区、顾问头像和 Agent 暗房，编辑时仍以照片为主角。产品名是 **帧好（FrameLark）**，摄影伙伴叫 **小帧**。
 
 [透明头像](public/assets/xiaozhen-avatar.png) · [形象使用规范](docs/WEB_DESIGN.md#品牌与小帧)
 
@@ -48,11 +48,11 @@ Skill 会先检查当前宿主是否有可用的生图或图片编辑工具；�
 
 ## 开始使用
 
-需要 **Node.js 20.9+**。以下命令使用 macOS / Linux shell；克隆私有仓库需要 GitHub 访问权限。
+需要 **Node.js 20.9+**。以下命令使用 macOS / Linux shell。
 
 ```sh
-git clone https://github.com/GeminiLight/Zhenhao.git
-cd Zhenhao
+git clone https://github.com/GeminiLight/FrameLark.git
+cd FrameLark
 ```
 
 ### Web UI
@@ -71,7 +71,7 @@ npm start
 docker compose up -d --build
 ```
 
-[部署与模型配置](docs/DEPLOYMENT.md) · [部署到 Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FZhenhao)
+[部署与模型配置](docs/DEPLOYMENT.md) · [部署到 Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FFrameLark)
 
 ### 与 Codex 继续同一个项目
 
@@ -318,4 +318,4 @@ npm test
 
 ## 贡献者
 
-感谢 [Yijie Xu（@yeahjack）](https://github.com/yeahjack) 贡献逐项调整采纳、参数与局部层锁定、画面区域保护，以及渲染和预览响应优化：[#1](https://github.com/GeminiLight/Zhenhao/pull/1)、[#2](https://github.com/GeminiLight/Zhenhao/pull/2)。
+感谢 [Yijie Xu（@yeahjack）](https://github.com/yeahjack) 贡献逐项调整采纳、参数与局部层锁定、画面区域保护，以及渲染和预览响应优化：[#1](https://github.com/GeminiLight/FrameLark/pull/1)、[#2](https://github.com/GeminiLight/FrameLark/pull/2)。
