@@ -2,17 +2,35 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createProjectWorkspace} from '../../apps/studio/public/project-workspace.js';
 
-function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onLoad=()=>photo,onUpdate=()=>{},getVersions=()=>[]}={}){
+function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onLoad=()=>photo,onUpdate=()=>{},getVersions=()=>[],getPhotos=()=>[photo],getPatch=()=>patch}={}){
   const previous={document:globalThis.document,location:globalThis.location,history:globalThis.history,EventSource:globalThis.EventSource,fetch:globalThis.fetch};
   const nodes=new Map(),events=[];
   const node=id=>{if(!nodes.has(id))nodes.set(id,{hidden:false,listeners:{},addEventListener(type,fn){this.listeners[type]=fn;},insertAdjacentHTML(){},showModal(){this.open=true;},close(){this.open=false;}});return nodes.get(id);};
   globalThis.document={querySelector:node,getElementById:node,body:node('body')};globalThis.location={href:'http://localhost:3177/'};globalThis.history={replaceState(){}};
   globalThis.EventSource=class{constructor(){events.push(this);}close(){this.closed=true;}};globalThis.fetch=fetchImpl;
-  const workspace=createProjectWorkspace({getPhoto:()=>photo,getPhotos:()=>[photo],getPatch:()=>patch,getVersions,onLoad,onUpdate,notify(){}});
+  const workspace=createProjectWorkspace({getPhoto:()=>photo,getPhotos,getPatch,getVersions,onLoad,onUpdate,notify(){}});
   t.after(()=>{workspace.close();Object.assign(globalThis,previous);});return {workspace,photo,patch,events,node};
 }
 const data=(revision=1)=>({id:'project',path:'/tmp/owned-project',name:'test',revision,currentId:'current',supported:true,current:{},candidates:[],versions:[],exports:[]});
 const response=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+
+test('loading another project cannot suppress the active photo save',async t=>{
+  const first={id:'first'},second={id:'second'},patches={first:{settings:{exposure:0}},second:{settings:{exposure:0}}};
+  let release,ready,saved;
+  const waiting=new Promise(resolve=>{ready=resolve;});
+  const env=fixture(t,{photo:first,getPhotos:()=>[first,second],getPatch:p=>patches[p.id],
+    fetchImpl:async(url,options)=>{
+      if(url.endsWith('/save')){saved=JSON.parse(options.body);return response({...data(2),id:'first-project'});}
+      return response({...data(),id:'second-project'});
+    },onLoad:async()=>{ready();await new Promise(resolve=>{release=resolve;});return second;}});
+  await env.workspace.attach(first,{...data(),id:'first-project'});
+  const opening=env.workspace.load('second-project');await waiting;
+  try{
+    patches.first.settings.exposure=.35;env.workspace.schedule(first);
+    assert.equal(env.workspace.hasPending(),true,'The active edit remains pending while another source loads');
+    await env.workspace.flush(first);assert.equal(saved.settings.exposure,.35);
+  }finally{release();await opening;}
+});
 
 test('opening the same file project twice shares one pending import',async t=>{
   let release,ready,loads=0;const waiting=new Promise(resolve=>{ready=resolve;});

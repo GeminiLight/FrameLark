@@ -4,6 +4,7 @@ import {exchangeSchema,validateExchange,restoreWebExchange} from './project-exch
 import {onDemandReview,canPreviewAdvisorResult} from './photo-first-policy.js';
 import {preparePhotoFile} from './import-conversion.js';
 import {createProjectWorkspace} from './project-workspace.js';
+import {bindActivePhotoState} from './photo-state.js';
 import {workspacePatch,snapshotFromProject,editionsFromProject,workspaceEditions} from './project-snapshot.js';
 import {readVisionStream,partialReply} from './vision-stream.js';
 import {defaultModelTiers,tierNames,modelEffortChoices} from './model-routing.js';
@@ -37,12 +38,13 @@ import { photoSubjects, subjectLabel, validSubject, summarizeWorkspace } from '.
 import { localDesignReply, normalizeDesignReply } from './design-agent.js?v=7';
 import { rectFromPoints, viewToImageRect, imageToViewRect, measureRegion } from './annotations.js';
 import {renderPhotoPixels,createPhotoRenderer} from './photo-rendering.js';
+import {createPhotoExporter} from './photo-export.js';
 import {globalAdjustments,effectiveAnnotations,adjustmentSignature,remainingAdjustments,hasLocalEffects} from './adjustment-layers.js';
 import {createTaskQueue,latestReviewTask,elapsedReview,unresolvedFailure} from './task-queue.js';
 import {syncGroups,photoSnapshot,snapshotSettings,planSync,planStyle} from './batch-edits.js';
 import {createSeriesWorkspace} from './series-workspace.js';
 import {outputGeometry,exportPresets,exportLimits,safeFilename,printCentimeters} from './export-settings.js';
-import {writeImageMetadata,createPhotoArchive} from './export-files.js';
+import {createPhotoArchive} from './export-files.js';
 import {buildToneCurve,mapTone} from './tone-processing.js';
 import { buildBasicReview, validateReviewDecision, reviewPresentation } from './review-policy.js';
 import { observationLabels, verdictLabels, normalizeObservations, reviewSourceLabel, normalizeVisionFailure, retainAppliedRecommendations } from './vision-review.js';
@@ -238,8 +240,8 @@ const fileInput = $('#file-input');
 const toast = $('#toast');
 let toastTimer;
 const photoSessions = [];
-const photoStateKeys = ['toolRuns','creativeIntent','analysisIntent','image','imageName','isDemo','previewSource','previewData','analysis','advisorLayers','active','manual','crop','compare','annotations','presetId','presetAmount','presetThumbs','analysisSource','analysisStatus','analysisError','analysisProvenance','originalInspection','originalRecommendations','assessment','exported'];
 let currentPhotoId = null;
+bindActivePhotoState(state,currentPhoto);
 let analysisController = null;
 let selectedEvidenceKey = null;
 let visionConfigController = null;
@@ -265,11 +267,11 @@ let annotationNoteBefore = null;
 let nextAnnotationId = 1;
 const editHistory = {past:[],future:[],range:null};
 const seriesWorkspace=createSeriesWorkspace({
-  getPhotos:()=>{saveCurrentPhoto({finish:false});return photoSessions;},onChange:()=>scheduleDraftSave(),notify:showToast,
+  getPhotos:()=>{commitPhotoInputs({finish:false});return photoSessions;},onChange:()=>scheduleDraftSave(),notify:showToast,
   canOpen:()=>!importingFiles&&!state.loading,
   onEdit:id=>activatePhoto(id),onExport:ids=>openExportDialog(ids),
   onAccept:plans=>{
-    saveCurrentPhoto();const changed=[];
+    commitPhotoInputs();const changed=[];
     for(const plan of plans)if(commitPhotoSnapshot(plan.photo,plan.candidate,plan.before)){
       changed.push({id:plan.photo.id,before:plan.before,after:photoSnapshot(plan.photo)});
       plan.photo.versions ||= [];if(plan.photo.versions.length<40)plan.photo.versions.push({id:crypto.randomUUID(),kind:'manual',label:'组图调整前',at:new Date().toISOString(),signature:snapshotAcceptanceSignature(plan.before),snapshot:structuredClone(plan.before)});
@@ -281,7 +283,7 @@ const seriesWorkspace=createSeriesWorkspace({
 
 const projectWorkspace=createProjectWorkspace({
   getPhoto:currentPhoto,getPhotos:()=>photoSessions,
-  getPatch:photo=>{saveCurrentPhoto({finish:false});return workspacePatch(photoSnapshot(photo),{intent:photo.creativeIntent,conversation:photo.conversation});},
+  getPatch:photo=>{commitPhotoInputs({finish:false});return workspacePatch(photoSnapshot(photo),{intent:photo.creativeIntent,conversation:photo.conversation});},
   getVersions:(photo,options)=>workspaceEditions(photo.versions||[],options),
   onVersions:syncSharedEditions,
   onLoad:async(data,existing)=>{
@@ -318,7 +320,7 @@ function applySharedProject(photo,data,{force=false}={}) {
   nextAnnotationId=Math.max(nextAnnotationId,...photo.annotations.map(a=>Number(String(a.id).replace('note-',''))+1).filter(Number.isFinite));
   if(currentPhotoId===photo.id){
     if($('#advisor-preview-dialog').open)$('#advisor-preview-dialog').close();
-    for(const key of photoStateKeys)state[key]=photo[key];editHistory.past=[];editHistory.future=[];editHistory.range=null;
+    editHistory.past=[];editHistory.future=[];editHistory.range=null;
     renderSliders();renderAnnotations();renderLocalEditor();renderPresets();renderAnalysis();renderAgent();sizePhotoStage();scheduleRender();refreshActions();
   }
 }
@@ -332,11 +334,12 @@ function photoHasEdits(photo) {
 
 function photoHasNotes(photo) { return Boolean((photo.id === currentPhotoId ? state.annotations : photo.annotations)?.length || cleanIntent(photo.id === currentPhotoId ? state.creativeIntent:photo.creativeIntent)); }
 
-function saveCurrentPhoto({finish=true}={}) {
+function commitPhotoInputs({finish=true}={}) {
+  // Editing fields already belong to the photo. Commit only pending UI text
+  // and the active undo buffer before changing selections or taking a snapshot.
   const photo = currentPhoto();
   if (!photo) return;
   if(finish) {finishAnnotationNote();finishRangeEdit();}
-  for (const key of photoStateKeys) photo[key] = state[key];
   photo.history = {past:editHistory.past,future:editHistory.future};
 }
 
@@ -640,7 +643,7 @@ function activatePhoto(id) {
   $('#empty-workspace').hidden = true;
   $('.right-panel').hidden = false;
   cancelReassessment('switched');
-  saveCurrentPhoto();
+  commitPhotoInputs();
   analysisGeneration++;
   reassessGeneration++;
   currentPhotoId = id;
@@ -649,7 +652,6 @@ function activatePhoto(id) {
   photo.versions=(photo.versions || []).map(item=>({...item,signature:snapshotAcceptanceSignature(item.snapshot)}));
   preparePhotoPreview(photo);
   if(!photo.analysis){photo.analysis=onDemandReview(photo);photo.analysisStatus=photo.isDemo?'example':'idle';}
-  for (const key of photoStateKeys) state[key] = photo[key];
   renderAnnotations();renderLocalEditor();
   editHistory.past = photo.history.past;
   editHistory.future = photo.history.future;
@@ -1412,7 +1414,7 @@ function photoReviewTrials(photo) {
 
 function analyzeImage(photo=currentPhoto()) {
   if(!photo?.image)return;
-  if(photo.id===currentPhotoId)saveCurrentPhoto();
+  if(photo.id===currentPhotoId)commitPhotoInputs();
   preparePhotoPreview(photo);
   photo.analysis ||= analyzeLocal(photo);
   return analysisQueue.add({key:`analysis:${photo.id}`,label:photo.imageName,photoId:photo.id,kind:'analysis',run:async({signal,progress})=>{
@@ -1442,7 +1444,7 @@ function analyzeImage(photo=currentPhoto()) {
       failure=requestFailure(error,controller.signal,'视觉审片');
     } finally {clearTimeout(timeout);signal.removeEventListener('abort',abort);}
     signal.throwIfAborted();if(!photoSessions.includes(photo))throw new Error('照片已移出工作区');
-    if(photo.id===currentPhotoId)saveCurrentPhoto({finish:false});
+    if(photo.id===currentPhotoId)commitPhotoInputs({finish:false});
     if(analyzedIntent!==cleanIntent(photo.creativeIntent))return {mode:'stale'};
     if(analysis) {
       photo.analysisIntent=analyzedIntent;
@@ -1458,7 +1460,6 @@ function analyzeImage(photo=currentPhoto()) {
 }
 function reflectPhotoAnalysis(photo) {
   if(photo.id!==currentPhotoId)return;
-  for(const key of ['analysisIntent','analysis','analysisSource','analysisStatus','analysisError','analysisProvenance','originalRecommendations'])state[key]=photo[key];
   $('#photo-subject').value=validSubject(photo.subject);selectedEvidenceKey=null;
   renderAnalysis();renderPresets();renderAgent();renderAnalysisStatus();refreshActions();
 }
@@ -2357,7 +2358,7 @@ function openExportDialog(ids) {
   endStyleAudition();
   if (!state.image || state.loading) return;
   if((!Array.isArray(ids)||ids.includes(currentPhotoId))&&(state.renderPending||state.renderFailed)){showToast(state.renderFailed?'先重试预览，确认效果后再导出。':'正在更新效果，完成后即可导出。');return;}
-  saveCurrentPhoto();exportPhotoIds=Array.isArray(ids) ? ids.filter(id=>photoSessions.some(photo=>photo.id===id)):[currentPhotoId];
+  commitPhotoInputs();exportPhotoIds=Array.isArray(ids) ? ids.filter(id=>photoSessions.some(photo=>photo.id===id)):[currentPhotoId];
   if(!exportPhotoIds.length)return;
   $('#export-title').textContent=exportPhotoIds.length>1 ? `导出 ${exportPhotoIds.length} 张照片`:'导出这张照片';
   $('#confirm-export-label').textContent=pendingCloseAfterExportId ? '生成后导出并移出':exportPhotoIds.length>1 ? '加入导出队列':'生成并下载';
@@ -2383,7 +2384,7 @@ function triggerDownload(blob,name) {
 function registerExport(task) {
   if(!task.result)return;
   const photo=photoSessions.find(item=>item.id===task.photoId);if(!photo)return;
-  if(photo.id===currentPhotoId)saveCurrentPhoto({finish:false});
+  if(photo.id===currentPhotoId)commitPhotoInputs({finish:false});
   const {snapshot,signature}=task;
   photo.versions ||= [];
   if(photo.versions.length<40 && !photo.versions.some(item=>item.kind==='export' && item.signature===signature))photo.versions.push({id:crypto.randomUUID(),kind:'export',label:'导出版本',at:new Date().toISOString(),signature,snapshot:structuredClone(snapshot)});
@@ -2396,38 +2397,13 @@ function registerExport(task) {
   if(photo.id===currentPhotoId){state.exported=photo.exported;refreshActions();renderVersions();renderEditions();}
   scheduleDraftSave();
 }
-async function makeExport(photo,snapshot,options,{signal,progress},projectVersionId=null) {
-  if(projectVersionId){
-    progress('正在生成成片并保存到项目');
-    const result=await projectWorkspace.exportVersion(photo,projectVersionId,options,signal);
-    signal.throwIfAborted();const response=await fetch(result.download,{signal});if(!response.ok)throw new Error('成片已生成，但下载未完成。可以在文件项目中查看。');
-    const blob=await response.blob(),url=URL.createObjectURL(blob);
-    try{
-      const image=await loadPhotoImage(url,{signal}),scale=Math.min(1,1400/Math.max(image.naturalWidth,image.naturalHeight)),canvas=document.createElement('canvas');
-      canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0,canvas.width,canvas.height);
-      const stats=inspectPixels(ctx.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height).stats;
-      return {blob,width:result.width,height:result.height,stats,projectPath:result.path};
-    }finally{URL.revokeObjectURL(url);}
-  }
-  signal.throwIfAborted();progress('准备输出尺寸');
-  const {rect,width,height}=outputGeometry(snapshot.crop,photo.image.naturalWidth,photo.image.naturalHeight,options.maxSide);
-  const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
-  const context=canvas.getContext('2d',{willReadFrequently:true,colorSpace:'srgb'}),renderer=createPhotoRenderer();
-  const stop=()=>renderer.dispose();signal.addEventListener('abort',stop,{once:true});
-  try {
-    drawPhotoSource(context,photo.image,snapshot.crop,width,height,rect);progress('处理原片光色与细节');
-    const pixels=await renderer.render({pixels:context.getImageData(0,0,width,height).data,width,height,settings:snapshotSettings(snapshot),annotations:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers),crop:snapshot.crop,frame:{fullWidth:photo.image.naturalWidth,fullHeight:photo.image.naturalHeight,sourceRect:rect,angle:snapshot.crop?.angle || 0}});
-    signal.throwIfAborted();context.putImageData(new ImageData(pixels,width,height),0,0);progress('编码成片与作品信息');
-    const encoded=await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob ? resolve(blob):reject(new Error('导出失败，请尝试使用分享尺寸')),options.format==='png' ? 'image/png':'image/jpeg',options.quality));
-    signal.throwIfAborted();const bytes=writeImageMetadata(await encoded.arrayBuffer(),options.format,{...options,title:photo.imageName});
-    const retained=exportQueue.tasks.reduce((n,task)=>n+(task.result?.blob?.size || 0),0);
-    if(retained+bytes.length>exportLimits.archiveBytes)throw new Error('成片缓存超过 128 MB，请下载并清理已完成任务后重试。');
-    return {blob:new Blob([bytes],{type:encoded.type}),width,height,stats:inspectPixels(pixels,width,height).stats};
-  } finally {signal.removeEventListener('abort',stop);renderer.dispose();canvas.width=0;canvas.height=0;}
-}
+const makeExport=createPhotoExporter({
+  exportVersion:(...args)=>projectWorkspace.exportVersion(...args),
+  getRetainedBytes:()=>exportQueue.tasks.reduce((bytes,task)=>bytes+(task.result?.blob?.size||0),0)
+});
 async function exportPhoto() {
   if(!exportPhotoIds.length || state.loading)return;
-  saveCurrentPhoto();const ids=[...exportPhotoIds],options=exportOptions(),group=++exportGroup,closeId=pendingCloseAfterExportId;
+  commitPhotoInputs();const ids=[...exportPhotoIds],options=exportOptions(),group=++exportGroup,closeId=pendingCloseAfterExportId;
   const remember=ids.length===1 && $('#export-remember').checked;
   $('#export-dialog').close();if($('#library-dialog').open)$('#library-dialog').close();
   for(const [index,id] of ids.entries()) {
@@ -2697,7 +2673,7 @@ $('#library-select-all').addEventListener('click',()=>{for(const photo of photoS
 $('#library-grid').addEventListener('change',event=>{const id=event.target.dataset.batchSelect;if(!id)return;event.target.checked ? selectedPhotos.add(id):selectedPhotos.delete(id);renderLibrary();});
 $('#library-selection-actions').addEventListener('click',event=>{
   const action=event.target.closest('[data-batch-action]')?.dataset.batchAction;if(!action)return;
-  saveCurrentPhoto();
+  commitPhotoInputs();
   if(action==='series'){$('#library-dialog').close();seriesWorkspace.open([...selectedPhotos]);return;}
   if(action==='export'){openExportDialog([...selectedPhotos]);return;}
   if(action==='analysis'){for(const id of selectedPhotos)analyzeImage(photoSessions.find(photo=>photo.id===id));$('#library-dialog').close();renderTasks();$('#tasks-dialog').showModal();return;}
@@ -2705,7 +2681,7 @@ $('#library-selection-actions').addEventListener('click',event=>{
 });
 let batchMode='sync',batchStyleId=presets[0].id;
 function openBatch(mode) {
-  batchMode=mode;saveCurrentPhoto();
+  batchMode=mode;commitPhotoInputs();
   $('#batch-title').textContent=mode==='sync' ? '同步一组照片':'批量应用风格';
   $('#batch-intro').textContent=mode==='sync' ? '将参考照片叠加后的参数复制到所选照片，未勾选的参数不变。参考照片保持原样。':'为所选照片应用同一款风格，保留各自的原片和其他调整。';
   $('#batch-sync-view').hidden=mode!=='sync';$('#batch-style-view').hidden=mode!=='style';
@@ -2749,7 +2725,7 @@ function renderBatchStylePreview(plan) {
 }
 function commitPhotoSnapshot(photo,snapshot,before) {
   if(JSON.stringify(before)===JSON.stringify(snapshot))return false;
-  if(photo.id===currentPhotoId){restoreEdit(snapshot);saveEdit(before);saveCurrentPhoto();}
+  if(photo.id===currentPhotoId){restoreEdit(snapshot);saveEdit(before);commitPhotoInputs();}
   else {
     photo.history ||= {past:[],future:[]};photo.history.past.push(structuredClone(before));photo.history.past=photo.history.past.slice(-30);photo.history.future=[];
     Object.assign(photo,{manual:{...snapshot.manual},active:new Set(snapshot.active),advisorLayers:structuredClone(snapshot.advisorLayers),crop:structuredClone(snapshot.crop),annotations:structuredClone(snapshot.annotations),presetId:snapshot.presetId,presetAmount:snapshot.presetAmount,assessment:null,exported:false,presetThumbs:{}});
@@ -2758,13 +2734,13 @@ function commitPhotoSnapshot(photo,snapshot,before) {
   return true;
 }
 $('#batch-apply').addEventListener('click',()=>{
-  saveCurrentPhoto();const plans=batchPlans(),changed=[];
+  commitPhotoInputs();const plans=batchPlans(),changed=[];
   for(const plan of plans)if(commitPhotoSnapshot(plan.photo,plan.snapshot,plan.before))changed.push({id:plan.photo.id,before:plan.before,after:photoSnapshot(plan.photo)});
   if(changed.length)lastBatch=changed;
   scheduleDraftSave();renderPhotoTabs();$('#batch-dialog').close();showToast(changed.length ? `已调整 ${changed.length} 张照片，可逐张查看或在图库撤销。`:'这些照片已是相同设置。');
 });
 $('#library-undo-batch').addEventListener('click',()=>{
-  if(!lastBatch)return;saveCurrentPhoto();let restored=0,skipped=0;
+  if(!lastBatch)return;commitPhotoInputs();let restored=0,skipped=0;
   for(const item of lastBatch){const photo=photoSessions.find(photo=>photo.id===item.id);if(!photo)continue;const current=photoSnapshot(photo);if(JSON.stringify(current)!==JSON.stringify(item.after)){skipped++;continue;}if(commitPhotoSnapshot(photo,item.before,current))restored++;}
   lastBatch=null;scheduleDraftSave();renderPhotoTabs();showToast(`已撤销 ${restored} 张的批量调整${skipped ? `；${skipped} 张有后续编辑，已保留`:''}。`);
 });
@@ -3298,7 +3274,7 @@ function scheduleDraftSave() {
   draftAutosave.request();
 }
 function captureDraftSnapshot() {
-  saveCurrentPhoto({finish:false});
+  commitPhotoInputs({finish:false});
   const snapshot=buildDraftWorkspace(draftWorkspaceId,photoSessions,currentPhotoId,seriesWorkspace.draft());
   const pendingBefore=editHistory.range?.before || annotationNoteBefore,active=snapshot.photos.find(item=>item.id===currentPhotoId);
   if(active && pendingBefore && JSON.stringify(pendingBefore)!==JSON.stringify(editSnapshot()))active.history.past=[...active.history.past,pendingBefore].slice(-30);
@@ -3519,7 +3495,7 @@ function renderCreativeIntent() {
 }
 function setCreativeIntent(value) {
   const photo=currentPhoto();if(!photo)return;
-  saveCurrentPhoto({finish:false});
+  commitPhotoInputs({finish:false});
   const next=cleanIntent(value);if(next===cleanIntent(state.creativeIntent))return;
   state.creativeIntent=next;photo.creativeIntent=next;
   cancelReassessment('intent');
@@ -3671,7 +3647,7 @@ function portableVersion(snapshot,id,name){
 const exchangeStatus=message=>{$('#project-exchange-status').textContent=message;};
 async function digestPhoto(bytes){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(n=>n.toString(16).padStart(2,'0')).join('');}
 $('#project-export').addEventListener('click',async()=>{
-  endStyleAudition();saveCurrentPhoto();const photo=currentPhoto();
+  endStyleAudition();commitPhotoInputs();const photo=currentPhoto();
   if(!photo?.originalBlob||photo.isDemo){exchangeStatus('请先加入自己的照片，再下载编辑项目。');return;}
   const button=$('#project-export');button.disabled=true;
   try{

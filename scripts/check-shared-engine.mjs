@@ -2,7 +2,7 @@ import {readFile,readdir} from 'node:fs/promises';
 
 // These pixel-processing modules are distributed inside the portable Skill as well.
 // Installation never rebuilds or replaces the Skill's project, guard, or UI runtime.
-const modules=['project-exchange.js','adjustment-layers.js','control-reference.js','crop-utils.js','detail-processing.js','editor-engine.js','export-files.js','local-masks.js','photo-geometry.js','photo-metering.js','photo-rendering.js','presets.js','region-edits.js','render-frame.js','tone-processing.js'];
+const modules=['project-exchange.js','adjustment-layers.js','control-reference.js','crop-utils.js','detail-processing.js','editor-engine.js','export-files.js','export-settings.js','local-masks.js','photo-geometry.js','photo-metering.js','photo-rendering.js','presets.js','region-edits.js','render-frame.js','tone-processing.js'];
 const root=new URL('../',import.meta.url),changed=[];
 async function toolFiles(folder='photo-tools'){for(const entry of await readdir(new URL('apps/studio/public/'+folder+'/',root),{withFileTypes:true})){const name=folder+'/'+entry.name;if(entry.isDirectory())await toolFiles(name);else if(entry.name.endsWith('.js'))modules.push(name);}}
 await toolFiles();
