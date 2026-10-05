@@ -1,9 +1,9 @@
 {
-  "name": "zhenhao",
+  "name": "framelark",
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Zhenhao: a photography workspace with a Web UI, an agent skill, and local retouching tools.",
+  "description": "FrameLark: a photography workspace with a Web UI, an agent skill, and local retouching tools.",
   "engines": {
     "node": ">=20.9.0"
   },

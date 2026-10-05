@@ -1,4 +1,4 @@
-name: Zhenhao checks
+name: FrameLark checks
 on:
   push:
   pull_request:
