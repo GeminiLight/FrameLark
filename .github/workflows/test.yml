@@ -1,4 +1,4 @@
-name: Frameyn checks
+name: Zhenhao checks
 on:
   push:
   pull_request:
@@ -65,4 +65,5 @@ jobs:
           package-manager-cache: false
       - run: npm run setup
       - run: npm run knowledge:check
+      - run: npm run photography-eye:check
       - run: npm run test:skill

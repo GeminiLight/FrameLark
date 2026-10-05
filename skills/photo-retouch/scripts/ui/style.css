@@ -40,3 +40,6 @@
  .embedded .inspector-title h1{font-size:21px}
  .handoff-actions button{min-height:44px}
 }
+
+/* Preserve Xiaozhen in the standalone preview. */
+.brand img.xiaozhen-avatar{width:32px;height:32px;object-fit:contain;border-radius:50%;background:#f2e9d9;padding:2px;}

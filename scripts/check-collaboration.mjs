@@ -13,9 +13,9 @@ const exec=promisify(execFile),root=fileURLToPath(new URL('../',import.meta.url)
 const temporary=await mkdtemp(join(tmpdir(),'frameyn-collaboration-')),folder=join(temporary,'photo'),session='frameyn-collab-'+randomUUID();
 const screenshots=process.argv[2]&&resolve(process.argv[2]);if(screenshots)await mkdir(screenshots,{recursive:true});
 const browser=(...args)=>exec('agent-browser',['--session',session,...args],{timeout:30000,maxBuffer:2000000}).then(r=>r.stdout.trim());
-const evaluate=async code=>{const result=JSON.parse(await browser('eval',code));return typeof result==='string'?JSON.parse(result):result;};
+const evaluate=async code=>{await browser('frame','main');const result=JSON.parse(await browser('eval',code));return typeof result==='string'?JSON.parse(result):result;};
 const frame='document.querySelector("#project-native-frame").contentDocument';
-const wait=code=>browser('wait','--fn',code);
+const wait=async code=>{await browser('frame','main');return browser('wait','--fn',code);};
 let inputId=0;
 const cli=async(command,value,options=[])=>{
   const args=[join(root,'skills/photo-retouch/scripts/cli.mjs'),command,'--project',folder,...options];

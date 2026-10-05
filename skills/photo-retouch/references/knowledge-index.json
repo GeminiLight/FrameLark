@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-03",
+  "reviewedAt": "2026-10-04",
   "retrieval": "keyword-only; relevance is not aesthetic quality",
   "adjustmentKeys": [
     "exposure",
@@ -1569,6 +1569,802 @@
         "覆盖",
         "验收",
         "照片检查集"
+      ]
+    },
+    {
+      "id": "finish-selection",
+      "kind": "craft",
+      "file": "finishing-craft.md",
+      "section": "选片先看吸引力，再看内容覆盖",
+      "tags": [
+        "选片吸引力",
+        "选片",
+        "题材覆盖",
+        "朋友圈",
+        "弱片"
+      ]
+    },
+    {
+      "id": "finish-hierarchy",
+      "kind": "craft",
+      "file": "finishing-craft.md",
+      "section": "精致来自视觉层级",
+      "tags": [
+        "精修",
+        "精致",
+        "视觉层级",
+        "主次",
+        "纵深"
+      ]
+    },
+    {
+      "id": "finish-palette",
+      "kind": "craft",
+      "file": "finishing-craft.md",
+      "section": "用一套颜色关系组织调色",
+      "tags": [
+        "颜色搭配",
+        "配色",
+        "同色系",
+        "对比色",
+        "绿与蓝",
+        "主辅色"
+      ]
+    },
+    {
+      "id": "finish-local-sculpt",
+      "kind": "craft",
+      "file": "finishing-craft.md",
+      "section": "通过局部明暗塑造，而非统一加亮",
+      "tags": [
+        "局部塑造",
+        "dodge",
+        "burn",
+        "压暗背景",
+        "局部明暗"
+      ]
+    },
+    {
+      "id": "finish-materials",
+      "kind": "craft",
+      "file": "finishing-craft.md",
+      "section": "材质决定细节的分配",
+      "tags": [
+        "材质",
+        "质感",
+        "细腻",
+        "陶瓷",
+        "金属",
+        "食物纹理"
+      ]
+    },
+    {
+      "id": "finish-reference",
+      "kind": "craft",
+      "file": "finishing-craft.md",
+      "section": "从参考学习可以迁移的关系",
+      "tags": [
+        "参考学习",
+        "迁移光色",
+        "参考作品"
+      ]
+    },
+    {
+      "id": "finish-visible-gain",
+      "kind": "craft",
+      "file": "finishing-craft.md",
+      "section": "用看得见的收益决定成片",
+      "tags": [
+        "正向收益",
+        "精修验收",
+        "成片吸引力",
+        "副作用"
+      ]
+    },
+    {
+      "id": "custom-look-capabilities",
+      "kind": "workflow",
+      "file": "custom-looks.md",
+      "section": "三种可用方式与真实能力",
+      "tags": [
+        "自定义滤镜",
+        "自定义配方",
+        "custom look",
+        "LUT",
+        "XMP"
+      ]
+    },
+    {
+      "id": "custom-look-choice",
+      "kind": "craft",
+      "file": "custom-looks.md",
+      "section": "先选关系，再选滤镜",
+      "tags": [
+        "选滤镜",
+        "滤镜适配",
+        "温润静物",
+        "自然反差",
+        "冷暖暮色"
+      ]
+    },
+    {
+      "id": "custom-look-recipe",
+      "kind": "workflow",
+      "file": "custom-looks.md",
+      "section": "设计并保存自己的配方",
+      "tags": [
+        "保存配方",
+        "复用配方",
+        "配方设计",
+        "滤镜骨架"
+      ]
+    },
+    {
+      "id": "custom-look-starters",
+      "kind": "workflow",
+      "file": "custom-looks.md",
+      "section": "可执行的自定义试片起点",
+      "tags": [
+        "自定义试片",
+        "参数配方",
+        "自定义JSON",
+        "自定义参数组合"
+      ]
+    },
+    {
+      "id": "custom-look-strength",
+      "kind": "workflow",
+      "file": "custom-looks.md",
+      "section": "自定义强度与绝对目标",
+      "tags": [
+        "自定义强度",
+        "滤镜强度",
+        "强度插值",
+        "绝对目标",
+        "重复叠加"
+      ]
+    },
+    {
+      "id": "custom-look-finishing",
+      "kind": "craft",
+      "file": "custom-looks.md",
+      "section": "与构图和局部一起完成精修",
+      "tags": [
+        "滤镜裁剪",
+        "滤镜局部",
+        "滤镜精修",
+        "逐张适配"
+      ]
+    },
+    {
+      "id": "artist-library",
+      "kind": "workflow",
+      "file": "photographer-library.md",
+      "section": "风格选择入口",
+      "tags": [
+        "摄影师风格",
+        "大师风格库",
+        "专家风格",
+        "大师风格",
+        "大师参考",
+        "摄影大师",
+        "内置专家",
+        "日系摄影"
+      ]
+    },
+    {
+      "id": "artist-hamada",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "滨田英明｜亲密的日常与自然光",
+      "presetId": "daily-soft",
+      "tags": [
+        "滨田英明",
+        "浜田英明",
+        "濱田英明",
+        "Hideaki Hamada",
+        "Hamada",
+        "日常亲密",
+        "家庭自然光"
+      ]
+    },
+    {
+      "id": "artist-kawauchi",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "川内伦子｜微小事物与光的联系",
+      "presetId": "luminous-poem",
+      "tags": [
+        "川内伦子",
+        "川内倫子",
+        "Rinko Kawauchi",
+        "Kawauchi",
+        "微小事物",
+        "Illuminance"
+      ]
+    },
+    {
+      "id": "artist-okuyama",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "奥山由之｜以 flowers 学习花与空间的层次",
+      "presetId": "luminous-poem",
+      "tags": [
+        "奥山由之",
+        "奧山由之",
+        "Yoshiyuki Okuyama",
+        "Okuyama",
+        "flowers"
+      ]
+    },
+    {
+      "id": "artist-ueda",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "植田正治｜人物间距与空间秩序",
+      "presetId": "mono-story",
+      "tags": [
+        "植田正治",
+        "Shoji Ueda",
+        "Ueda Shoji",
+        "沙丘空间",
+        "人物间距"
+      ]
+    },
+    {
+      "id": "artist-leiter",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "Saul Leiter｜遮挡、反射与颜色锚点",
+      "presetId": "quiet-film",
+      "tags": [
+        "Saul Leiter",
+        "索尔·莱特",
+        "索尔莱特",
+        "雨窗反射",
+        "颜色锚点"
+      ]
+    },
+    {
+      "id": "artist-fanho",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "何藩｜光影形状与空间叙事",
+      "presetId": "mono-story",
+      "tags": [
+        "何藩",
+        "Fan Ho",
+        "光影形状",
+        "空间叙事"
+      ]
+    },
+    {
+      "id": "artist-moriyama",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "森山大道｜都市片段与粗粝张力",
+      "presetId": "street-grain",
+      "tags": [
+        "森山大道",
+        "Daido Moriyama",
+        "Moriyama",
+        "粗粝张力",
+        "都市片段"
+      ]
+    },
+    {
+      "id": "artist-kenna",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "Michael Kenna｜简洁形状与缓慢观看",
+      "presetId": "silent-silver",
+      "tags": [
+        "Michael Kenna",
+        "迈克尔·肯纳",
+        "迈克尔肯纳",
+        "缓慢观看",
+        "细腻灰阶"
+      ]
+    },
+    {
+      "id": "artist-webb",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "Alex Webb｜多层空间与色光交错",
+      "presetId": "color-crossroads",
+      "tags": [
+        "Alex Webb",
+        "亚历克斯·韦伯",
+        "多层空间",
+        "色光交错"
+      ]
+    },
+    {
+      "id": "artist-mccurry",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "Steve McCurry｜人物与环境的颜色关系",
+      "presetId": "journey-color",
+      "tags": [
+        "Steve McCurry",
+        "史蒂夫·麦柯里",
+        "目光与环境",
+        "旅行肖像"
+      ]
+    },
+    {
+      "id": "artist-eggleston",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "William Eggleston｜普通事物的颜色分量",
+      "presetId": "ordinary-color",
+      "tags": [
+        "William Eggleston",
+        "威廉·埃格尔斯顿",
+        "普通事物",
+        "颜色分量"
+      ]
+    },
+    {
+      "id": "artist-shore",
+      "kind": "style",
+      "file": "photographer-library.md",
+      "section": "Stephen Shore｜日常场所与信息组织",
+      "presetId": "open-road",
+      "tags": [
+        "Stephen Shore",
+        "斯蒂芬·肖尔",
+        "日常场所",
+        "American Surfaces",
+        "Uncommon Places"
+      ]
+    },
+    {
+      "id": "artist-transfer",
+      "kind": "workflow",
+      "file": "photographer-library.md",
+      "section": "从大师参考到当前候选",
+      "tags": [
+        "大师迁移",
+        "作品迁移",
+        "专家风格执行",
+        "大师验收",
+        "纯黑白",
+        "灰度混合",
+        "monochrome"
+      ]
+    },
+    {
+      "id": "series-theme",
+      "kind": "judgment",
+      "file": "theme-led-series.md",
+      "section": "在正式选片前形成主题方案",
+      "tags": [
+        "主题先行",
+        "主题",
+        "九宫格",
+        "表达",
+        "观看感受",
+        "入选",
+        "取舍"
+      ]
+    },
+    {
+      "id": "series-selection",
+      "kind": "judgment",
+      "file": "theme-led-series.md",
+      "section": "从符合主题的候选中选出有吸引力的照片",
+      "tags": [
+        "选片",
+        "主题",
+        "弱片",
+        "题材配额",
+        "内容多样",
+        "九宫格"
+      ]
+    },
+    {
+      "id": "series-polish",
+      "kind": "judgment",
+      "file": "theme-led-series.md",
+      "section": "将逐张打磨落实为具体的成片目标",
+      "tags": [
+        "精修",
+        "极致",
+        "逐张打磨",
+        "材质",
+        "构图",
+        "局部",
+        "留白"
+      ]
+    },
+    {
+      "id": "series-grid",
+      "kind": "judgment",
+      "file": "theme-led-series.md",
+      "section": "让精修后的九张进入真实排列",
+      "tags": [
+        "九宫格",
+        "选排",
+        "排列",
+        "三行三列",
+        "疏密",
+        "观看入口"
+      ]
+    },
+    {
+      "id": "series-acceptance",
+      "kind": "judgment",
+      "file": "theme-led-series.md",
+      "section": "单张和整组分别决定是否完成",
+      "tags": [
+        "验收",
+        "单图",
+        "整组",
+        "九宫格",
+        "返修",
+        "用户否定",
+        "审美"
+      ]
+    },
+    {
+      "id": "series-failure-boundary",
+      "kind": "judgment",
+      "file": "theme-led-series.md",
+      "section": "已发生的失败与适用边界",
+      "tags": [
+        "失败",
+        "九宫格",
+        "主题",
+        "用户反馈",
+        "适用边界"
+      ]
+    },
+    {
+      "id": "case-travel-grid-rejected",
+      "kind": "case",
+      "file": "casebook.md",
+      "section": "已运行：旅行九宫格被用户否定",
+      "tags": [
+        "九宫格",
+        "用户否定",
+        "失败案例",
+        "主题先行",
+        "精修",
+        "选排"
+      ]
+    },
+    {
+      "id": "judgment-attraction",
+      "kind": "judgment",
+      "file": "aesthetic-judgment.md",
+      "section": "吸引力与合格分别判断",
+      "tags": [
+        "吸引力",
+        "审美达标",
+        "技术合格",
+        "好看"
+      ]
+    },
+    {
+      "id": "composition-crop-decisions",
+      "kind": "craft",
+      "file": "composition-craft.md",
+      "section": "用裁剪重新组织关系",
+      "tags": [
+        "裁剪取舍",
+        "收紧",
+        "构图比较",
+        "主体尺度",
+        "裁剪"
+      ]
+    },
+    {
+      "id": "composition-crop-geometry",
+      "kind": "craft",
+      "file": "composition-craft.md",
+      "section": "画幅与像素的双重检查",
+      "tags": [
+        "画幅",
+        "方形",
+        "裁剪比例",
+        "保留面积",
+        "像素",
+        "4:5",
+        "1:1"
+      ]
+    },
+    {
+      "id": "calibration-choice",
+      "kind": "judgment",
+      "file": "aesthetic-calibration.md",
+      "section": "从看见关系到作出选择",
+      "tags": [
+        "审美知识",
+        "审美校准",
+        "吸引力",
+        "审美",
+        "相近候选",
+        "瞬间",
+        "关系"
+      ]
+    },
+    {
+      "id": "calibration-comparison",
+      "kind": "judgment",
+      "file": "aesthetic-calibration.md",
+      "section": "在相近候选中校准判断",
+      "tags": [
+        "审美校准",
+        "相近候选",
+        "对照",
+        "比较",
+        "裁剪",
+        "调色",
+        "原片胜出",
+        "A/B"
+      ]
+    },
+    {
+      "id": "calibration-master",
+      "kind": "style",
+      "file": "aesthetic-calibration.md",
+      "section": "将大师参考转为可比较的画面",
+      "tags": [
+        "审美校准",
+        "大师",
+        "作品",
+        "视觉匹配",
+        "参考图",
+        "滤镜"
+      ]
+    },
+    {
+      "id": "calibration-coverage",
+      "kind": "case",
+      "file": "aesthetic-calibration.md",
+      "section": "已实际看过的案例与覆盖不足",
+      "tags": [
+        "审美校准",
+        "案例",
+        "覆盖不足",
+        "人像",
+        "咖啡",
+        "夜景",
+        "视觉学习"
+      ]
+    },
+    {
+      "id": "calibration-rejection",
+      "kind": "case",
+      "file": "aesthetic-calibration.md",
+      "section": "被否定的旅行九格给出的校准题",
+      "tags": [
+        "审美校准",
+        "不好看",
+        "九宫格",
+        "旅行",
+        "拒绝",
+        "饮品",
+        "天幕",
+        "弱片"
+      ]
+    },
+    {
+      "id": "calibration-evidence",
+      "kind": "judgment",
+      "file": "aesthetic-calibration.md",
+      "section": "判断能力如何得到验证",
+      "tags": [
+        "审美校准",
+        "审美能力",
+        "验证",
+        "接受",
+        "知识",
+        "评测"
+      ]
+    },
+    {
+      "id": "composition-spacing",
+      "kind": "craft",
+      "file": "composition-craft.md",
+      "section": "间隔、姿态与画面的张力",
+      "tags": [
+        "姿态",
+        "间隔",
+        "张力",
+        "构图",
+        "动作",
+        "瞬间",
+        "收紧"
+      ]
+    },
+    {
+      "id": "light-shape-material",
+      "kind": "craft",
+      "file": "light-color.md",
+      "section": "光形与材料感",
+      "tags": [
+        "光形",
+        "好光",
+        "受光",
+        "侧光",
+        "透光",
+        "反射",
+        "体积",
+        "材料感",
+        "精修"
+      ]
+    },
+    {
+      "id": "sources-calibration",
+      "kind": "source",
+      "file": "sources.md",
+      "section": "审美校准的理论来源与视觉覆盖",
+      "tags": [
+        "MoMA",
+        "Szarkowski",
+        "Eggleston",
+        "审美知识",
+        "来源",
+        "理论",
+        "视觉覆盖"
+      ]
+    },
+    {
+      "id": "calibration-series",
+      "kind": "judgment",
+      "file": "aesthetic-calibration.md",
+      "section": "组图的联系与变化",
+      "tags": [
+        "审美校准",
+        "主题",
+        "组图",
+        "九宫格",
+        "呼应",
+        "变化",
+        "多样",
+        "排列",
+        "节奏"
+      ]
+    },
+    {
+      "id": "generated-reference-capability",
+      "kind": "workflow",
+      "file": "generated-reference.md",
+      "section": "何时使用与能力分工",
+      "tags": [
+        "GPT Image",
+        "生图",
+        "AI参考",
+        "宿主",
+        "能力",
+        "可视化",
+        "主题",
+        "可用性检测",
+        "能力检测",
+        "自动跳过",
+        "不可用",
+        "图片输入",
+        "额度"
+      ]
+    },
+    {
+      "id": "generated-reference-board",
+      "kind": "workflow",
+      "file": "generated-reference.md",
+      "section": "按所需数量一次生成多图精修板",
+      "tags": [
+        "GPT Image",
+        "一次生成",
+        "九宫格",
+        "多图板",
+        "所需数量",
+        "成本",
+        "调用次数",
+        "提示",
+        "编辑目标"
+      ]
+    },
+    {
+      "id": "generated-reference-review",
+      "kind": "judgment",
+      "file": "generated-reference.md",
+      "section": "先审每格，再决定如何使用",
+      "tags": [
+        "生图",
+        "AI参考",
+        "AI精修",
+        "逐格",
+        "对应关系",
+        "重画",
+        "细节",
+        "审核"
+      ]
+    },
+    {
+      "id": "generated-reference-actions",
+      "kind": "craft",
+      "file": "generated-reference.md",
+      "section": "把视觉目标转为具体处理",
+      "tags": [
+        "AI精修",
+        "目标图",
+        "裁剪",
+        "调色",
+        "光影",
+        "肤质",
+        "材质",
+        "清理",
+        "本地工具"
+      ]
+    },
+    {
+      "id": "generated-reference-verification",
+      "kind": "workflow",
+      "file": "generated-reference.md",
+      "section": "在试片与整组中检验效果",
+      "tags": [
+        "AI参考",
+        "AI精修",
+        "试片",
+        "对照",
+        "原片",
+        "九宫格",
+        "整组",
+        "排列"
+      ]
+    },
+    {
+      "id": "generated-reference-delivery",
+      "kind": "workflow",
+      "file": "generated-reference.md",
+      "section": "保存与交付",
+      "tags": [
+        "AI参考",
+        "AI精修成片",
+        "原片像素精修",
+        "保存",
+        "交付",
+        "拆板",
+        "分辨率",
+        "像素",
+        "调用次数"
+      ]
+    },
+    {
+      "id": "generated-reference-case",
+      "kind": "case",
+      "file": "generated-reference.md",
+      "section": "已运行的单张实验与边界",
+      "tags": [
+        "GPT Image",
+        "生图",
+        "AI参考",
+        "实验",
+        "花",
+        "重画",
+        "案例",
+        "部分迁移"
+      ]
+    },
+    {
+      "id": "generated-reference-full-retouch",
+      "kind": "workflow",
+      "file": "generated-reference.md",
+      "section": "完整精修的范围与交付方式",
+      "tags": [
+        "GPT Image",
+        "AI精修",
+        "完整精修",
+        "综合精修",
+        "裁剪",
+        "光影",
+        "局部",
+        "肤质",
+        "质感",
+        "清理",
+        "直接交付"
       ]
     },
     {

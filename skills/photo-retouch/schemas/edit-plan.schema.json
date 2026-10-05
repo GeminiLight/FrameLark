@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Frameyn edit plan",
+  "title": "Zhenhao edit plan",
   "type": "object",
   "properties": {
     "revision": {

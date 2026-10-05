@@ -8,7 +8,7 @@ const ui=new URL('./ui/',import.meta.url);
 const files={
   '':['index.html','text/html'],'app.js':['app.js','text/javascript'],'lettering.js':['lettering.js','text/javascript'],
   'controlled-edits.js':['controlled-edits.js','text/javascript'],'controlled-edits-model.js':['controlled-edits-model.js','text/javascript'],
-  'preview-requests.js':['preview-requests.js','text/javascript'],'style.css':['style.css','text/css'],'mark.svg':['mark.svg','image/svg+xml']
+  'preview-requests.js':['preview-requests.js','text/javascript'],'style.css':['style.css','text/css'],'mark.svg':['mark.svg','image/svg+xml'],'xiaozhen-avatar.png':['xiaozhen-avatar.png','image/png']
 };
 const engineFiles=new Set(['photo-geometry.js','crop-utils.js','editor-engine.js','render-frame.js','tone-processing.js','detail-processing.js']);
 const json=(res,status,value)=>{if(res.destroyed)return;res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};

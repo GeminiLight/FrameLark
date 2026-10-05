@@ -1,4 +1,4 @@
-# 运行与部署 Frameyn
+# 运行与部署 Zhenhao
 
 完整工作台、服务端 AI 接口和 Agent Skill 都在本仓库中。完整工作台只使用 Node.js 内置模块；Skill 的图片处理依赖在安装或运行 `npm run setup` 时单独准备。
 
@@ -7,8 +7,8 @@
 需要 Node.js 20.9+。
 
 ```sh
-git clone https://github.com/GeminiLight/frameyn.git
-cd frameyn
+git clone https://github.com/GeminiLight/Zhenhao.git
+cd Zhenhao
 npm start
 ```
 
@@ -105,7 +105,7 @@ FRAMEYN_PORT=3180 FRAMEYN_NODE_IMAGE=public.ecr.aws/docker/library/node:24-alpin
 
 ## Vercel 部署
 
-[部署到 Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
+[部署到 Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FZhenhao)
 
 也可以在 Vercel 导入 GitHub 的 `GeminiLight/frameyn`：
 

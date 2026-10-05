@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Frameyn composable photo tools",
+  "title": "Zhenhao composable photo tools",
   "type": "object",
   "properties": {
     "revision": {
