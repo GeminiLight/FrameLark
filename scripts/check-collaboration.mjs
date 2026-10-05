@@ -94,6 +94,20 @@ try{
   }
   await browser('click','#project-accept');await wait('!document.querySelector("#project-preview").open');
   assert.equal((await loadProject(basicFolder)).currentId,madeBasic.candidate.id);
+  // Enter the native editor before the debounced save would normally run.
+  await browser('click','#panel-adjust');
+  await evaluate(`(()=>{const original=window.fetch;window.nativeSaveMode='fail';window.fetch=function(url,...args){if(String(url).endsWith('/save')){if(window.nativeSaveMode==='fail')return Promise.resolve(new Response(JSON.stringify({error:{message:'模拟保存失败，请重试'}}),{status:400}));if(window.nativeSaveMode==='hold')return new Promise(resolve=>{window.releaseNativeSave=()=>resolve(original.call(this,url,...args));});}return original.call(this,url,...args);};const slider=document.querySelector('#slider-exposure');slider.value='.35';slider.dispatchEvent(new Event('input',{bubbles:true}));slider.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#project-native-open').click();return JSON.stringify(true);})()`);
+  await wait('document.querySelector("#toast").textContent.includes("模拟保存失败")&&!document.querySelector("#project-native-open").disabled');
+  assert.equal(await evaluate('JSON.stringify(document.querySelector(".workspace").classList.contains("project-native"))'),false,'A failed save keeps the browser editor open');
+  assert.equal(await evaluate('JSON.stringify(document.querySelector("#slider-exposure").value)'),'0.35','A failed save keeps the browser adjustment');
+  await evaluate('window.nativeSaveMode="hold";document.querySelector("#project-native-open").click();JSON.stringify(true)');
+  await wait('typeof window.releaseNativeSave==="function"');
+  assert.equal(await evaluate('JSON.stringify(document.querySelector(".workspace").classList.contains("project-native"))'),false,'Editor switching waits for the actual save response');
+  await evaluate('window.nativeSaveMode="normal";window.releaseNativeSave();JSON.stringify(true)');
+  await wait('document.querySelector(".workspace").classList.contains("project-native")&&document.querySelector("#project-native-loading").hidden');
+  const nativeBase=await loadProject(basicFolder);
+  assert.equal(nativeBase.versions.find(v=>v.id===nativeBase.currentId).state.settings.exposure,.35,'Entering collaboration commits the current browser adjustment before loading its editor');
+  await browser('click','#project-native-back');await wait('!document.querySelector(".workspace").classList.contains("project-native")');
   // Verify the first-upload entry in a fresh browser, without an earlier file project.
   await browser('close');session+='-upload';await browser('open',base);
   await browser('set','viewport','1280','800');
@@ -106,7 +120,7 @@ try{
   assert.equal(shared.name,'portrait-cast.png');assert.equal(shared.collaboration.status,'queued');
   await capture('one-click-agent-handoff');
   const errors=await browser('errors');assert.equal(errors,'');
-  console.log('Collaboration browser checks passed: reviewed project in the full studio, human notes → CLI watch → claim → tool candidates → selective acceptance, unsaved input protection, desktop and phone layouts.');
+  console.log('Collaboration browser checks passed: reviewed project in the full studio, human notes → CLI watch → claim → tool candidates → selective acceptance, editor save barriers/failure recovery, unsaved input protection, desktop and phone layouts.');
 }catch(error){
   await capture('failure').catch(()=>{});
   console.error(await evaluate(`JSON.stringify({page:document.querySelector('#toast')?.textContent,editor:${frame}?.body.innerText.slice(-1600)})`).catch(()=>''));
