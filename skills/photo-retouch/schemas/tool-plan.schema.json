@@ -35,6 +35,10 @@
       "type": "string",
       "pattern": "^[-\\w]{1,80}$"
     },
+    "handoffId": {
+      "type": "string",
+      "pattern": "^[-\\w]{1,80}$"
+    },
     "operations": {
       "type": "array",
       "minItems": 1,
