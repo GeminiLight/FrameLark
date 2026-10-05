@@ -10,7 +10,8 @@ import {initProject,loadProject,createCandidate} from '../skills/photo-retouch/s
 import {configureWorkflow} from '../skills/photo-retouch/scripts/workflow.mjs';
 
 const exec=promisify(execFile),root=fileURLToPath(new URL('../',import.meta.url));
-const temporary=await mkdtemp(join(tmpdir(),'frameyn-collaboration-')),folder=join(temporary,'photo'),session='frameyn-collab-'+randomUUID();
+const temporary=await mkdtemp(join(tmpdir(),'frameyn-collaboration-')),folder=join(temporary,'photo');
+let session='frameyn-collab-'+randomUUID();
 const screenshots=process.argv[2]&&resolve(process.argv[2]);if(screenshots)await mkdir(screenshots,{recursive:true});
 const browser=(...args)=>exec('agent-browser',['--session',session,...args],{timeout:30000,maxBuffer:2000000}).then(r=>r.stdout.trim());
 const evaluate=async code=>{await browser('frame','main');const result=JSON.parse(await browser('eval',code));return typeof result==='string'?JSON.parse(result):result;};
@@ -93,9 +94,10 @@ try{
   }
   await browser('click','#project-accept');await wait('!document.querySelector("#project-preview").open');
   assert.equal((await loadProject(basicFolder)).currentId,madeBasic.candidate.id);
+  // Verify the first-upload entry in a fresh browser, without an earlier file project.
+  await browser('close');session+='-upload';await browser('open',base);
   await browser('set','viewport','1280','800');
   await browser('upload','#file-input',join(root,'test/web/fixtures/quality/portrait-cast.png'));
-  await browser('click','#photo-tabs .photo-tab:last-child .photo-tab-main');
   await wait('document.querySelector("#collaboration-request").textContent==="与 Agent 一起修"&&!document.querySelector("#collaboration-request").disabled');
   await browser('click','#collaboration-request');
   await wait('document.querySelector("#collaboration-status").textContent==="等待 Agent 接手"');
