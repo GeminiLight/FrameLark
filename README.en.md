@@ -2,7 +2,7 @@
 
 ![FrameLark: From first look to finished image. With Xiaozhen, our photography companion](docs/images/framelark-banner.png)
 
-**Find scenes, refine photographs, and curate a series with Xiaozhen.**
+**Your AI photography companion. Find scenes, refine photographs, and curate a series with Xiaozhen.**
 
 FrameLark offers a Codex plugin, standalone skills, and a browser studio to help you take a photograph from an idea to a finished image.
 

@@ -2,7 +2,7 @@
 
 ![帧好 · FrameLark：从看见，到成片。右侧是一只小帧](docs/images/framelark-banner.png)
 
-**让小帧陪你找画面、修照片、做组图。**
+**你的 AI 摄影伙伴，让小帧陪你找画面、修照片、做组图。**
 
 FrameLark 提供 Codex 插件、独立 Skill 和浏览器工作台，陪你从拍摄想法走到成片。
 
