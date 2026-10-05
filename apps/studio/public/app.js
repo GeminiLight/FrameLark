@@ -3399,9 +3399,13 @@ async function initialize() {
   const capabilities=await projectWorkspace.capabilities();
   $('#empty-projects').hidden=!capabilities.local;
   document.querySelector('[data-workspace-tool="projects"]').hidden=!capabilities.local;
+  const userStartedWork=()=>photoSessions.length>0||importingFiles||state.loading||draftTransition;
   const linkedProject=new URL(location.href).searchParams.get('project');
-  if(linkedProject){try{const loaded=await projectWorkspace.load(linkedProject);if(!loaded)showEmptyWorkspace();return;}catch(error){showToast(error.message);}}
+  if(linkedProject&&!userStartedWork()){try{const loaded=await projectWorkspace.load(linkedProject);if(!loaded)showEmptyWorkspace();return;}catch(error){showToast(error.message);}}
   await refreshDraftList();
+  // Startup discovery can finish after the first upload or draft restore. It
+  // must not replace an active editor with the initial empty-workspace state.
+  if(userStartedWork())return;
   if(draftList.some(item=>!item.deletedAt)){showEmptyWorkspace();renderDraftList();}
   else showEmptyWorkspace();
 }

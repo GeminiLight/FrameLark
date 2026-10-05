@@ -1,10 +1,31 @@
-import {cp,mkdir,readFile,readdir,writeFile,rm} from 'node:fs/promises';
+import {lstat,mkdir,readFile,readdir,writeFile,rm,realpath} from 'node:fs/promises';
+import {realpathSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
 import {resolve,relative,join,sep} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {deflateRawSync} from 'node:zlib';
 
 export const repositoryRoot=fileURLToPath(new URL('../',import.meta.url));
 const excluded=new Set(['node_modules','__pycache__','.DS_Store']);
+const payloadRoots=['plugin.json','.codex-plugin','assets','skills/photo-retouch','skills/photography-eye'];
+const privateParts=new Set(['node_modules','__pycache__','.DS_Store','.git','.guangjian','.vercel','photos','projects','exports','drafts','artifacts','coverage','dist']);
+function isPrivateFile(name){
+  return name.split('/').some(part=>privateParts.has(part)||/^\.env(?:\.|$)/.test(part)||/\.(?:log|tmp|pyc)$/.test(part));
+}
+export async function maintainedPluginFiles(root=repositoryRoot){
+  // A local checkout may contain credentials, sessions and photo projects. Only
+  // maintained source files are release inputs, even when an ignored file is new.
+  const names=execFileSync('git',['ls-files','--cached','-z','--',...payloadRoots],{cwd:root,encoding:'utf8'}).split('\0').filter(Boolean).sort();
+  const sourceRoot=await realpath(root);
+  const files=[];
+  for(const name of names){
+    if(isPrivateFile(name))throw Error('Local runtime data cannot be distributed: '+name);
+    const source=join(root,name);
+    if(!(await lstat(source)).isFile()||await realpath(source)!==resolve(sourceRoot,name))throw Error('Plugin payload must contain regular files without linked directories: '+name);
+    files.push({name,data:await readFile(source)});
+  }
+  return files;
+}
 export async function packageFiles(folder,prefix=''){
   const files=[];
   for(const entry of (await readdir(folder,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){
@@ -28,22 +49,29 @@ function zip(files){
   const end=Buffer.alloc(22);end.writeUInt32LE(0x06054b50,0);end.writeUInt16LE(files.length,8);end.writeUInt16LE(files.length,10);end.writeUInt32LE(size,12);end.writeUInt32LE(offset,16);
   return Buffer.concat([...chunks,...directory,end]);
 }
-export async function buildPlugin({output=resolve(repositoryRoot,'dist/framelark'),archive=true}={}){
+export async function buildPlugin({root=repositoryRoot,output=resolve(root,'dist/framelark'),archive=true}={}){
+  root=resolve(root);
   output=resolve(output);
-  const relation=relative(repositoryRoot,output);
-  if(output===repositoryRoot||relation.split(sep)[0]!=='dist')throw Error('Build output must be under this repository’s dist directory.');
+  const relation=relative(root,output);
+  if(output===root||relation.split(sep)[0]!=='dist')throw Error('Build output must be under this repository’s dist directory.');
+  // Read and validate every input before replacing a previously good release.
+  const files=await maintainedPluginFiles(root);
+  const manifest=JSON.parse(files.find(file=>file.name==='plugin.json')?.data.toString('utf8')||'null');
+  const codex=JSON.parse(files.find(file=>file.name==='.codex-plugin/plugin.json')?.data.toString('utf8')||'null');
+  if(manifest?.name!=='framelark'||!/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(manifest.version)||codex?.name!==manifest.name||codex.version!==manifest.version)throw Error('Plugin manifests must declare the same valid FrameLark release.');
+  for(const skill of ['photo-retouch','photography-eye'])if(!files.some(file=>file.name===`skills/${skill}/SKILL.md`))throw Error('Missing maintained Skill: '+skill);
+  const marketplace=JSON.parse(await readFile(resolve(root,'.agents/plugins/marketplace.json'),'utf8'));
+  marketplace.plugins[0].source.path='./framelark';
   const folder=join(output,'marketplace/framelark');
   await rm(folder,{recursive:true,force:true});await mkdir(folder,{recursive:true});
-  for(const name of ['plugin.json','.codex-plugin','assets','skills/photo-retouch','skills/photography-eye']){
-    await mkdir(resolve(folder,name,'..'),{recursive:true});
-    await cp(resolve(repositoryRoot,name),resolve(folder,name),{recursive:true,filter:path=>!path.split(/[\\/]/).some(part=>excluded.has(part))});
+  for(const file of files){
+    const destination=resolve(folder,file.name);
+    await mkdir(resolve(destination,'..'),{recursive:true});
+    await writeFile(destination,file.data);
   }
-  const marketplace=JSON.parse(await readFile(resolve(repositoryRoot,'.agents/plugins/marketplace.json'),'utf8'));
-  marketplace.plugins[0].source.path='./framelark';
   const catalog=join(output,'marketplace/.agents/plugins/marketplace.json');await mkdir(resolve(catalog,'..'),{recursive:true});await writeFile(catalog,JSON.stringify(marketplace,null,2)+'\n');
-  const manifest=JSON.parse(await readFile(join(folder,'plugin.json'),'utf8'));
-  const files=await packageFiles(folder),zipPath=join(output,`framelark-${manifest.version}.zip`);
+  const zipPath=join(output,`framelark-${manifest.version}.zip`);
   if(archive)await writeFile(zipPath,zip(files));
   return {folder,marketplaceRoot:join(output,'marketplace'),marketplacePath:catalog,zipPath:archive?zipPath:null,files:files.length,version:manifest.version};
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)console.log(JSON.stringify(await buildPlugin(),null,2));
+if(process.argv[1]&&import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href)console.log(JSON.stringify(await buildPlugin(),null,2));

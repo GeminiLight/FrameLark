@@ -12,6 +12,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
   <dialog id="project-preview" class="project-preview"><header><h2 id="project-preview-title">比较方案</h2><button type="button" id="project-preview-close" aria-label="关闭项目预览">×</button></header><div class="project-preview-images"><figure><figcaption>当前版本</figcaption><img id="project-before" alt="项目当前版本" /></figure><figure><figcaption>候选方案</figcaption><img id="project-after" alt="项目候选预览" /></figure></div><p id="project-preview-note"></p><button type="button" id="project-accept" disabled>应用这个方案</button></dialog>`);
   const $=id=>document.getElementById(id),links=new Map();let selected=null,previewToken=null,available=false,updating=false;
   const collaboration=createProjectCollaboration({getPhoto,onOpen:()=>open(),onPreview:previewCandidate,onRequest:requestContinue,
+    onSwitchEditor:photo=>flush(photo),
     onCancel:async id=>{const photo=getPhoto();await flush(photo);return mutate(photo,'handoff',{action:'cancel',id,revision:photo.projectRevision});},
     onPending:pending=>{const photo=getPhoto();if(!photo)return;photo.projectNativePending=pending;status(photo);if(!pending)drainRemote(photo).catch(error=>notify(error.message));},notify});
   const pendingLoads=new Map();let loadQueue=Promise.resolve();

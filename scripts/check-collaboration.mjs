@@ -6,6 +6,7 @@ import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {randomUUID} from 'node:crypto';
+import http from 'node:http';
 import {initProject,loadProject,createCandidate} from '../skills/photo-retouch/scripts/project.mjs';
 import {configureWorkflow} from '../skills/photo-retouch/scripts/workflow.mjs';
 
@@ -25,7 +26,7 @@ const cli=async(command,value,options=[])=>{
 };
 const child=async(...args)=>{await browser('frame','#project-native-frame');return browser(...args);};
 const capture=async name=>{if(screenshots)await browser('screenshot',join(screenshots,name+'.png'));};
-let output='',server;
+let output='',server,entryProxy,releaseCapabilities;
 try{
   const p=(await initProject(join(root,'test/web/fixtures/quality/portrait.png'),folder,{intent:'保留自然肤色，先比较再接受'})).project;
   await configureWorkflow(folder,{revision:p.revision,mode:'reviewed'});
@@ -94,11 +95,47 @@ try{
   }
   await browser('click','#project-accept');await wait('!document.querySelector("#project-preview").open');
   assert.equal((await loadProject(basicFolder)).currentId,madeBasic.candidate.id);
+  // Enter the native editor before the debounced save would normally run.
+  await browser('click','#panel-adjust');
+  await evaluate(`(()=>{const original=window.fetch;window.nativeSaveMode='fail';window.fetch=function(url,...args){if(String(url).endsWith('/save')){if(window.nativeSaveMode==='fail')return Promise.resolve(new Response(JSON.stringify({error:{message:'模拟保存失败，请重试'}}),{status:400}));if(window.nativeSaveMode==='hold')return new Promise(resolve=>{window.releaseNativeSave=()=>resolve(original.call(this,url,...args));});}return original.call(this,url,...args);};const slider=document.querySelector('#slider-exposure');slider.value='.35';slider.dispatchEvent(new Event('input',{bubbles:true}));slider.dispatchEvent(new Event('change',{bubbles:true}));document.querySelector('#project-native-open').click();return JSON.stringify(true);})()`);
+  await wait('document.querySelector("#toast").textContent.includes("模拟保存失败")&&!document.querySelector("#project-native-open").disabled');
+  assert.equal(await evaluate('JSON.stringify(document.querySelector(".workspace").classList.contains("project-native"))'),false,'A failed save keeps the browser editor open');
+  assert.equal(await evaluate('JSON.stringify(document.querySelector("#slider-exposure").value)'),'0.35','A failed save keeps the browser adjustment');
+  await evaluate('window.nativeSaveMode="hold";document.querySelector("#project-native-open").click();JSON.stringify(true)');
+  await wait('typeof window.releaseNativeSave==="function"');
+  assert.equal(await evaluate('JSON.stringify(document.querySelector(".workspace").classList.contains("project-native"))'),false,'Editor switching waits for the actual save response');
+  await evaluate('window.nativeSaveMode="normal";window.releaseNativeSave();JSON.stringify(true)');
+  await wait('document.querySelector(".workspace").classList.contains("project-native")&&document.querySelector("#project-native-loading").hidden');
+  const nativeBase=await loadProject(basicFolder);
+  assert.equal(nativeBase.versions.find(v=>v.id===nativeBase.currentId).state.settings.exposure,.35,'Entering collaboration commits the current browser adjustment before loading its editor');
+  await browser('click','#project-native-back');await wait('!document.querySelector(".workspace").classList.contains("project-native")');
   // Verify the first-upload entry in a fresh browser, without an earlier file project.
-  await browser('close');session+='-upload';await browser('open',base);
+  // Hold local-capability discovery to simulate a slow first startup while a
+  // person imports a photo. The late discovery must not clear their workspace.
+  let capabilityRequested;
+  const requested=new Promise(resolve=>{capabilityRequested=resolve;});
+  const ready=new Promise(resolve=>{releaseCapabilities=resolve;});
+  entryProxy=http.createServer(async(req,res)=>{
+    if(req.url==='/api/local-capabilities'){capabilityRequested();await ready;}
+    const headers={...req.headers,host:new URL(base).host};
+    if(headers.origin==='http://127.0.0.1:'+entryProxy.address().port)headers.origin=base;
+    const upstream=http.request(base+req.url,{method:req.method,headers},response=>{res.writeHead(response.statusCode,response.headers);response.pipe(res);});
+    upstream.on('error',()=>{if(!res.headersSent)res.writeHead(502);res.end();});
+    req.pipe(upstream);
+    res.once('close',()=>{if(!res.writableEnded)upstream.destroy();});
+  });
+  await new Promise(resolve=>entryProxy.listen(0,'127.0.0.1',resolve));
+  const uploadBase='http://127.0.0.1:'+entryProxy.address().port;
+  await browser('close');session+='-upload';await browser('open',uploadBase);
+  let startupTimer;
+  try{await Promise.race([requested,new Promise((_resolve,reject)=>{startupTimer=setTimeout(()=>reject(Error('Capability discovery did not start')),10000);})]);}
+  finally{clearTimeout(startupTimer);}
   await browser('set','viewport','1280','800');
   await browser('upload','#file-input',join(root,'test/web/fixtures/quality/portrait-cast.png'));
+  await wait('!document.querySelector(".right-panel").hidden&&document.querySelector("#workspace-title").textContent==="portrait-cast"');
+  releaseCapabilities();
   await wait('document.querySelector("#collaboration-request").textContent==="与 Agent 一起修"&&!document.querySelector("#collaboration-request").disabled');
+  assert.equal(await evaluate('JSON.stringify(document.querySelector(".workspace").classList.contains("empty"))'),false,'Late startup discovery preserves the photo already imported by the user');
   await browser('click','#collaboration-request');
   await wait('document.querySelector("#collaboration-status").textContent==="等待 Agent 接手"');
   const newId=await evaluate('JSON.stringify(new URL(location.href).searchParams.get("project"))');
@@ -106,13 +143,15 @@ try{
   assert.equal(shared.name,'portrait-cast.png');assert.equal(shared.collaboration.status,'queued');
   await capture('one-click-agent-handoff');
   const errors=await browser('errors');assert.equal(errors,'');
-  console.log('Collaboration browser checks passed: reviewed project in the full studio, human notes → CLI watch → claim → tool candidates → selective acceptance, unsaved input protection, desktop and phone layouts.');
+  console.log('Collaboration browser checks passed: reviewed project in the full studio, human notes → CLI watch → claim → tool candidates → selective acceptance, slow-startup import preservation, editor save barriers/failure recovery, unsaved input protection, desktop and phone layouts.');
 }catch(error){
   await capture('failure').catch(()=>{});
-  console.error(await evaluate(`JSON.stringify({page:document.querySelector('#toast')?.textContent,editor:${frame}?.body.innerText.slice(-1600)})`).catch(()=>''));
+  console.error(await evaluate(`JSON.stringify({page:document.querySelector('#toast')?.textContent,title:document.querySelector('#workspace-title')?.textContent,empty:document.querySelector('.workspace')?.classList.contains('empty'),editor:${frame}?.body.innerText.slice(-1600)})`).catch(()=>''));
   throw error;
 }finally{
+  releaseCapabilities?.();
   await browser('close').catch(()=>{});
+  if(entryProxy){entryProxy.closeAllConnections();await new Promise(resolve=>entryProxy.close(resolve));}
   if(server&&server.exitCode===null){server.kill('SIGTERM');await new Promise(resolve=>{const timer=setTimeout(()=>{server.kill('SIGKILL');resolve();},2500);server.once('exit',()=>{clearTimeout(timer);resolve();});});}
   await rm(temporary,{recursive:true,force:true});
 }

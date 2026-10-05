@@ -18,7 +18,7 @@ cd FrameLark
 npm run plugin:install
 ```
 
-这一个命令会构建干净的插件包、将 FrameLark 市场指向这份本地构建、安装插件，再准备固定版本的本地图片依赖。此前配置过其他 FrameLark 来源时会切换到本次构建；其他插件市场与独立 Skill 保持原样。需要 Node.js 20.9+；首次准备图片依赖需要联网。它不会覆盖 `~/.codex/skills/` 中已有的独立 Skill。
+这一个命令会构建干净的插件包、将 FrameLark 市场指向这份本地构建、安装插件，再准备固定版本的本地图片依赖。此前配置过其他 FrameLark 来源时会切换到本次构建；其他插件市场与独立 Skill 保持原样。需要 Node.js 20.9+ 和 Git，并在克隆的仓库中运行；首次准备图片依赖需要联网。它不会覆盖 `~/.codex/skills/` 中已有的独立 Skill。
 
 也可以让 Codex 直接从 GitHub 注册和安装：
 
@@ -50,7 +50,7 @@ npm run plugin:build
 
 发布 ZIP 位于 `dist/framelark/framelark-0.1.1.zip`。包中只有两套 Skill、插件清单和小帧图标，不包含本机配置、密钥、照片项目、草稿、导出文件或原生 `node_modules`。图像依赖在用户的执行环境中准备，不把 macOS 的二进制依赖分发到其他系统。
 
-`skills/` 是唯一维护来源；构建直接复制它，校验会核对发布副本与源文件。根目录 `plugin.json` 提供 portable 格式，`.codex-plugin/plugin.json` 提供 Codex 兼容格式，`.agents/plugins/marketplace.json` 提供仓库安装入口。二者使用同一名称、版本与展示信息。
+`skills/` 是唯一维护来源；构建只读取 Git 已跟踪的 Skill、图标和清单，校验发布副本与工作区源码。未跟踪的本地文件不会进入发布包；误跟踪的配置、照片项目或符号链接会在生成 ZIP 前报错，保留上一次有效包。新增发布资源需先加入 Git。根目录 `plugin.json` 提供 portable 格式，`.codex-plugin/plugin.json` 提供 Codex 兼容格式，`.agents/plugins/marketplace.json` 提供仓库安装入口。二者使用同一名称、版本与展示信息。
 
 当前发布路径是仓库插件市场和 ZIP，尚未上架 OpenAI 的通用插件目录。要让 ChatGPT 云端或管理后台从官方目录发现它，还需要使用开发者身份上传、验证并发布插件；安装本地插件本身不会部署云端修图服务。
 
