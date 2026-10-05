@@ -11,7 +11,7 @@ export const syncGroups=[
   {id:'finish',label:'颗粒与氛围',keys:['fade','vignette','grain','monochrome']}
 ];
 export function photoSnapshot(photo) {
-  return {toolRuns:structuredClone(photo.toolRuns||[]),manual:{...photo.manual},active:[...photo.active],advisorLayers:structuredClone(photo.advisorLayers || []),crop:structuredClone(photo.crop),presetId:photo.presetId,presetAmount:photo.presetAmount,
+  return {editDocument:structuredClone(photo.editDocument||null),toolRuns:structuredClone(photo.toolRuns||[]),manual:{...photo.manual},active:[...photo.active],advisorLayers:structuredClone(photo.advisorLayers || []),crop:structuredClone(photo.crop),presetId:photo.presetId,presetAmount:photo.presetAmount,
     recommendations:structuredClone(photo.analysis?.recommendations || null),annotations:structuredClone(photo.annotations || []),agentApplied:(photo.conversation || []).map(item=>Boolean(item.applied))};
 }
 export function snapshotSettings(snapshot) {return globalAdjustments({...snapshot,preset:presetById(snapshot.presetId),amount:snapshot.presetAmount});}

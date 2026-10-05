@@ -18,5 +18,5 @@ export function sha256(value){
 export const canonical=value=>JSON.stringify(value,(_key,item)=>item&&typeof item==='object'&&!Array.isArray(item)?Object.fromEntries(Object.keys(item).sort().map(key=>[key,item[key]])):item);
 export const contentHash=value=>sha256(canonical(value));
 export function documentHash(document){const {revision,receipts,...content}=document;return contentHash(content);}
-export function renderContent(document){return {source:document.source,pipeline:document.pipeline,geometry:document.geometry,base:document.base,steps:document.steps.map(({id,tool,toolVersion,parameters,enabled,opacity,maskRef,dependsOn})=>({id,tool,toolVersion,parameters,enabled,opacity,maskRef,dependsOn})),masks:document.masks};}
+export function renderContent(document){return {source:document.source,pipeline:document.pipeline,geometry:document.geometry,base:document.base,steps:document.steps.map(({id,tool,toolVersion,kernelVersion,parameters,enabled,opacity,maskRef,dependsOn})=>({id,tool,toolVersion,kernelVersion:kernelVersion??document.pipeline.kernelVersion,parameters,enabled,opacity,maskRef,dependsOn})),masks:document.masks};}
 export const renderHash=document=>contentHash(renderContent(document));

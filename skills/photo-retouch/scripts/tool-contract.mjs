@@ -10,6 +10,8 @@ import {configureWorkflow,recordDiagnosis,prepareReview,editSources,rebuildEdits
 import {saveResultAudit} from './project.mjs';
 import {probeControl} from './probe.mjs';
 import {renderLookSheet} from './look-sheet.mjs';
+import {pixelCapabilities} from './engine/edit-stack/tools.js';
+import {documentPlanSchema} from './engine/edit-stack/schema.js';
 
 const id={type:'string',pattern:'^[-\\w]{1,80}$'},idList={type:'array',maxItems:32,uniqueItems:true,items:id};
 const number=(minimum,maximum)=>({type:'number',minimum,maximum});
@@ -30,6 +32,8 @@ const auditSchema=record({revision:{type:'integer'},versionId:id,maxSide:number(
 export const photoToolPlanSchema=record({revision:{type:'integer',minimum:1},baseVersion:id,requestId:id,name:{type:'string',maxLength:40},goal:{type:'string',maxLength:300},tradeoff:{type:'string',maxLength:300},actorId:id,diagnosisId:id,handoffId:id,operations:{type:'array',minItems:1,maxItems:24,items:photoTools.operationSchema({references:true})},selectedItemIds:idList},['revision','baseVersion','operations']);
 photoToolPlanSchema.$defs=photoTools.schemaDefinitions();
 const definitions=[
+  {name:'frameyn_document_tools',description:'Discover versioned ordered pixel tools, masks and budgets for persistent editable photo documents. Parameters belong to each node, opacity mixes the computed result, and geometry is a fixed stage.',parameters:record({})},
+  {name:'frameyn_propose_document',description:'Propose atomic commands against the inspected document revision/hash and project version. Update an existing step ID rather than adding inverse compensation. Preview and accept separately; old guards and audit rules remain enforced.',parameters:documentPlanSchema},
   {name:'frameyn_propose_edits',description:'Create a previewable structured plan on the inspected fixed base version. Values are absolute targets. Do not execute model-generated code.',parameters:editPlanSchema},
   {name:'frameyn_photo_tools',description:'Discover registered photo tools, supported targets, exact parameters and versions. Object names require explicit verified geometry; this runtime does not infer segmentation.',parameters:record({})},
   {name:'frameyn_compose_tools',description:'Execute a composition of registered tools in cancellable local subprocesses, render stage previews, and create a selectable candidate on a pinned version. The user accepts separately; input is structured data, never commands.',parameters:photoToolPlanSchema},
@@ -48,6 +52,8 @@ export function hostToolContract(){return {kind:'provider-neutral-host-contract'
 export async function dispatchHostTool(folder,call){
   object(call,['name','arguments'],'INVALID_TOOL_CALL');
   if(!call.arguments||typeof call.arguments!=='object'||Array.isArray(call.arguments))fail('INVALID_TOOL_CALL','工具参数必须为 JSON 对象。');
+  if(call.name==='frameyn_document_tools'){object(call.arguments,[],'INVALID_TOOL_CALL');return pixelCapabilities();}
+  if(call.name==='frameyn_propose_document'){if(!call.arguments.documentProposal)fail('INVALID_PROPOSAL','文档工具需要有限命令提案。');const result=await createCandidate(folder,call.arguments);return {...result,preview:await previewPhoto(folder,result.candidate.id,{revision:result.project.revision,selectionHash:result.candidate.selectionHash})};}
   if(call.name==='frameyn_photo_tools'){object(call.arguments,[],'INVALID_TOOL_CALL');return {tools:photoTools.describe(),execution:'subprocess',targetSemantics:'object targets carry geometric masks and declared provenance; names alone are unresolved'};}
   if(call.name==='frameyn_compose_tools'){const result=await createToolCandidate(folder,call.arguments);return {...result,preview:await previewPhoto(folder,result.candidate.id,{revision:result.project.revision,selectionHash:result.candidate.selectionHash})};}
   if(call.name==='frameyn_edit_sources'){object(call.arguments,['versionId'],'INVALID_TOOL_CALL');return editSources(folder,call.arguments?.versionId||'current');}

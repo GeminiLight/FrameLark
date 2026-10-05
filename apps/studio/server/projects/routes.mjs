@@ -53,6 +53,7 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
       return true;
     }
     if(operation==='candidate'&&request.method==='POST'){json(response,200,await bridge.propose(id,await body()));return true;}
+    if(operation==='document'&&request.method==='POST'){json(response,200,await bridge.proposeDocument(id,await body(2*1024*1024),{signal:controller.signal}));return true;}
     if(['select','accept','discard','restore'].includes(operation)&&request.method==='POST'){json(response,200,await bridge.candidate(id,operation,await body()));return true;}
     if(operation==='preview'&&request.method==='GET'){
       const png=await bridge.preview(id,url.searchParams.get('version')||'current',Number(url.searchParams.get('revision')),controller.signal);

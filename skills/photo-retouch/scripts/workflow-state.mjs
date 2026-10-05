@@ -1,9 +1,9 @@
-import {hash,pipelineVersion} from './engine/edit-identity.js';
+import {hash,pipelineVersion,versionPipeline,versionStateHash} from './engine/edit-identity.js';
 import {fail} from './engine/edit-values.js';
 
-export const contextHash=p=>hash({current:p.currentId,state:p.versions.find(v=>v.id===p.currentId)?.state,source:p.source,intent:p.intent,notes:p.notes,pipeline:pipelineVersion});
+export const contextHash=p=>{const version=p.versions.find(v=>v.id===p.currentId);return hash({current:p.currentId,state:version?.state,...(version?.recipe?{recipe:version.recipe}:{}),source:p.source,intent:p.intent,notes:p.notes,pipeline:versionPipeline(version||{})});};
 export const activeDiagnosis=p=>(p.diagnoses||[]).findLast(d=>d.contextHash===contextHash(p));
-export function latestAudit(p,v){const a=(p.resultAudits||[]).findLast(a=>a.versionId===v.id);return a&&a.selectionHash===(v.selectionHash||null)&&a.stateHash===hash(v.state)&&a.sourceChecksum===p.source.checksum&&a.pipeline===pipelineVersion?a:null;}
+export function latestAudit(p,v){const a=(p.resultAudits||[]).findLast(a=>a.versionId===v.id);return a&&a.selectionHash===(v.selectionHash||null)&&a.stateHash===versionStateHash(v)&&a.sourceChecksum===p.source.checksum&&a.pipeline===versionPipeline(v)?a:null;}
 export function workflowStatus(p){
   const diagnosis=activeDiagnosis(p),candidates=(p.candidates||[]).filter(c=>c.baseFingerprint===contextHash(p));
   const mode=p.workflow?.mode||'manual',independent=p.workflow?.independent===true;

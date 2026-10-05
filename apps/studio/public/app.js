@@ -21,7 +21,7 @@ import {maskWeight,maskTypes,brushBounds} from './local-masks.js';
 import {cleanIntent,describeIntent,styleSelections} from './creative-intent.js';
 import {advisorCandidate,suggestionCandidate,previewStillValid,actionExplanation,scalablePreview,scalePreview} from './advisor-candidate.js';
 import {createPhotoViewer} from './photo-viewer.js';
-import {createDraftStore,buildDraftWorkspace,restoreDraftPhoto,draftVersion} from './draft-store.js';
+import {createDraftStore,buildDraftWorkspace,restoreDraftPhoto,draftVersion,supportedDraftVersions} from './draft-store.js';
 import {createDraftAutosave} from './draft-autosave.js';
 import { adjustmentKeys, neutralSettings, combineSettings, renderPixels,renderingVersion } from './editor-engine.js';
 import { presets, presetById, styleCategories, stylePreferences } from './presets.js';
@@ -3282,7 +3282,7 @@ function captureDraftSnapshot() {
 }
 function flushDraftSave(){return draftAutosave.flush();}
 async function refreshDraftList() {
-  try {draftList=(await draftStore.list()).filter(item=>item.version===draftVersion && item.photos?.length).sort((a,b)=>b.savedAt.localeCompare(a.savedAt));draftListFailed=false;}
+  try {draftList=(await draftStore.list()).filter(item=>supportedDraftVersions.includes(item.version) && item.photos?.length).sort((a,b)=>b.savedAt.localeCompare(a.savedAt));draftListFailed=false;}
   catch {draftList=[];draftListFailed=true;}
   renderDraftStatus();
   renderDraftList();
@@ -3303,7 +3303,7 @@ async function continueDraft(id) {
     finishAnnotationNote();finishRangeEdit();
     if(!await flushDraftSave()){showToast('当前草稿尚未保存，请重试保存或导出后再切换。当前照片仍保留。');return;}
     const saved=await draftStore.get(id);
-    if(!saved || saved.version!==draftVersion || !saved.photos?.length) throw new Error('草稿不可用');
+    if(!saved || !supportedDraftVersions.includes(saved.version) || !saved.photos?.length) throw new Error('草稿不可用');
     // Decode every source before replacing a working workspace; a broken draft never discards current work.
     for(const item of saved.photos) {
       const values=restoreDraftPhoto(item),src=URL.createObjectURL(item.originalBlob);let image;
@@ -3320,7 +3320,7 @@ async function continueDraft(id) {
     selectedPhotos.clear();lastBatch=null;analysisController?.abort();analysisGeneration++;reassessGeneration++;
     for(const photo of photoSessions) if(photo.src.startsWith('blob:')) URL.revokeObjectURL(photo.src);
     photoSessions.splice(0,photoSessions.length,...loaded);
-    currentPhotoId=null;seriesWorkspace.restore(saved.series);draftWorkspaceId=id;draftAutosave.reset(saved.savedAt);
+    currentPhotoId=null;seriesWorkspace.restore(saved.series);draftWorkspaceId=id;draftStore.adopt(saved);draftAutosave.reset(saved.savedAt);
     nextPhotoId=Math.max(nextPhotoId,...loaded.map(photo=>Number(photo.id.replace('photo-',''))+1).filter(Number.isFinite));
     nextAnnotationId=Math.max(nextAnnotationId,...loaded.flatMap(photo=>photo.annotations.map(item=>Number(String(item.id).replace('note-',''))+1)).filter(Number.isFinite));
     setLoading(false);activatePhoto(loaded.some(photo=>photo.id===saved.currentPhotoId) ? saved.currentPhotoId:loaded[0].id);
