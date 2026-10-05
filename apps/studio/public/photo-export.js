@@ -54,7 +54,7 @@ export function createPhotoExporter({exportVersion,getRetainedBytes=()=>0}){
         canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
         const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0,canvas.width,canvas.height);
         const stats=inspectPixels(context.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height).stats;
-        return {blob,width:result.width,height:result.height,stats,projectPath:result.path};
+        return {blob,width:result.width,height:result.height,stats,projectPath:result.path,projectVersionId};
       }finally{URL.revokeObjectURL(url);if(canvas){canvas.width=0;canvas.height=0;}}
     }
     progress('准备输出尺寸');

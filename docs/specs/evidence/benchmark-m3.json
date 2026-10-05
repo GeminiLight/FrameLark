@@ -1,0 +1,177 @@
+{
+  "node": "v22.22.2",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpu": "Apple M3",
+  "protocol": "synthetic gradient, fixed exposure/tone/color/detail/finish sequence; one cold sample, three identical warm samples, one independently prewarmed baseline and edited sample for each position; not a visual-quality score or a peak-memory measurement",
+  "rows": [
+    {
+      "width": 560,
+      "height": 420,
+      "count": 1,
+      "coldMs": 117.3,
+      "warmMs": [
+        14.9,
+        15,
+        14.7
+      ],
+      "edits": {
+        "first": {
+          "ms": 122.9,
+          "cachedPrefix": 0
+        },
+        "middle": {
+          "ms": 120.7,
+          "cachedPrefix": 0
+        },
+        "last": {
+          "ms": 112,
+          "cachedPrefix": 0
+        }
+      },
+      "estimatedWorkBytes": 9643200,
+      "retainedCacheBytes": 4939200,
+      "rssAfterBytes": 133693440
+    },
+    {
+      "width": 560,
+      "height": 420,
+      "count": 8,
+      "coldMs": 508.5,
+      "warmMs": [
+        16,
+        15.8,
+        16.1
+      ],
+      "edits": {
+        "first": {
+          "ms": 434.8,
+          "cachedPrefix": 0
+        },
+        "middle": {
+          "ms": 243.5,
+          "cachedPrefix": 4
+        },
+        "last": {
+          "ms": 143.6,
+          "cachedPrefix": 7
+        }
+      },
+      "estimatedWorkBytes": 17169600,
+      "retainedCacheBytes": 32928000,
+      "rssAfterBytes": 204603392
+    },
+    {
+      "width": 560,
+      "height": 420,
+      "count": 24,
+      "coldMs": 986.4,
+      "warmMs": [
+        16,
+        15.9,
+        15.6
+      ],
+      "edits": {
+        "first": {
+          "ms": 991,
+          "cachedPrefix": 0
+        },
+        "middle": {
+          "ms": 539.7,
+          "cachedPrefix": 12
+        },
+        "last": {
+          "ms": 79.1,
+          "cachedPrefix": 23
+        }
+      },
+      "estimatedWorkBytes": 17169600,
+      "retainedCacheBytes": 64915200,
+      "rssAfterBytes": 284311552
+    },
+    {
+      "width": 1400,
+      "height": 1050,
+      "count": 1,
+      "coldMs": 667.7,
+      "warmMs": [
+        94.8,
+        95,
+        93.4
+      ],
+      "edits": {
+        "first": {
+          "ms": 669.4,
+          "cachedPrefix": 0
+        },
+        "middle": {
+          "ms": 690.5,
+          "cachedPrefix": 0
+        },
+        "last": {
+          "ms": 683.6,
+          "cachedPrefix": 0
+        }
+      },
+      "estimatedWorkBytes": 60270000,
+      "retainedCacheBytes": 30870000,
+      "rssAfterBytes": 301711360
+    },
+    {
+      "width": 1400,
+      "height": 1050,
+      "count": 8,
+      "coldMs": 2691.4,
+      "warmMs": [
+        94.4,
+        93.7,
+        93
+      ],
+      "edits": {
+        "first": {
+          "ms": 2692.5,
+          "cachedPrefix": 0
+        },
+        "middle": {
+          "ms": 2706.7,
+          "cachedPrefix": 0
+        },
+        "last": {
+          "ms": 928.9,
+          "cachedPrefix": 7
+        }
+      },
+      "estimatedWorkBytes": 107310000,
+      "retainedCacheBytes": 55860000,
+      "rssAfterBytes": 373161984
+    },
+    {
+      "width": 1400,
+      "height": 1050,
+      "count": 24,
+      "coldMs": 6432.1,
+      "warmMs": [
+        94.2,
+        94.2,
+        94.3
+      ],
+      "edits": {
+        "first": {
+          "ms": 6444.7,
+          "cachedPrefix": 0
+        },
+        "middle": {
+          "ms": 6398.4,
+          "cachedPrefix": 0
+        },
+        "last": {
+          "ms": 488.1,
+          "cachedPrefix": 23
+        }
+      },
+      "estimatedWorkBytes": 107310000,
+      "retainedCacheBytes": 55860000,
+      "rssAfterBytes": 355385344
+    }
+  ]
+}

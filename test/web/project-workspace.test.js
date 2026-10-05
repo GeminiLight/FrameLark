@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createProjectWorkspace} from '../../apps/studio/public/project-workspace.js';
+import {createDocument} from '../../apps/studio/public/edit-stack/document.js';
+import {documentHash,sha256} from '../../apps/studio/public/edit-stack/identity.js';
 
 function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onLoad=()=>photo,onUpdate=()=>{},getVersions=()=>[],getPhotos=()=>[photo],getPatch=()=>patch}={}){
   const previous={document:globalThis.document,location:globalThis.location,history:globalThis.history,EventSource:globalThis.EventSource,fetch:globalThis.fetch};
@@ -13,6 +15,27 @@ function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,o
 }
 const data=(revision=1)=>({id:'project',path:'/tmp/owned-project',name:'test',revision,currentId:'current',supported:true,current:{},candidates:[],versions:[],exports:[]});
 const response=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+test('export-only events advance the file revision without turning owned edits into a conflict',async t=>{
+ let saved;const photo={id:'photo'},patch={settings:{exposure:0}},remote={...data(2),exports:[{versionId:'current',path:'test.png'}]};
+ const env=fixture(t,{photo,patch,fetchImpl:async(_url,options)=>{if(options?.method==='POST'){saved=JSON.parse(options.body);return response({...remote,revision:3});}return response(remote);}});
+ await env.workspace.attach(photo,data());patch.settings.exposure=.2;photo.editSaving=true;await env.events[0].onmessage({data:JSON.stringify({revision:2})});assert.equal(photo.projectRevision,1);
+ photo.editSaving=false;await env.workspace.refresh(photo);env.workspace.schedule(photo);await env.workspace.flush(photo);assert.equal(saved.revision,2);assert.equal(saved.settings.exposure,.2);assert.equal(env.workspace.hasPending(),false);
+});
+test('receipt/revision differences on the same document do not create a false draft conflict',async t=>{
+ const document=createDocument({documentId:'doc',source:{assetId:'source',contentHash:'a'.repeat(64),width:8,height:8},base:{settings:{},locals:[]}}),patch={settings:{exposure:0},document};let posts=0;
+ const env=fixture(t,{patch,fetchImpl:async()=>{posts++;return response(data(2));}});await env.workspace.attach(env.photo,data());patch.document={...structuredClone(document),revision:1};env.workspace.schedule(env.photo);await env.workspace.flush(env.photo);assert.equal(posts,0);assert.equal(env.workspace.hasPending(),false);
+});
+test('an inactive project cannot replace the active photo status or URL',async t=>{
+ const a={id:'a'},b={id:'b'},env=fixture(t,{photo:a,getPhotos:()=>[a,b]});await env.workspace.attach(a,{...data(),id:'a-project',path:'/tmp/a'});await env.workspace.attach(b,{...data(),id:'b-project',path:'/tmp/b'});env.workspace.status(b);assert.equal(env.node('project-sync-status').title,'/tmp/a');assert.equal(a.projectId,'a-project');assert.equal(b.projectId,'b-project');
+});
+test('an export-only revision change renews the same candidate preview token once',async t=>{
+ const document=createDocument({documentId:'doc',source:{assetId:'source',contentHash:'a'.repeat(64),width:8,height:8},base:{settings:{},locals:[]}}),bytes=Uint8Array.of(1,2,3),token={id:'trial',revision:1,selectionHash:'choice',documentHash:documentHash(document)},base={...data(),document},remote={...base,revision:2,exports:[{versionId:'current'}],candidates:[{id:'trial',document,selectionHash:'choice',stale:false}]};let previews=0;
+ const env=fixture(t,{patch:{document},fetchImpl:async url=>{if(!url.includes('/preview?'))return response(remote);if(!previews++)return new Response(JSON.stringify({error:{code:'STALE_REVISION',message:'changed'}}),{status:409});return new Response(bytes,{headers:{'X-Project-Revision':'2','X-Version-Id':'trial','X-Selection-Hash':'choice','X-Document-Hash':token.documentHash,'X-Frame-Spec':'frame','X-Png-Hash':sha256(bytes)}});}});await env.workspace.attach(env.photo,base);assert.deepEqual(new Uint8Array(await env.workspace.renderDocumentPreview(env.photo,token)),bytes);assert.equal(previews,2);assert.equal(token.revision,2);assert.equal(env.photo.projectRevision,2);
+});
+test('preview renewal refuses foreign context or candidate changes',async t=>{
+ const document=createDocument({documentId:'doc',source:{assetId:'source',contentHash:'a'.repeat(64),width:8,height:8},base:{settings:{},locals:[]}}),base={...data(),document},token={id:'trial',revision:1,selectionHash:'choice',documentHash:documentHash(document)};let previews=0;
+ const env=fixture(t,{patch:{document},fetchImpl:async url=>{if(url.includes('/preview?')){previews++;return new Response(JSON.stringify({error:{code:'STALE_REVISION'}}),{status:409});}return response({...base,revision:2,currentId:'foreign',candidates:[{id:'trial',document,selectionHash:'choice',stale:true}]});}});await env.workspace.attach(env.photo,base);await assert.rejects(env.workspace.renderDocumentPreview(env.photo,token),{code:'STALE_REVISION'});assert.equal(previews,1);assert.equal(env.photo.projectRevision,1);
+});
 
 test('loading another project cannot suppress the active photo save',async t=>{
   const first={id:'first'},second={id:'second'},patches={first:{settings:{exposure:0}},second:{settings:{exposure:0}}};

@@ -375,7 +375,13 @@ export const saveWorkspaceEdition=(folder,value)=>mutateProject(folder,value.rev
   if(!Number.isInteger(value.revision))fail('STALE_REVISION','请先读取最新项目版本。');
   if(value.baseVersion!==p.currentId)fail('STALE_REVISION','当前版本已变化，请重新打开版本面板。');
   if(p.versions.filter(v=>v.mode==='edition').length>=40)fail('VERSION_LIMIT','最多保留 40 个命名版本；已有方案仍保留。');
-  const snapshot=value.patch?workspaceSnapshot(p,value.patch):{state:structuredClone(currentVersion(p).state),recipe:structuredClone(currentVersion(p).recipe),notes:structuredClone(p.notes)};
+  let snapshotProject=p;
+  if(value.patch?.document&&currentVersion(p).recipe&&documentHash(value.patch.document)!==documentHash(currentVersion(p).recipe)){
+    const captured=p.versions.find(version=>version.recipe&&documentHash(version.recipe)===documentHash(value.patch.document));
+    if(!captured)fail('DOCUMENT_COMMAND_REQUIRED','命名版本只能保存已确认的配方；新修改需要先通过文档命令。');
+    snapshotProject={...p,currentId:captured.id};
+  }
+  const snapshot=value.patch?workspaceSnapshot(snapshotProject,value.patch):{state:structuredClone(currentVersion(p).state),recipe:structuredClone(currentVersion(p).recipe),notes:structuredClone(p.notes)};
   validateCandidateState({...p,notes:snapshot.notes},snapshot.state);
   const version={id:id(),name:versionName(value.name),parentId:p.currentId,createdAt:now(),mode:'edition',kind:['manual','export','accepted','final'].includes(value.kind)?value.kind:'manual',state:snapshot.state,...(snapshot.recipe?{recipe:snapshot.recipe}:{}),toolRuns:snapshot.toolRuns||versionToolRuns(currentVersion(p)),workspaceNotes:snapshot.notes};
   p.versions.push(version);return {version};

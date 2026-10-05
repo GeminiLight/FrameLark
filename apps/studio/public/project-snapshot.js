@@ -17,9 +17,17 @@ export function snapshotFromProject(data) {
   return {editDocument:data.document?structuredClone(validateDocument(data.document)):null,toolRuns:cleanToolRuns(data.toolRuns||[]),manual:{...neutralSettings(),...data.current.settings},active:[],advisorLayers:[],crop:data.current.crop,presetId:data.current.style?.id || null,presetAmount:data.current.style?.amount ?? 75,recommendations:[],annotations:all,agentApplied:[]};
 }
 export function editionsFromProject(data){
-  return data.versions.filter(v=>v.mode!=='workspace').map(v=>({id:v.id,label:v.name,at:v.at,kind:v.kind,supported:v.supported!==false,snapshot:snapshotFromProject({current:v.state,document:v.document,notes:v.notes||[],toolRuns:v.toolRuns||[]})}));
+  return data.versions.filter(v=>v.mode!=='workspace').map(v=>({id:v.id,label:v.name,at:v.at,kind:data.exports?.some(item=>item.versionId===v.id)?'export':v.kind,supported:v.supported!==false,snapshot:snapshotFromProject({current:v.state,document:v.document,notes:v.notes||[],toolRuns:v.toolRuns||[]})}));
 }
 export function workspaceEditions(versions,{copy=false}={}){
   if(copy&&versions.some(v=>v.supported===false))throw new Error('历史版本含网页不支持的文字或保护设置。请在 Skill 中复制完整项目，原项目和当前编辑仍保留。');
   return versions.filter(v=>v.kind!=='original').map(v=>({id:v.id,name:v.label,at:v.at,kind:v.kind,patch:workspacePatch(v.snapshot)}));
+}
+export function rememberExportVersion(photo,snapshot,signature,{projectVersionId,at=new Date().toISOString()}={}){
+  photo.versions||=[];
+  const shared=projectVersionId&&photo.versions.find(item=>item.id===projectVersionId);
+  if(shared){shared.kind='export';shared.signature=signature;return shared;}
+  if(photo.versions.length>=40||photo.versions.some(item=>item.kind==='export'&&item.signature===signature))return null;
+  const version={id:projectVersionId||crypto.randomUUID(),kind:'export',label:'导出版本',at,signature,snapshot:structuredClone(snapshot)};
+  photo.versions.push(version);return version;
 }

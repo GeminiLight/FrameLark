@@ -13,4 +13,5 @@ for(const name of modules){
 }
 if(changed.length)throw Error(`Web and Skill processing modules differ: ${changed.join(', ')}. Update both implementations, check pipeline compatibility, and rerun both test suites.`);
 for(const name of ['edit-stack-view.js','edit-stack.css']){const [web,skill]=await Promise.all([readFile(new URL('apps/studio/public/'+name,root)),readFile(new URL('skills/photo-retouch/scripts/ui/'+name,root))]);if(!web.equals(skill))throw Error('Shared inspector differs: '+name);}
+const pool=await readFile(new URL('apps/studio/server/projects/render-pool.mjs',root),'utf8'),portablePool=await readFile(new URL('skills/photo-retouch/scripts/render-pool.mjs',root),'utf8');if(pool.replace('../../../../skills/photo-retouch/scripts/worker.mjs','./worker.mjs')!==portablePool)throw Error('Portable render pool differs from studio admission/cancellation/deadline contract.');
 console.log(`Shared processing modules match: ${modules.length}.`);

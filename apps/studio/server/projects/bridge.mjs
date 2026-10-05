@@ -46,7 +46,7 @@ export class ProjectBridge {
   async handoff(id,value){const {runtime,path}=await this.resolve(id);const {handoffProject}=await import('../../../../skills/photo-retouch/scripts/handoff.mjs');const result=await handoffProject(path,value);return this.mutationView(runtime,result.project,path);}
   async editor(request,response,url,id,base,readBody,signal){
     const {path}=await this.resolve(id),{handleNativeProjectRoute}=await import('../../../../skills/photo-retouch/scripts/native-router.mjs');
-    return handleNativeProjectRoute(request,response,url,{folder:path,base,embedded:true,readBody:async req=>JSON.parse((await readBody(req,64*1024)).toString('utf8')),
+    return handleNativeProjectRoute(request,response,url,{folder:path,base,embedded:true,readBody:async req=>JSON.parse((await readBody(req,2*1024*1024)).toString('utf8')),
       render:(action,key,options)=>this.render(action,path,key,options,signal)});
   }
   async create(bytes,name){
