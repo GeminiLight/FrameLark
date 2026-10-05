@@ -1,5 +1,5 @@
 import http from 'node:http';
-import {resolve} from 'node:path';
+import {realpathSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 import {handleRequest,closeServices,port,host} from './app.mjs';
 
@@ -17,4 +17,4 @@ export function startStudio(){
   return server;
 }
 
-if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href)startStudio();
+if(process.argv[1] && import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href)startStudio();
