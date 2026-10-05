@@ -9,6 +9,8 @@ import {visualExamples} from './examples.mjs';
 import {exportExchange,importExchange} from './exchange.mjs';
 import {probeControl} from './probe.mjs';
 import {workflowStatus} from './workflow-state.mjs';
+import {handoffProject,waitForProject} from './handoff.mjs';
+import {handoffView} from './handoff-state.mjs';
 import {renderLookSheet} from './look-sheet.mjs';
 import {previewPhoto,exportPhoto,createRenderSession} from './render.mjs';
 import {editorControlReference} from './engine/control-reference.js';
@@ -36,6 +38,8 @@ const help={name:'Frameyn · 帧映 · 本地修片',usage:'node cli.mjs <comman
   'edit-sources':'[--version <id>] 查看手动、风格、局部及选中项目来源',
   rebuild:'--input <JSON> 显式重建指定调整层，生成可撤回试片并保留约束',
   inspect:'读取当前版本、最新批注、意图、候选和真实预览路径；不调用视觉模型',
+  handoff:'--input <JSON|->；request/claim/progress/complete/fail/cancel，接续需最新 revision；Agent 接手声明 actorId',
+  watch:'[--after-revision <n>] [--timeout 60]；等待接续请求或项目变化，返回后由宿主 Agent 处理；最多等待 600 秒',
   'photo-tools':'工具目录、版本、目标类型与参数 Schema；不调用模型',
   'compose':'--input <tool-plan.json|->；独立子进程执行工具组合，产生逐项候选与实际中间预览',
   controls:'实际参数范围、灰卡响应与风格目录',
@@ -89,7 +93,9 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'collection-sheet':return collectionSheet(folder,{page:o.page?Number(o.page):1,view:o.view||'current',selected:o.selected==='true'});
     case 'collection-export':return exportCollection(folder,await input(o.input,2*1024*1024));
     case 'init':if(!o.image)fail('IMAGE_REQUIRED','请用 --image 指定原片。');return initProject(o.image,folder,{intent:o.intent});
-    case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,project:{...p,workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),versions:p.versions.map(({id,name,parentId,createdAt,acceptedBy})=>({id,name,parentId,createdAt,acceptedBy})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
+    case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,project:{...p,collaboration:handoffView(p),workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),versions:p.versions.map(({id,name,parentId,createdAt,acceptedBy})=>({id,name,parentId,createdAt,acceptedBy})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
+    case 'handoff':return handoffProject(folder,await input(o.input));
+    case 'watch':return waitForProject(folder,{afterRevision:o['after-revision']===undefined?undefined:Number(o['after-revision']),timeoutMs:o.timeout===undefined?60000:Number(o.timeout)*1000});
     case 'preview':return previewPhoto(folder,o.version||'current',{maxSide:o['max-side']?Number(o['max-side']):1400,region:o.region?JSON.parse(o.region):undefined,withoutText:o['without-text']==='true'});
     case 'lettering':{const plan=await input(o.input);if(plan.mode!=='lettering'||!Array.isArray(plan.textOverlays)||['settings','style','crop','locals'].some(k=>plan[k]!==undefined))fail('LETTERING_PLAN','文字模式需 mode: lettering 和 textOverlays；光色、局部和裁剪请在修片候选中调整。');const result=await createCandidate(folder,plan);return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'compose':{const {createToolCandidate}=await import('./tool-candidates.mjs');return createToolCandidate(folder,await input(o.input,2*1024*1024));}

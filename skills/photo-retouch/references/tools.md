@@ -167,3 +167,28 @@ schema 1 只读时不改文件，第一次实际写入前将原字节备份到 p
 预览和 PNG/JPEG 导出通过同一排版流程。`preview --without-text true` 临时看无字版；`export --without-text true` 导出仅保留修片的成片，不改变项目。`serve` 的「文字点缀」入口可手动改文字、样式、位置与大小，再试片、接受或取消。导出窗口也可取消「包含文字点缀」。
 
 字体来自本机；中文字体缺失会要求安装后重试。工具不自动下载字体；本机不同字体可能改变字形和换行。最后应在用户使用的本机复看实际成片。
+
+
+## 接续请求
+
+网页和 Skill 共用接续记录。所有写入须使用最新 revision；actorId 由宿主声明。
+
+```sh
+node <skill>/scripts/cli.mjs handoff --project <project> --input <handoff.json>
+node <skill>/scripts/cli.mjs watch --project <project> --after-revision 12 --timeout 60
+```
+
+请求 JSON 示例，编号和版本取自当前 inspect：
+
+```json
+{"action":"claim","revision":12,"id":"请求编号","actorId":"当前宿主标识"}
+```
+
+- request：`revision`、`message` 和可选 `requestId`；重复 requestId 不新增请求。网页先同步当前修改，再提交。
+- claim：`revision`、`id`、`actorId`；一个请求由一位 Agent 接手。
+- progress：加上实际 `summary`。不会调用模型或改动像素。
+- complete：`summary` 和 `candidateIds`；候选须由同一 Agent 基于此请求生成。方案中填写 `handoffId` 和 `actorId`。空结果需说明保留原片的依据，不等于接受或审核。
+- fail：`summary`，明确实际失败原因。
+- cancel：`revision`、`id`；不删除已保存照片或已有候选，禁止旧接续再次提交。
+
+watch 返回一次文件事件：handoff 为待接手请求，project-updated 为版本变化，timeout 为等待结束。随后由宿主重新 inspect、看图并按授权继续。最长等待 600 秒；没有用户要求持续协作时不循环等待。不要把 queued 当成 Agent 正在运行。对话、审美判断和独立身份仍由宿主负责。

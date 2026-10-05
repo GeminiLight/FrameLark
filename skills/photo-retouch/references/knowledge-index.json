@@ -1570,6 +1570,21 @@
         "验收",
         "照片检查集"
       ]
+    },
+    {
+      "id": "agent-handoff",
+      "kind": "tool",
+      "file": "tools.md",
+      "section": "接续请求",
+      "tags": [
+        "协作",
+        "接续",
+        "Agent",
+        "handoff",
+        "watch",
+        "等待",
+        "取消"
+      ]
     }
   ]
 }

@@ -21,6 +21,7 @@
     "test:skill": "node scripts/run-tests.mjs skill",
     "test:navigation": "node scripts/check-navigation.mjs",
     "quality": "node scripts/photo-quality.mjs",
-    "quality:vision": "node scripts/photo-quality.mjs --vision"
+    "quality:vision": "node scripts/photo-quality.mjs --vision",
+    "test:collaboration": "node scripts/check-collaboration.mjs"
   }
 }
