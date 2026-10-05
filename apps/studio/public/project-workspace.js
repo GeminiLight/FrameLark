@@ -162,7 +162,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     if(baseline&&link.dirty)return data;
     await drainRemote(photo);return {...link.data,candidateId:data.candidateId,toolRun:data.toolRun,remoteUpdated:link.data.revision!==data.revision};
   }
-  async function open(section){notice(available?'':'请先运行 npm run setup，安装本地图片处理依赖后刷新页面。');render(getPhoto()?.projectId?links.get(getPhoto().id)?.data:null);$('project-dialog').showModal();try{if(getPhoto()?.projectId){await flush(getPhoto());render(links.get(getPhoto().id)?.data);}await recent();if(['versions','exports'].includes(section))$('project-details').querySelector(`[data-project-section="${section}"]`)?.setAttribute('open','');}catch(error){notice(error.message);}}
+  async function open(section){if(!available)await capabilities();notice(available?'':'请先运行 npm run setup，安装本地图片处理依赖后刷新页面。');render(getPhoto()?.projectId?links.get(getPhoto().id)?.data:null);$('project-dialog').showModal();try{if(getPhoto()?.projectId){await flush(getPhoto());render(links.get(getPhoto().id)?.data);}await recent();if(['versions','exports'].includes(section))$('project-details').querySelector(`[data-project-section="${section}"]`)?.setAttribute('open','');}catch(error){notice(error.message);}}
   async function requestContinue(){
     const photo=getPhoto();if(!photo)return;if(!photo.projectId)await createFileProject(photo);await flush(photo);
     const message=`请按当前意图与全部最新批注继续审片，先给我可比较的候选。${photo.creativeIntent?'目标：'+photo.creativeIntent:''}`;

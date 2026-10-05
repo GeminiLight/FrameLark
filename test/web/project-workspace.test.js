@@ -15,6 +15,10 @@ function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,o
 }
 const data=(revision=1)=>({id:'project',path:'/tmp/owned-project',name:'test',revision,currentId:'current',supported:true,current:{},candidates:[],versions:[],exports:[]});
 const response=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+test('opening the project dialog retries an unavailable initial runtime capability',async t=>{
+ let probes=0;const env=fixture(t,{fetchImpl:async url=>url==='/api/local-capabilities'?response({local:true,projects:++probes>1}):response({projects:[]})});
+ assert.equal((await env.workspace.capabilities()).projects,false);await env.workspace.open();assert.equal(probes,2);assert.equal(env.node('project-create').disabled,false);assert.equal(env.node('project-notice').textContent,'');
+});
 test('export-only events advance the file revision without turning owned edits into a conflict',async t=>{
  let saved;const photo={id:'photo'},patch={settings:{exposure:0}},remote={...data(2),exports:[{versionId:'current',path:'test.png'}]};
  const env=fixture(t,{photo,patch,fetchImpl:async(_url,options)=>{if(options?.method==='POST'){saved=JSON.parse(options.body);return response({...remote,revision:3});}return response(remote);}});
