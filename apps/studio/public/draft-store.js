@@ -77,7 +77,7 @@ export function createDraftStore() {
     async save(workspace,{expectedRevision=ownedRevisions.get(workspace.id)||0}={}){
       const db=await open();if(!Number.isSafeInteger(expectedRevision)||expectedRevision<0)throw new Error('草稿保存版本无效。');
       return new Promise((resolve,reject)=>{const tx=db.transaction('workspaces','readwrite'),store=tx.objectStore('workspaces'),request=store.get(workspace.id);let failure;
-        request.onsuccess=()=>{const actual=request.result?.storageRevision||0;if(actual!==expectedRevision){failure=Object.assign(new Error('草稿已在另一标签页更新。当前修改保留，请重新打开最新草稿后协调。'),{code:'STALE_DRAFT'});tx.abort();return;}store.put({...workspace,storageRevision:actual+1});};
+        request.onsuccess=()=>{try{const actual=request.result?.storageRevision||0;if(actual!==expectedRevision){failure=Object.assign(new Error('草稿已在另一标签页更新。当前修改保留，请重新打开最新草稿后协调。'),{code:'STALE_DRAFT'});tx.abort();return;}store.put({...workspace,storageRevision:actual+1});}catch(error){failure=error;tx.abort();}};
         tx.oncomplete=()=>{ownedRevisions.set(workspace.id,expectedRevision+1);resolve(workspace.id);};tx.onerror=()=>reject(failure||tx.error||new Error('草稿保存失败'));tx.onabort=()=>reject(failure||tx.error||new Error('草稿保存未完成'));
       });
     },
