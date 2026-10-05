@@ -12,9 +12,9 @@ FrameLark offers a Codex plugin, standalone skills, and a browser studio to help
 
 | What you want to do | How Xiaozhen helps |
 | --- | --- |
-| **Find scenes · Photography Eye** | Discover worthwhile photographs in a scene, with viewpoints, composition, timing, and camera settings. |
-| **Refine photos · Retouch Desk** | Work on light, color, cropping, and local details; customize a look and compare candidates before accepting. |
-| **Curate a series · Series Album** | Define a theme, select varied images, refine each one, and arrange a sequence that holds together. |
+| **[Find scenes · Photography Eye](#photography-eye-demo)** | Discover worthwhile photographs in a scene, with viewpoints, composition, timing, and camera settings. |
+| **[Refine photos · Retouch Desk](#photo-retouch-demo)** | Work on light, color, cropping, and local details; customize a look and compare candidates before accepting. |
+| **[Curate a series · Series Album](#photo-series-demo)** | Define a theme, select varied images, refine each one, and arrange a sequence that holds together. |
 
 People, wider scenes, and small details can belong in the same set. Photography Eye uses the `photography-eye` skill; Retouch Desk and Series Album use `photo-retouch`.
 
@@ -36,13 +36,7 @@ cd FrameLark
 npm run plugin:install
 ```
 
-After installation, **open a new chat** and confirm FrameLark is enabled. Attach a photograph or provide a photo-folder path, then try:
-
-> Use FrameLark to find photographs here. Suggest different viewpoints, compositions, and camera settings.
-
-> Use FrameLark to refine this photograph. Keep the natural light; review it first, then show candidates I can compare.
-
-> Use FrameLark to make a nine-image grid from this folder. Define a theme, select nine varied images that belong together, and refine each one. Preserve the originals and save selected copies and finished photos separately.
+After installation, **open a new chat** and confirm FrameLark is enabled. Attach a photograph or provide a photo-folder path, then try the [examples below](#usage-examples).
 
 The plugin uses your current agent for vision and conversation, with no additional model API key. It checks whether the host supports optional image generation or editing and skips those steps when unavailable. Installation uses the repository marketplace; FrameLark is not yet listed in OpenAI’s universal directory.
 
@@ -56,6 +50,46 @@ Run these commands in the repository above. Choose the entry point that suits yo
 | <a id="web-ui"></a>Browser studio | Run `npm start`, then open [localhost:3177](http://localhost:3177) to upload, refine, compare, and export. |
 
 Manual browser editing needs no model key. Connect a visual model in settings for the AI advisor. Scene-scouting guidance is currently provided through the Photography Eye skill.
+
+## Usage examples
+
+<a id="photography-eye-demo"></a>
+
+### Find scenes · Photography Eye
+
+Attach a scene photo and describe your equipment and intent:
+
+> Use FrameLark to find photographs in this rainy night scene. Suggest viewpoints, compositions, and finishing directions.
+
+![Photography Eye: rainy-night portraits, umbrella details, and city lights](docs/images/showcase/photography-eye.png)
+
+Find different images in one scene, then use the viewpoint, settings, and finishing advice to photograph them. This board shows AI shot goals that need a real reshoot.
+
+<a id="photo-retouch-demo"></a>
+
+### Refine photos · Retouch Desk
+
+Attach the original and explain what to keep and improve:
+
+> Use FrameLark to refine this photo. Preserve the morning light and mountain layers, make the person a little clearer, and show me a trial first.
+
+![Retouch Desk: a real comparison of the original and a saved retouch](docs/images/showcase/photo-retouch.png)
+
+Review, preview crop, color, and local adjustments, compare details, then accept and export. The screenshot compares the built-in original with a saved retouch.
+
+<a id="photo-series-demo"></a>
+
+### Curate a series · Series Album
+
+Provide a photo folder, its purpose, the image count, and required photographs:
+
+> Use FrameLark to make a nine-image grid from this folder. Define a theme, select photos, refine each one, and arrange the sequence. Preserve the originals.
+
+![Series Album: set the intent, arrange photographs, and refine each image](docs/images/screenshots/series-workspace.png)
+
+Get a selection, sequence, and finished set around your theme. This screenshot uses two cat and coffee samples to demonstrate a quiet daily-life series.
+
+[Example sources and capture notes](docs/SCREENSHOTS.md#三个能力的使用示例) (Chinese)
 
 ## Studio preview
 

@@ -1,5 +1,17 @@
 # 界面截图
 
+## 三个能力的使用示例
+
+README 每项能力各展示一句调用示例、一张图和一段说明。图片对应的用途与来源如下：
+
+| 示例 | 展示内容与来源 |
+| --- | --- |
+| [找画面 · 摄影眼](images/showcase/photography-eye.png) | 2026-10-05 制作的雨夜拍法参考，精选环境人物、伞面细节、城市灯光三个方向。由内置 imagegen 根据 [Andrey Grushnikov 的原图](https://www.pexels.com/photo/photo-of-a-person-holding-an-umbrella-940034/)制作，来源采用 [Pexels License](https://www.pexels.com/license/)。图内保留作者与 AI 示意标识；这是拍摄与后期目标，会重画伞骨、水珠和灯牌，不能当作准确原片裁剪或现场复拍成果。 |
+| [修照片 · 精修台](images/showcase/photo-retouch.png) | 2026-10-06 从已安装的 FrameLark 0.1.1 插件暗房实际截取，视口 1280 × 800。使用内置 `alpine-demo.png` 与已有示例项目，进入「对照」，左侧为原片，右侧为已保存的「晨光 · 轻调人物」。本轮只展示已有版本，没有重新调用模型或生成照片。 |
+| [做组图 · 组图册](images/screenshots/series-workspace.png) | 使用下面记录的真实组图空间截图：猫与咖啡两张 CC0 样片，展示「安静日常」的表达、顺序与逐张精调。它是两图操作示例，不是已完成的九宫格交付。 |
+
+截图不含个人照片路径或本地会话令牌。示例说明实际操作与输出类型，不作为摄影质量基准。
+
 ## 完整工作台
 
 `docs/images/screenshots/studio-overview.png` 来自 2026-10-06 当前仓库实际运行的 `npm start`，视口 1280 × 800。点击「试用示例照片」后截图，使用内置 `apps/studio/public/assets/alpine-demo.png`，展示「帧好」品牌、照片预览与小帧顾问。未配置视觉模型，页面显示「本地引导」；没有调用模型或将截图称为 AI 修片结果。
