@@ -1,7 +1,7 @@
 // Photo objects own their editing state. The editor is a live view of the active
 // photo; UI-only fields (loading, panel selection, global preferences) stay local.
 const photoFields=Object.freeze([
-  'toolRuns','creativeIntent','analysisIntent','image','imageName','isDemo',
+  'editDocument','toolRuns','creativeIntent','analysisIntent','image','imageName','isDemo',
   'previewSource','previewData','analysis','advisorLayers','active','manual',
   'crop','compare','annotations','presetId','presetAmount','presetThumbs',
   'analysisSource','analysisStatus','analysisError','analysisProvenance',

@@ -5,9 +5,17 @@ import {planSync,planStyle,photoSnapshot,snapshotSettings,exposureOffset} from '
 import {createPhotoRenderer} from '../../apps/studio/public/photo-rendering.js';
 import {createTaskQueue} from '../../apps/studio/public/task-queue.js';
 import {outputGeometry,safeFilename} from '../../apps/studio/public/export-settings.js';
+import {createDocument} from '../../apps/studio/public/edit-stack/document.js';
+import {applyCommands} from '../../apps/studio/public/edit-stack/commands.js';
 const snapshot=()=>({manual:neutralSettings(),active:[],advisorLayers:[],recommendations:[],presetId:null,presetAmount:75,crop:null,annotations:[]});
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const histogram=index=>Array.from({length:64},(_,i)=>i===index ? 100:0);
+test('stack sync copies ordered operations and masks without reducing them to final slider sums',()=>{
+  const source=snapshot(),target=snapshot(),doc=id=>createDocument({documentId:id,source:{assetId:id,contentHash:(id==='source'?'a':'b').repeat(64),width:16,height:16},base:{settings:neutralSettings(),locals:[]}});
+  source.editDocument=applyCommands(doc('source'),[{type:'AddStep',step:{id:'bright',title:'暗处',tool:'exposure',toolVersion:2,parameters:{ev:.5},opacity:.7}},{type:'ReplaceStepMask',stepId:'bright',mask:{expression:{kind:'luminance',mode:'exclude-highlights',start:.5,end:.8},reference:{kind:'frozen-source',sourceHash:'a'.repeat(64)}}},{type:'AddStep',step:{id:'dark',title:'补暗',tool:'exposure',toolVersion:2,parameters:{ev:-.2}}}]).next;
+  target.editDocument=doc('target');const copied=planSync(source,target,{keys:['exposure'],local:true}).snapshot.editDocument;
+  assert.deepEqual(copied.steps.map(step=>step.parameters.ev),[.5,-.2]);assert.equal(copied.steps[0].opacity,.7);assert.equal(copied.masks[0].reference.sourceHash,'b'.repeat(64));assert.equal(target.editDocument.steps.length,0);assert.notEqual(copied.steps[0].id,'bright');
+});
 test('sync matches effective targets without accumulating recommendations, styles, or advisor compensation',()=>{
   const source=snapshot(),target=snapshot();source.manual.exposure=.25;source.manual.saturation=-8;
   target.presetId='daily-soft';target.active=['a'];target.recommendations=[{id:'a',adjustments:{exposure:.5,saturation:10}}];target.advisorLayers=[{id:'b',settings:{exposure:.2}}];target.manual.warmth=14;
@@ -70,4 +78,8 @@ test('cancelling an export terminates its worker and cannot fall back to uncance
   globalThis.Worker=class {postMessage(){} terminate(){terminated++;}};
   try {const renderer=createPhotoRenderer(),work=renderer.render({pixels:Uint8ClampedArray.of(1),width:2,height:2,settings:{}});renderer.dispose();await assert.rejects(work,{name:'AbortError'});await assert.rejects(()=>renderer.render({}),{name:'AbortError'});assert.equal(terminated,1);}
   finally {if(original===undefined)delete globalThis.Worker;else globalThis.Worker=original;}
+});
+test('superseding a preview terminates its old worker and admits the next render on a fresh worker',async()=>{
+ const original=globalThis.Worker,workers=[];globalThis.Worker=class{constructor(){workers.push(this);}postMessage(message){this.message=message;}terminate(){this.terminated=true;}};
+ try{const renderer=createPhotoRenderer(),old=renderer.render({pixels:Uint8ClampedArray.of(1),width:1,height:1});renderer.cancel();await assert.rejects(old,{name:'AbortError'});assert.equal(workers[0].terminated,true);const next=renderer.render({pixels:Uint8ClampedArray.of(2),width:1,height:1});workers[1].onmessage({data:{id:workers[1].message.id,pixels:Uint8ClampedArray.of(2).buffer}});assert.deepEqual(await next,Uint8ClampedArray.of(2));renderer.dispose();}finally{if(original===undefined)delete globalThis.Worker;else globalThis.Worker=original;}
 });

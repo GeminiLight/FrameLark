@@ -56,8 +56,8 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
     if(operation==='document'&&request.method==='POST'){json(response,200,await bridge.proposeDocument(id,await body(2*1024*1024),{signal:controller.signal}));return true;}
     if(['select','accept','discard','restore'].includes(operation)&&request.method==='POST'){json(response,200,await bridge.candidate(id,operation,await body()));return true;}
     if(operation==='preview'&&request.method==='GET'){
-      const png=await bridge.preview(id,url.searchParams.get('version')||'current',Number(url.searchParams.get('revision')),controller.signal);
-      response.writeHead(200,{'Content-Type':'image/png','Cache-Control':'no-store'});response.end(png);return true;
+      const packet=await bridge.previewPacket(id,url.searchParams.get('version')||'current',Number(url.searchParams.get('revision')),controller.signal);
+      response.writeHead(200,{'Content-Type':'image/png','Cache-Control':'no-store',...packet.headers});response.end(packet.bytes);return true;
     }
     if(operation==='export'&&request.method==='POST'){json(response,200,await bridge.export(id,await body(),controller.signal));return true;}
     if(operation.startsWith('exports/')&&request.method==='GET') {

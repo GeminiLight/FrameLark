@@ -12,4 +12,5 @@ for(const name of modules){
   if(!web.equals(skill))changed.push(name);
 }
 if(changed.length)throw Error(`Web and Skill processing modules differ: ${changed.join(', ')}. Update both implementations, check pipeline compatibility, and rerun both test suites.`);
+for(const name of ['edit-stack-view.js','edit-stack.css']){const [web,skill]=await Promise.all([readFile(new URL('apps/studio/public/'+name,root)),readFile(new URL('skills/photo-retouch/scripts/ui/'+name,root))]);if(!web.equals(skill))throw Error('Shared inspector differs: '+name);}
 console.log(`Shared processing modules match: ${modules.length}.`);

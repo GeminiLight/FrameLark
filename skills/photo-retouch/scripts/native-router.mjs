@@ -8,9 +8,9 @@ const ui=new URL('./ui/',import.meta.url);
 const files={
   '':['index.html','text/html'],'app.js':['app.js','text/javascript'],'lettering.js':['lettering.js','text/javascript'],
   'controlled-edits.js':['controlled-edits.js','text/javascript'],'controlled-edits-model.js':['controlled-edits-model.js','text/javascript'],
-  'preview-requests.js':['preview-requests.js','text/javascript'],'style.css':['style.css','text/css'],'mark.svg':['mark.svg','image/svg+xml'],'xiaozhen-avatar.png':['xiaozhen-avatar.png','image/png']
+  'edit-stack-view.js':['edit-stack-view.js','text/javascript'],'edit-stack.css':['edit-stack.css','text/css'],'preview-requests.js':['preview-requests.js','text/javascript'],'style.css':['style.css','text/css'],'mark.svg':['mark.svg','image/svg+xml'],'xiaozhen-avatar.png':['xiaozhen-avatar.png','image/png']
 };
-const engineFiles=new Set(['photo-geometry.js','crop-utils.js','editor-engine.js','render-frame.js','tone-processing.js','detail-processing.js']);
+const engineFiles=new Set(["adjustment-layers.js", "control-reference.js", "crop-utils.js", "detail-processing.js", "edit-guards.js", "edit-identity.js", "edit-plan.js", "edit-stack/commands.js", "edit-stack/document.js", "edit-stack/identity.js", "edit-stack/kernels.js", "edit-stack/masks.js", "edit-stack/planner.js", "edit-stack/proposals.js", "edit-stack/render.js", "edit-stack/schema.js", "edit-stack/styles.js", "edit-stack/tools.js", "edit-stack/values.js", "edit-values.js", "editor-engine.js", "export-files.js", "export-settings.js", "local-masks.js", "photo-geometry.js", "photo-metering.js", "photo-rendering.js", "photo-tools/builtins/adjustment.js", "photo-tools/builtins/color.js", "photo-tools/builtins/crop.js", "photo-tools/builtins/detail.js", "photo-tools/builtins/finish.js", "photo-tools/builtins/mask.js", "photo-tools/builtins/rotate.js", "photo-tools/builtins/style.js", "photo-tools/builtins/tone.js", "photo-tools/history.js", "photo-tools/registry.js", "photo-tools/targets.js", "photo-tools/values.js", "presets.js", "project-exchange.js", "protected-regions.js", "region-edits.js", "render-frame.js", "tone-processing.js"]);
 const json=(res,status,value)=>{if(res.destroyed)return;res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
 
 // Authentication belongs to the caller: a private session or the same-origin project bridge.
@@ -22,6 +22,7 @@ export async function handleNativeProjectRoute(req,res,url,{folder,base='/',rend
     if(req.method==='GET'&&operation==='edit-sources'){json(res,200,await editSources(folder,url.searchParams.get('version')||'current'));return;}
     if(req.method==='GET'&&operation==='image'){
       const options={maxSide:Number(url.searchParams.get('size'))||1400,withoutText:url.searchParams.get('withoutText')==='true'};
+      if(url.searchParams.has('maskStep')){const mode=url.searchParams.get('maskMode');if(!['overlay','bw'].includes(mode))fail('INVALID_MASK_VIEW','范围显示模式无效。');options.maskView={stepId:url.searchParams.get('maskStep'),mode};}
       if(url.searchParams.has('revision'))options.revision=Number(url.searchParams.get('revision'));
       if(url.searchParams.has('selectionHash'))options.selectionHash=url.searchParams.get('selectionHash');
       if(url.searchParams.has('reference')){const p=await loadProject(folder),{findVersion}=await import('./project.mjs');options.referenceCrop=findVersion(p,url.searchParams.get('reference')).state.crop;}

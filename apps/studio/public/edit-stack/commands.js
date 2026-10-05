@@ -5,7 +5,7 @@ import {validateMaskRef} from './masks.js';
 import {contentHash,documentHash,renderHash} from './identity.js';
 const clone=value=>structuredClone(value);
 const stepAt=(document,id)=>{identifier(id);const step=document.steps.find(step=>step.id===id);if(!step)fail('STEP_MISSING','这一步已删除，请重新读取当前编辑。',{stepId:id});return step;};
-export const commandTypes=['AddStep','UpdateStepParameters','SetStepEnabled','SetStepOpacity','ReplaceStepMask','MoveStep','RemoveStep','RenameStep','UpdateGeometry','ToggleGroup','AddGroup','RenameGroup','ReplaceLegacyBase'];
+export const commandTypes=['AddStep','UpdateStepParameters','SetStepEnabled','SetStepOpacity','ReplaceStepMask','MoveStep','RemoveStep','RenameStep','UpdateGeometry','ToggleGroup','AddGroup','RenameGroup','ReplaceLegacyBase','ClearSteps'];
 export function applyCommands(document,commands,{expectedRevision=document.revision,expectedHash=documentHash(document),requestId}={}){
   validateDocument(document);if(!Array.isArray(commands)||!commands.length||commands.length>24)fail('INVALID_COMMANDS','一次编辑需要 1～24 条有限命令。');const commandsHash=contentHash(commands);
   if(requestId!==undefined){identifier(requestId);const receipt=document.receipts.find(receipt=>receipt.id===requestId);if(receipt){if(receipt.commandsHash!==commandsHash)fail('REQUEST_CONFLICT','同一请求编号不能提交不同编辑。');return {next:clone(document),receipt:clone(receipt),reused:true,transaction:null,invalidation:null};}}
@@ -37,6 +37,7 @@ export function applyCommands(document,commands,{expectedRevision=document.revis
       case 'AddGroup':object(command,['type','group']);object(command.group,['id','title','provenance'],['id','title']);identifier(command.group.id);title(command.group.title);if(next.groups.some(group=>group.id===command.group.id))fail('GROUP_DUPLICATE','分组编号已经存在。');next.groups.push(clone(command.group));break;
       case 'RenameGroup':{object(command,['type','groupId','title']);const group=next.groups.find(group=>group.id===command.groupId);if(!group)fail('GROUP_MISSING','分组不存在。');group.title=title(command.title);break;}
       case 'ReplaceLegacyBase':object(command,['type','state']);next.base=captureLegacyBase(command.state);break;
+      case 'ClearSteps':object(command,['type']);next.steps=[];next.groups=[];next.masks=[];break;
     }
   }
   validateDocument(next);const afterHash=documentHash(next);if(afterHash===beforeHash)return {next:clone(document),transaction:null,invalidation:null,noChange:true};

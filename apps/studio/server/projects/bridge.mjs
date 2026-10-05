@@ -5,7 +5,8 @@ import {readFile,writeFile,mkdir,rename,realpath,mkdtemp,rm,stat} from 'node:fs/
 import {watch} from 'node:fs';
 import {resolve,join,basename,sep} from 'node:path';
 import {tmpdir} from 'node:os';
-import {randomUUID} from 'node:crypto';
+import {documentHash} from '../../public/edit-stack/identity.js';
+import {createHash,randomUUID} from 'node:crypto';
 
 export class ProjectBridge {
   constructor({root=process.cwd()}={}){this.root=resolve(root);this.file=join(this.root,'.guangjian/projects.json');this.records=null;this.writes=Promise.resolve();this.watchers=new Set();this.renderer=createProjectRenderPool();this.workers=this.renderer.workers;}
@@ -35,7 +36,7 @@ export class ProjectBridge {
     return {id:p.id,path,name:p.source.name,source:p.source,revision:p.revision,currentId:p.currentId,intent:p.intent,notes:p.notes,current:current.state,document:current.recipe||null,documentContext:runtime.projectDocument(p),toolRuns:versionToolRuns(current),
       supported:!limitations,limitations,editor:`/api/projects/${p.id}/editor/?embedded=1`,workflow:native.workflowStatus,collaboration:native.collaboration,
       diagnosis:p.diagnoses?.find(d=>d.id===native.workflowStatus.diagnosisId)||null,updatedAt:p.updatedAt,acceptedBy:current.acceptedBy||null,
-      versions:p.versions.map((v,index)=>({id:v.id,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,toolRuns:versionToolRuns(v),state:v.state,document:v.recipe||null,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,actorId:c.actorId||null,handoffId:c.handoffId||null,document:c.recipe||null,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn,operation,execution,commands})=>({id,title,dependsOn,operation,execution,commands})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
+      versions:p.versions.map((v,index)=>({id:v.id,requestId:v.requestId||null,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,toolRuns:versionToolRuns(v),state:v.state,document:v.recipe||null,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,actorId:c.actorId||null,handoffId:c.handoffId||null,document:c.recipe||null,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn,operation,execution,commands})=>({id,title,dependsOn,operation,execution,commands})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
       exports:(p.exports||[]).map(e=>({path:e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
   }
   fingerprint(p){return this.contextHash?.(p);}
@@ -113,13 +114,14 @@ export class ProjectBridge {
   async render(action,folder,key,options,signal) {
     return this.renderer.run({id:1,action,folder,key,options},{signal});
   }
-  async preview(id,version,revision,signal){
+  async preview(id,version,revision,signal){return (await this.previewPacket(id,version,revision,signal)).bytes;}
+  async previewPacket(id,version,revision,signal){
     const {runtime,p,path}=await this.resolve(id);
     if(revision!==p.revision)throw Object.assign(new Error('项目已更新，请重新预览。'),{code:'STALE_REVISION'});
-    runtime.findVersion(p,version);
-    const frame=await this.render('preview',path,version,{maxSide:1400},signal);
+    const selected=runtime.findVersion(p,version);
+    const frame=await this.render('preview',path,version,{maxSide:1400,revision,selectionHash:selected.selectionHash},signal);
     if((await runtime.loadProject(path)).revision!==revision)throw Object.assign(new Error('预览期间项目已更新，请重试。'),{code:'STALE_REVISION'});
-    return readFile(frame.path);
+    const bytes=await readFile(frame.path);return {bytes,headers:{'X-Project-Revision':String(frame.revision),'X-Version-Id':frame.versionId,'X-Selection-Hash':frame.selectionHash||'','X-Document-Hash':selected.recipe?documentHash(selected.recipe):'','X-Frame-Spec':frame.frameSpecHash,'X-Png-Hash':createHash('sha256').update(bytes).digest('hex')}};
   }
   async export(id,{versionId,options={}},signal){
     const {runtime,p,path}=await this.resolve(id);if(!p.versions.some(v=>v.id===versionId))throw new Error('请先保存当前调整再导出。');

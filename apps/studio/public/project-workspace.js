@@ -1,3 +1,4 @@
+import {documentHash} from './edit-stack/identity.js';
 import {readVisionStream} from './vision-stream.js';
 import {createProjectCollaboration} from './project-collaboration.js';
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -92,7 +93,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     try{await link.refreshing;}finally{link.refreshing=null;status();}
   }
   function schedule(photo){
-    if(!photo?.projectId||updatingPhotos.has(photo))return;
+    if(!photo?.projectId||updatingPhotos.has(photo)||photo.editSaving)return;
     const link=links.get(photo.id);if(!link)return;
     if(collaboration.isNative(photo)){status(photo);return;}
     link.dirty=JSON.stringify(getPatch(photo))!==link.baseline||getVersions(photo).some(v=>!link.data.versions.some(saved=>saved.id===v.id));status();
@@ -225,8 +226,17 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
       const candidate=data.candidates.find(c=>c.id===data.candidateId);if(!candidate||!data.toolRun)throw new Error('工具候选已变化，请重新生成。');
       return {run:data.toolRun,token:{projectId:photo.projectId,id:candidate.id,revision:data.revision,selectionHash:candidate.selectionHash}};
     },
+    async proposeDocument(photo,proposal,{signal}={}){
+      const link=links.get(photo.id);if(!link)throw new Error('项目未连接。');
+      link.documentRequests||=new Map();const requestId=proposal.requestId||crypto.randomUUID();let value=link.documentRequests.get(requestId);if(!value){value={revision:photo.projectRevision,baseVersion:photo.projectCurrentId,requestId,name:proposal.name||'编辑步骤',goal:proposal.goal||'',tradeoff:proposal.tradeoff||'',proposal:structuredClone(proposal)};link.documentRequests.set(requestId,value);if(link.documentRequests.size>128)link.documentRequests.delete(link.documentRequests.keys().next().value);}
+      let baseline=JSON.parse(link.baseline);const current=getPatch(photo),metadata={...baseline,intent:current.intent,conversation:current.conversation};if(JSON.stringify(metadata)!==JSON.stringify(baseline)){await mutate(photo,'save',{...metadata,revision:photo.projectRevision,baseVersion:photo.projectCurrentId},metadata,{signal});baseline=metadata;value={...value,revision:photo.projectRevision,baseVersion:photo.projectCurrentId};link.documentRequests.set(requestId,value);}
+      const data=await mutate(photo,'document',value,baseline,{signal});
+      const candidate=data.candidates.find(c=>c.id===data.candidateId);if(!candidate?.document)throw new Error('文档候选尚未完成。');return {document:candidate.document,token:{projectId:photo.projectId,id:candidate.id,revision:data.revision,selectionHash:candidate.selectionHash,documentHash:documentHash(candidate.document)}};
+    },
+    async recoverDocument(photo,requestId,expectedHash,{signal}={}){const link=links.get(photo.id);if(!link)return null;const data=await projectRequest(`/api/projects/${photo.projectId}`,{signal}),version=data.versions.find(version=>version.id===data.currentId);if(version?.requestId!==requestId||!data.document||documentHash(data.document)!==expectedHash)return null;await updatePhoto(photo,()=>onUpdate(photo,data));Object.assign(photo,{projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});link.data=data;link.baseline=JSON.stringify(getPatch(photo));link.dirty=false;link.conflict=false;link.error=null;onVersions(photo,data);status(photo);return data.document;},
+    async renderDocumentPreview(photo,token,{signal}={}){const response=await fetch(`/api/projects/${photo.projectId}/preview?version=${encodeURIComponent(token.id)}&revision=${token.revision}`,{signal});if(!response.ok){const failure=await response.json().catch(()=>null);throw new Error(failure?.error?.message||'文件项目预览未完成。');}const bytes=await response.arrayBuffer();if(!bytes.byteLength)throw new Error('文件项目预览为空。');if(response.headers.get('X-Project-Revision')!==String(token.revision)||response.headers.get('X-Version-Id')!==token.id||response.headers.get('X-Selection-Hash')!==token.selectionHash||response.headers.get('X-Document-Hash')!==token.documentHash||!response.headers.get('X-Frame-Spec'))throw new Error('预览与当前配方或所选组合不一致，请重新预览。');const checksum=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(n=>n.toString(16).padStart(2,'0')).join('');if(checksum!==response.headers.get('X-Png-Hash'))throw new Error('预览图像校验失败，请重新预览。');return bytes;},
     async propose(photo,patch,explanation){await flush(photo);const data=await mutate(photo,'candidate',{revision:photo.projectRevision,baseVersion:photo.projectCurrentId,patch,goal:explanation.goal,tradeoff:explanation.tradeoff});const candidate=data.candidates.find(c=>c.id===data.candidateId);return {projectId:photo.projectId,id:candidate.id,revision:data.revision,selectionHash:candidate.selectionHash};},
-    async accept(photo,token,patch){const {id,revision,selectionHash}=token;return mutate(photo,'accept',{id,revision,selectionHash},patch);},
+    async accept(photo,token,patch,{signal}={}){const {id,revision,selectionHash}=token;return mutate(photo,'accept',{id,revision,selectionHash},patch,{signal});},
     async discard(photo,token){if(!token)return;try{if(photo&&links.has(photo.id))await mutate(photo,'discard',{id:token.id});else if(token.projectId)await projectRequest(`/api/projects/${token.projectId}/discard`,{method:'POST',value:{id:token.id}});}catch{/* It may already have been accepted or discarded elsewhere. */}},
     hasPending:()=>[...links.values()].some(l=>l.dirty||l.busy||l.conflict||l.photo.projectNativePending),
     release(photo){const link=links.get(photo.id);link?.events.close();clearTimeout(link?.timer);links.delete(photo.id);},

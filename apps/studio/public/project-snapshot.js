@@ -9,7 +9,7 @@ export function workspacePatch(snapshot,{intent='',conversation=[]}={}) {
   const bounded=adjustmentKeys.every(key=>{const [min,max]=limits[key]||[-75,75];return raw[key]>=min&&raw[key]<=max;});
   return {toolRuns:cleanToolRuns(snapshot.toolRuns||[]),settings:bounded?raw:snapshotSettings(snapshot),style:bounded&&snapshot.presetId?{id:snapshot.presetId,amount:snapshot.presetAmount}:null,crop:snapshot.crop,
     annotations:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers).map(a=>({...a,hasNote:a.hasNote!==false,hasLocal:Object.values(a.localSettings||{}).some(Boolean)||Boolean(a.hasLocal&&snapshot.annotations.find(original=>original.id===a.id)?.localSettings)})),intent,
-    conversation:conversation.slice(-24).map(m=>({role:m.role,text:m.text,source:m.source,...(m.action?.kind==='tools'?{id:m.id,action:structuredClone(m.action),applied:Boolean(m.applied),baseSignature:m.baseSignature,baseIntent:m.baseIntent,baseAnnotations:m.baseAnnotations}:{}),provenance:m.provenance?{model:m.provenance.model,tier:m.provenance.tier}:undefined}))};
+    conversation:conversation.slice(-24).map(m=>({role:m.role,text:m.text,source:m.source,...(['tools','document'].includes(m.action?.kind)?{id:m.id,action:structuredClone(m.action),scopeStepId:m.scopeStepId||null,applied:Boolean(m.applied),baseSignature:m.baseSignature,baseIntent:m.baseIntent,baseAnnotations:m.baseAnnotations}:{}),provenance:m.provenance?{model:m.provenance.model,tier:m.provenance.tier}:undefined}))};
 }
 export function snapshotFromProject(data) {
   // Local edits are composited in order. Note numbering must not reorder effects.

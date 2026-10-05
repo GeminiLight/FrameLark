@@ -6,13 +6,24 @@ import {renderPhotoPixels} from '../apps/studio/public/photo-rendering.js';
 import {createDocument} from '../apps/studio/public/edit-stack/document.js';
 import {applyCommands} from '../apps/studio/public/edit-stack/commands.js';
 import {sha256} from '../apps/studio/public/edit-stack/identity.js';
-import {renderStackPixels,displayMask} from '../apps/studio/public/edit-stack/render.js';
+import {renderStackPixels,displayMask,createStackRenderCache} from '../apps/studio/public/edit-stack/render.js';
 import {presetCommands} from '../apps/studio/public/edit-stack/styles.js';
 const document=(width=8,height=6,base={settings:neutralSettings(),locals:[]})=>createDocument({documentId:'photo',source:{assetId:'source',contentHash:sha256('source'),width,height},base});
 const step=(id,tool,parameters)=>({id,title:id,tool,toolVersion:2,parameters});
 const add=(d,id,tool,parameters)=>applyCommands(d,[{type:'AddStep',step:step(id,tool,parameters)}]).next;
 const image=(width=8,height=6,color=[64,64,64,255])=>{const pixels=new Uint8ClampedArray(width*height*4);for(let i=0;i<pixels.length;i+=4)pixels.set(color,i);return pixels;};
 const render=(d,pixels,extra={})=>renderStackPixels({pixels,width:d.source.width,height:d.source.height,document:d,...extra}).pixels;
+test('bounded prefix reuse matches cold pixels after changing the last or middle step',()=>{
+ const pixels=image(),cache=createStackRenderCache({byteBudget:100000});let d=add(add(add(document(),'a','exposure',{ev:.3}),'b','tone',{contrast:20}),'c','color',{warmth:12});render(d,pixels,{cache});
+ const last=applyCommands(d,[{type:'UpdateStepParameters',stepId:'c',parameters:{warmth:-8}}]).next,hot=renderStackPixels({pixels,width:8,height:6,document:last,cache});assert.equal(hot.cachedPrefix,2);assert.deepEqual(hot.pixels,render(last,pixels));
+ const middle=applyCommands(last,[{type:'UpdateStepParameters',stepId:'b',parameters:{contrast:-10}}]).next;assert.deepEqual(render(middle,pixels,{cache}),render(middle,pixels));assert.ok(cache.bytes<=100000);
+ const repeated=renderStackPixels({pixels,width:8,height:6,document:middle,cache});assert.equal(repeated.cached,true);repeated.pixels[0]=255;assert.deepEqual(render(middle,pixels,{cache}),render(middle,pixels));
+});
+test('cache binds sampled bytes and the frame, even under the same source/document identity',()=>{
+ const cache=createStackRenderCache(),d=add(document(),'grain','finish',{grain:40}),pixels=image();render(d,pixels,{cache});
+ const different=image(8,6,[100,80,60,255]);assert.deepEqual(render(d,different,{cache}),render(d,different));
+ const frame={fullWidth:8,fullHeight:6,sourceRect:{x:1,y:1,width:6,height:4},angle:0};assert.deepEqual(render(d,pixels,{cache,frame}),render(d,pixels,{frame}));
+});
 test('disabled, zero opacity, neutral and zero masks strictly bypass all RGBA including hidden RGB',()=>{
  const pixels=image();pixels.set([123,45,67,0],0);let d=add(document(),'light','exposure',{ev:1});
  for(const command of [{type:'SetStepEnabled',stepId:'light',enabled:false},{type:'SetStepOpacity',stepId:'light',opacity:0},{type:'UpdateStepParameters',stepId:'light',parameters:{ev:0}},{type:'ReplaceStepMask',stepId:'light',mask:{expression:{kind:'constant',value:0},reference:{kind:'live-input'}}}])assert.deepEqual(render(applyCommands(d,[command]).next,pixels),pixels);

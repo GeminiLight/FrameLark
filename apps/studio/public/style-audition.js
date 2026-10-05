@@ -1,7 +1,9 @@
 import {presetById} from './presets.js';
+import {planStyle} from './batch-edits.js';
 
 export function auditionSnapshot(snapshot,styleId,amount=75) {
   if(!snapshot || !presetById(styleId))return null;
+  if(snapshot.editDocument)return planStyle(snapshot,styleId,amount);
   const candidate=structuredClone(snapshot);
   candidate.presetId=styleId;
   candidate.presetAmount=Math.max(0,Math.min(100,Number.isFinite(Number(amount)) ? Number(amount):75));

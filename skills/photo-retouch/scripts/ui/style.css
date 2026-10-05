@@ -43,3 +43,5 @@
 
 /* Preserve Xiaozhen in the standalone preview. */
 .brand img.xiaozhen-avatar{width:32px;height:32px;object-fit:contain;border-radius:50%;background:#f2e9d9;padding:2px;}
+
+#native-edit-stack{--ink:var(--text);--paper:var(--panel);margin-top:24px}#native-edit-stack .edit-stack-head select{background:var(--panel)}

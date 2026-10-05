@@ -14,6 +14,7 @@ import {hash,legacyHash,pipelineVersion,selectionIdentity,versionPipeline,versio
 import {projectDocument,validateProjectDocument,compileProjectProposal,documentSnapshot} from './document-state.mjs';
 import {documentHash,contentHash,renderHash} from './engine/edit-stack/identity.js';
 import {validateDocument} from './engine/edit-stack/document.js';
+import {normalizeDocumentProposal} from './engine/edit-stack/proposals.js';
 import {planKeys,normalizePlan,compileSelection,checkProtectedCrop,snapshotItem} from './engine/edit-plan.js';
 import {emptyGuards,guardsOf,assertGuards,lockState,unlockState,validateGuards,geometryOf,mergeRestoreGuards} from './engine/edit-guards.js';
 import {validateReferences,verifyReferences,protectionLimits} from './reference-store.mjs';
@@ -356,6 +357,7 @@ export async function saveWorkspaceSnapshot(folder,value) {
       if(!Array.isArray(value.conversation)||value.conversation.length>24||JSON.stringify(value.conversation).length>256000)fail('INVALID_CONVERSATION','对话记录过长。');
       p.workspaceConversation=value.conversation.map(m=>{
         let proposal={};
+        if(m.action?.kind==='document')proposal={id:text(m.id,80),action:{kind:'document',label:text(m.action.label,120),goal:text(m.action.goal,300),tradeoff:text(m.action.tradeoff,300),proposal:normalizeDocumentProposal(m.action.proposal)},scopeStepId:m.scopeStepId||null,applied:Boolean(m.applied),baseSignature:text(m.baseSignature,30000),baseIntent:text(m.baseIntent,180),baseAnnotations:text(m.baseAnnotations,30000)};
         if(m.action?.kind==='tools'){
           const operations=m.action.operations;
           cleanToolRuns([{namespace:text(m.id,80)||'archived',label:text(m.action.label,120)||'工具方案',operations,selectedItemIds:operations.map(op=>op.id),records:[]}]);
@@ -418,7 +420,8 @@ export const restoreVersion=(folder,value)=>mutateProject(folder,value.revision,
   const live=guardsOf(base.state);if((live.parameters.length||live.locals.length)&&(base.recipe||target.recipe)&&renderHash(projectDocument(p,base))!==renderHash(projectDocument(p,target)))fail('LOCK_CONFLICT','恢复会改变已冻结的顺序步骤，请先显式解除参数或局部锁。');
   assertGuards(base.state,state,{allowGuardChange:true});await verifyReferences(root,p,state);
   let version=target;
-  if(!equal(state,target.state)){version={id:id(),name:`恢复：${target.name}`,parentId:base.id,...(target.recipe?{recipe:structuredClone(target.recipe)}:{}),restoredFrom:target.id,createdAt:now(),acceptedAt:now(),state};p.versions.push(version);}
+  if(target.recipe&&base.recipe){const recipe=structuredClone(target.recipe);recipe.revision=Math.max(base.recipe.revision,recipe.revision)+1;recipe.receipts=[];version={id:id(),name:`恢复：${target.name}`,parentId:base.id,restoredFrom:target.id,createdAt:now(),acceptedAt:now(),state,recipe};p.versions.push(version);}
+  else if(!equal(state,target.state)){version={id:id(),name:`恢复：${target.name}`,parentId:base.id,...(target.recipe?{recipe:structuredClone(target.recipe)}:{}),restoredFrom:target.id,createdAt:now(),acceptedAt:now(),state};p.versions.push(version);}
   if(target.workspaceNotes)p.notes=structuredClone(target.workspaceNotes);
   p.currentId=version.id;return {version};
 });
@@ -474,5 +477,5 @@ export function preferenceChoices(p){
 }
 export const recordExport=(folder,value)=>mutateProject(folder,undefined,p=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...value,createdAt:now()});return {};});
 export function publicProject(p) {
-  return {...p,currentAudit:currentVersion(p)?latestAudit(p,currentVersion(p))||null:null,collaboration:handoffView(p),workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，macOS 可转换静态 HEIC/HEIF；JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
+  return {...p,documentContext:projectDocument(p),currentAudit:currentVersion(p)?latestAudit(p,currentVersion(p))||null:null,collaboration:handoffView(p),workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，macOS 可转换静态 HEIC/HEIF；JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
 }
