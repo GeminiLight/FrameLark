@@ -2,6 +2,7 @@
 import {readFile,readdir} from 'node:fs/promises';
 import {dirname,resolve,basename} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
+import {realpathSync} from 'node:fs';
 
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const excluded=new Set(['sources.md','evaluation.md']);
@@ -86,7 +87,7 @@ export async function readKnowledge(id){
   if(!doc)throw new Error('未知知识条目编号');
   const {terms,counts,...visible}=doc;return visible;
 }
-if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.url){
+if(process.argv[1]&&pathToFileURL(realpathSync(process.argv[1])).href===import.meta.url){
   try{
     const [command,value,...rest]=process.argv.slice(2);
     if(command==='search')console.log(JSON.stringify(await searchKnowledge(value,{limit:rest[0]==='--limit'?Number(rest[1]):3}),null,2));

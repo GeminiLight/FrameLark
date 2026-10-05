@@ -4,19 +4,78 @@ import os from 'node:os';
 import {spawn} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
-const args=process.argv.slice(2),update=args.includes('--update'),destination=args.find(a=>!a.startsWith('--'));
-const source=fileURLToPath(new URL('../skills/photo-retouch/',import.meta.url)),target=destination?path.resolve(destination):path.join(os.homedir(),'.codex','skills','photo-retouch');
-const legacy=path.join(os.homedir(),'.codex','skills','guangjian-retouch');
+
+const catalog={
+  'photo-retouch':{label:'照片精修',setup:true,legacy:'guangjian-retouch'},
+  'photography-eye':{label:'摄影眼',setup:false}
+};
+const help=`FrameLark 独立 Skill 安装\n\n默认：node scripts/install-photo-skill.mjs [目标目录] [--update]\n单独摄影眼：node scripts/install-photo-skill.mjs --skill photography-eye [目标目录] [--update]\n两套一起：node scripts/install-photo-skill.mjs --all [宿主的 skills 根目录] [--update]\n\n不指定目录时安装到 ~/.codex/skills/；更新前保存旧版备份。`;
 async function exists(folder){try{await access(folder);return true;}catch(e){if(e.code!=='ENOENT')throw e;return false;}}
-const prior=await exists(target)?target:!destination&&await exists(legacy)?legacy:null;
-if(prior){if(!update)throw Error('Skill 已安装。使用 --update 更新并备份现有版本，或指定新的目标目录。');const old=await readFile(path.join(prior,'SKILL.md'),'utf8').catch(()=> '');if(!/^name: (photo-retouch|guangjian-retouch)$/m.test(old))throw Error('该目录不是帧好修片 Skill，请选择新的安装目录。');}
-await mkdir(path.dirname(target),{recursive:true});const stage=path.join(path.dirname(target),'.photo-retouch-install-'+randomUUID());
+function options(args){
+  let skill='photo-retouch',all=false,update=false,destination,selected=false;
+  for(let i=0;i<args.length;i++){
+    const value=args[i];
+    if(value==='--update')update=true;
+    else if(value==='--all')all=true;
+    else if(value==='--skill'){skill=args[++i];selected=true;if(!catalog[skill])throw Error('请选择 photo-retouch 或 photography-eye。');}
+    else if(value.startsWith('--'))throw Error('未知选项：'+value+'。运行 --help 查看用法。');
+    else if(destination)throw Error('只能提供一个目标目录。');
+    else destination=value;
+  }
+  if(all&&selected)throw Error('--all 与 --skill 不能同时使用。');
+  return {names:all?Object.keys(catalog):[skill],all,update,destination};
+}
+async function install({names,all,update,destination}){
+  const defaultHome=path.join(os.homedir(),'.codex','skills');
+  const root=destination?path.resolve(destination):defaultHome;
+  const entries=[];
+  // Validate all existing destinations before preparing or replacing either skill.
+  for(const name of names){
+    const target=destination&&!all?root:path.join(root,name);
+    const legacy=!destination&&catalog[name].legacy?path.join(defaultHome,catalog[name].legacy):null;
+    const prior=await exists(target)?target:legacy&&await exists(legacy)?legacy:null;
+    if(prior){
+      if(!update)throw Error(`${name} 已安装。使用 --update 更新并备份旧版，或指定新的目标目录。`);
+      const old=await readFile(path.join(prior,'SKILL.md'),'utf8').catch(()=> '');
+      const id=old.match(/^name:\s*(\S+)\s*$/m)?.[1];
+      if(id!==name&&(!catalog[name].legacy||id!==catalog[name].legacy))throw Error('目标目录不是对应的 FrameLark Skill：'+prior);
+    }
+    entries.push({name,target,prior,stage:path.join(path.dirname(target),'.framelark-install-'+randomUUID())});
+  }
+  try{
+    for(const entry of entries){
+      await mkdir(path.dirname(entry.target),{recursive:true});
+      const source=fileURLToPath(new URL('../skills/'+entry.name+'/',import.meta.url));
+      await cp(source,entry.stage,{recursive:true,filter:src=>!src.split(path.sep).includes('node_modules')});
+      if(entry.prior&&catalog[entry.name].setup)try{await cp(path.join(entry.prior,'node_modules'),path.join(entry.stage,'node_modules'),{recursive:true});}catch(e){if(e.code!=='ENOENT')throw e;}
+      if(catalog[entry.name].setup){
+        const code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[path.join(entry.stage,'scripts','setup.mjs')],{stdio:'inherit'});child.once('error',reject);child.once('exit',resolve);});
+        if(code!==0)throw Error('图片依赖准备失败；已有 Skill 保持原样。请检查 Node.js 与网络后重试。');
+      }
+    }
+    for(const entry of entries){
+      if(entry.prior){
+        const backupRoot=destination?path.join(path.dirname(entry.target),'.framelark-skill-backups'):path.join(os.homedir(),'.codex','skill-backups');
+        await mkdir(backupRoot,{recursive:true});
+        entry.backup=path.join(backupRoot,path.basename(entry.prior)+'-'+Date.now()+'-'+randomUUID());
+        await rename(entry.prior,entry.backup);
+      }
+      await rename(entry.stage,entry.target);entry.installed=true;
+    }
+  }catch(error){
+    for(const entry of entries.slice().reverse()){
+      if(entry.installed)await rm(entry.target,{recursive:true,force:true});
+      if(entry.backup)await rename(entry.backup,entry.prior);
+    }
+    throw error;
+  }finally{
+    for(const entry of entries)await rm(entry.stage,{recursive:true,force:true});
+  }
+  for(const entry of entries)console.log(`${catalog[entry.name].label} Skill 已${entry.prior?'更新':'安装'}：${entry.target}\n在 Agent 中使用 $${entry.name}。${entry.backup?'\n旧版备份：'+entry.backup:''}`);
+  console.log('重新加载 Skill 列表或开启新对话后使用。');
+}
 try{
-  await cp(source,stage,{recursive:true,filter:src=>!src.split(path.sep).includes('node_modules')});
-  if(prior)try{await cp(path.join(prior,'node_modules'),path.join(stage,'node_modules'),{recursive:true});}catch(e){if(e.code!=='ENOENT')throw e;}
-  const code=await new Promise(resolve=>{const p=spawn(process.execPath,[path.join(stage,'scripts','setup.mjs')],{stdio:'inherit'});p.once('error',()=>resolve(1));p.once('exit',resolve);});
-  if(code!==0)throw Error('依赖准备失败，原有 Skill 未改动。请检查网络后重试。');
-  let backup;if(prior){const root=path.join(os.homedir(),'.codex','skill-backups');await mkdir(root,{recursive:true});backup=path.join(root,path.basename(prior)+'-'+Date.now());await rename(prior,backup);}
-  try{await rename(stage,target);}catch(e){if(backup)await rename(backup,prior);throw e;}
-  console.log('帧好修片 Skill 已'+(prior?'更新':'安装')+'：'+target+'\n在 Codex 中使用 $photo-retouch，并提供照片或项目路径。'+(prior&&prior!==target?'\n旧标识已迁移为 photo-retouch。':'')+(backup?'\n旧版备份：'+backup:''));
-}catch(error){await rm(stage,{recursive:true,force:true});console.error(error.message);process.exitCode=1;}
+  const args=process.argv.slice(2);
+  if(args.includes('--help')||args.includes('-h'))console.log(help);
+  else await install(options(args));
+}catch(error){console.error(error.message);process.exitCode=1;}

@@ -4,13 +4,21 @@
 
 ## 安装
 
+还未下载仓库时，先运行：
+
+```sh
+git clone https://github.com/GeminiLight/FrameLark.git
+cd FrameLark
+```
+
+
 已安装支持插件的 Codex CLI 时，在 FrameLark 仓库中运行：
 
 ```sh
 npm run plugin:install
 ```
 
-这一个命令会构建干净的插件包、注册 FrameLark 插件市场、安装插件，再准备固定版本的本地图片依赖。需要 Node.js 20.9+；首次准备图片依赖需要联网。它不会覆盖 `~/.codex/skills/` 中已有的独立 Skill。
+这一个命令会构建干净的插件包、将 FrameLark 市场指向这份本地构建、安装插件，再准备固定版本的本地图片依赖。此前配置过其他 FrameLark 来源时会切换到本次构建；其他插件市场与独立 Skill 保持原样。需要 Node.js 20.9+；首次准备图片依赖需要联网。它不会覆盖 `~/.codex/skills/` 中已有的独立 Skill。
 
 也可以让 Codex 直接从 GitHub 注册和安装：
 
@@ -19,7 +27,7 @@ codex plugin marketplace add GeminiLight/FrameLark
 codex plugin add framelark@framelark
 ```
 
-安装后开启新对话；插件中的修图 Skill 在第一次需要像素处理时会检查并准备自身依赖。可直接对 Agent 说：
+用 `codex plugin list --marketplace framelark --json` 检查 `installed` 与 `enabled` 均为 `true`。安装后开启新对话；插件中的修图 Skill 在第一次需要像素处理时会检查并准备自身依赖。可直接对 Agent 说：
 
 > 从 GeminiLight/FrameLark 注册 FrameLark 插件市场，安装 framelark@framelark，确认摄影眼和照片精修两套 Skill 都已包含。
 
@@ -40,7 +48,7 @@ npm run plugin:check
 npm run plugin:build
 ```
 
-发布 ZIP 位于 `dist/framelark/framelark-0.1.0.zip`。包中只有两套 Skill、插件清单和小帧图标，不包含本机配置、密钥、照片项目、草稿、导出文件或原生 `node_modules`。图像依赖在用户的执行环境中准备，不把 macOS 的二进制依赖分发到其他系统。
+发布 ZIP 位于 `dist/framelark/framelark-0.1.1.zip`。包中只有两套 Skill、插件清单和小帧图标，不包含本机配置、密钥、照片项目、草稿、导出文件或原生 `node_modules`。图像依赖在用户的执行环境中准备，不把 macOS 的二进制依赖分发到其他系统。
 
 `skills/` 是唯一维护来源；构建直接复制它，校验会核对发布副本与源文件。根目录 `plugin.json` 提供 portable 格式，`.codex-plugin/plugin.json` 提供 Codex 兼容格式，`.agents/plugins/marketplace.json` 提供仓库安装入口。二者使用同一名称、版本与展示信息。
 

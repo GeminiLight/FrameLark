@@ -27,6 +27,8 @@
     "test:collaboration": "node scripts/check-collaboration.mjs",
     "plugin:build": "node scripts/build-framelark-plugin.mjs",
     "plugin:check": "node scripts/check-framelark-plugin.mjs",
-    "plugin:install": "node scripts/install-framelark-plugin.mjs"
+    "plugin:install": "node scripts/install-framelark-plugin.mjs",
+    "install:skills": "node scripts/install-photo-skill.mjs --all",
+    "install:photography-eye": "node scripts/install-photo-skill.mjs --skill photography-eye"
   }
 }

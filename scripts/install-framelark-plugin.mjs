@@ -1,13 +1,19 @@
 import {execFileSync,spawn} from 'node:child_process';
 import {readFile} from 'node:fs/promises';
-import {join} from 'node:path';
+import {join,resolve} from 'node:path';
 import {buildPlugin} from './build-framelark-plugin.mjs';
 
-const built=await buildPlugin();
 function codex(args){
   try{return JSON.parse(execFileSync('codex',[...args,'--json'],{encoding:'utf8',maxBuffer:2_000_000,stdio:['ignore','pipe','inherit']}));}
   catch(error){if(error.code==='ENOENT')throw Error('Install Codex CLI before running plugin:install. See docs/PLUGIN.md.');throw error;}
 }
+try{execFileSync('codex',['plugin','add','--help'],{stdio:'ignore'});}
+catch{throw Error('需要支持插件的 Codex CLI。先运行 codex plugin --help；安装或更新说明见 https://learn.chatgpt.com/docs/codex/cli 。');}
+const built=await buildPlugin();
+const current=codex(['plugin','marketplace','list']).marketplaces.find(item=>item.name==='framelark');
+// Installing from this checkout explicitly selects its clean local build.
+// Other marketplace names and existing standalone skills are not modified.
+if(current&&(!current.root||resolve(current.root)!==resolve(built.marketplaceRoot)))codex(['plugin','marketplace','remove','framelark']);
 codex(['plugin','marketplace','add',built.marketplaceRoot]);
 const installed=codex(['plugin','add','framelark@framelark']);
 if(!installed.installedPath)throw Error('Codex did not report the installed plugin path.');

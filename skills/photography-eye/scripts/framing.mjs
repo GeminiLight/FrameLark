@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import {resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
+import {realpathSync} from 'node:fs';
 
 // Numeric geometry only; scene contents, occlusion and reachability need visual review.
 export function checkFraming({sourceWidth,sourceHeight,box,orientation='free',aspectRatio=null}){
@@ -19,7 +19,7 @@ export function checkFraming({sourceWidth,sourceHeight,box,orientation='free',as
   return {valid:!errors.length,numericOnly:true,pixelWidth,pixelHeight,aspectRatio:ratio,actualOrientation,errors};
 }
 
-if(process.argv[1]&&pathToFileURL(resolve(process.argv[1])).href===import.meta.url){
+if(process.argv[1]&&pathToFileURL(realpathSync(process.argv[1])).href===import.meta.url){
   try{
     const args=process.argv.slice(2);
     if(args.length<6||args.length>8)throw new Error('用法：framing.mjs 源图宽 源图高 x y 框宽 框高 [portrait|landscape|square|free] [目标宽高比]');

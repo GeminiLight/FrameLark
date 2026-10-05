@@ -2,17 +2,134 @@
 
 ![帧好 · FrameLark：从看见，到成片。右侧是一只小帧](docs/images/framelark-banner.png)
 
+[![安装 Codex 插件](https://img.shields.io/badge/Codex_Plugin-Install-DDA26C?style=for-the-badge&labelColor=2B2C34)](#codex-plugin)
 [![打开 Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "在线体验 · 需要 Vercel 访问权限")
-[![安装 Agent Skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
+[![安装两套 Skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
 [![启动本地 Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
 [![部署到 Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FFrameLark)
 [![浏览摄影知识](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#摄影知识)
 
-**照片精修，提供完整 Web 工作台、Online Demo 和 Agent Skill。**
+**摄影眼与照片精修，提供统一 Codex 插件、独立 Skill 和浏览器工作台。**
 
 在浏览器中上传照片，审片、调色、比较风格、整理组图和导出。也可以让自己的视觉 Agent 使用 Skill，围绕原片、批注和版本继续精修。前端、AI 接口和 Skill 源码都在这个仓库中。
 
 [English](README.en.md) · [开始使用](#开始使用) · [功能与范围](#功能与范围) · [界面](#界面) · [摄影知识](#摄影知识)
+
+## 开始使用
+
+**Codex 用户推荐安装统一插件，一次获得「摄影眼」和「照片精修」。** 想用其他支持 Skill 的 Agent，可单独安装 Skill；想直接在浏览器操作，可启动 Web UI。选择一种入口即可。
+
+| 你想怎么用 | 安装入口 | 会得到什么 |
+| --- | --- | --- |
+| 在 Codex 对话中拍摄、选片和修图（推荐） | [安装统一插件](#codex-plugin) | 两套 Skill、知识与本地修图工具 |
+| 只装 Skill，或使用其他兼容 Agent | [独立安装 Skill](#agent-skill) | 两套一起装，或只装摄影眼 / 修图 |
+| 用网页手动精修和对比 | [启动 Web UI](#web-ui) | 浏览器工作台；接入模型后启用 AI 顾问 |
+
+### 先准备什么
+
+本地修图需要 **Node.js 20.9+（含 npm）**；下面的克隆步骤需要 Git。插件方式还需要支持 `codex plugin` 的 Codex CLI。已有桌面应用不代表终端一定能找到 `codex`；可先运行 `codex plugin --help` 确认，未识别时按[官方 Codex CLI 说明](https://learn.chatgpt.com/docs/codex/cli)安装或更新。
+
+插件和 Skill 使用当前 Agent 的看图、对话能力，**无需另填一份模型 API Key**。可选 AI 生图 / 图片编辑取决于宿主是否提供；网页内置 AI 顾问的接入另见 [Web UI](#web-ui)。
+
+以下命令使用 macOS / Linux shell。先下载仓库：
+
+```sh
+git clone https://github.com/GeminiLight/FrameLark.git
+cd FrameLark
+```
+
+<a id="codex-plugin"></a>
+
+### 安装 Codex 插件（推荐）
+
+```sh
+npm run plugin:install
+```
+
+它会安装 `framelark@framelark`，并准备本地修图依赖。安装成功后输出 `ok: true`、两套 Skill 名称和 `retouchDependencies: ready`。
+
+**开启一个新对话**，在插件 / Skill 列表确认 FrameLark 已启用，然后附图开始：
+
+> 用 FrameLark 看这里怎么拍，给我不同机位、参数和后期方向。
+
+> 用 FrameLark 精修这张照片。保留我喜欢的感觉，先审片，再给能比较的试片。
+
+不想在终端操作，也可在已有 Codex 对话中说：「从 GeminiLight/FrameLark 注册插件市场，安装 framelark@framelark，确认包含摄影眼和照片精修。」Agent 会按当前环境执行安装。直接市场命令、安装检查和 ZIP 分发见 [插件说明](docs/PLUGIN.md)。当前使用仓库插件市场，尚未上架 OpenAI 官方通用插件目录。
+
+<a id="agent-skill"></a>
+
+### 独立安装 Skill
+
+插件已包含两套 Skill；仅在想独立使用或宿主不支持 Codex 插件时选择此方式。
+
+两套一起安装到 `~/.codex/skills/`：
+
+```sh
+npm run install:skills
+```
+
+只装照片精修：
+
+```sh
+npm run install:skill
+```
+
+只装摄影眼：
+
+```sh
+npm run install:photography-eye
+```
+
+安装后重新加载 Skill 列表或开启新对话。默认分别安装到 `~/.codex/skills/photo-retouch` 和 `~/.codex/skills/photography-eye`；摄影眼无需额外图片依赖，照片精修会自动准备固定版本的依赖。在能看图、执行本地工具的 Agent 中使用：
+
+> 用 $photography-eye 看这里有哪些值得拍的画面，告诉我站哪、怎么取景和设置参数。
+
+> 用 $photo-retouch 修这张照片。先说明值得保留的关系，再给可预览的调整方案。
+
+更新前会备份已有 Skill：
+
+```sh
+npm run install:skills -- --update
+```
+
+使用其他兼容宿主时，把其 **skills 根目录**替换到下面的命令中：
+
+```sh
+npm run install:skills -- /你的/agent/skills
+```
+
+只安装单个 Skill 时，保留既有的目标目录用法：
+
+```sh
+node scripts/install-photo-skill.mjs /你的/agent/skills/photo-retouch
+node scripts/install-photo-skill.mjs --skill photography-eye /你的/agent/skills/photography-eye
+```
+
+旧版 `guangjian-retouch` 可用 `npm run install:skill -- --update` 备份并迁移。照片批注、试片、版本和文字点缀的详细用法见 [照片精修流程](skills/photo-retouch/SKILL.md)；拍摄辅导见 [摄影眼](skills/photography-eye/SKILL.md)。
+
+<a id="web-ui"></a>
+
+### 启动 Web UI
+
+在仓库目录运行：
+
+```sh
+npm start
+```
+
+打开 **http://localhost:3177**。网页工作台使用 Node.js 内置模块，无需先安装图片依赖或模型 Key；可上传、手动调色、裁剪、试风格和导出。想启用看图审片与顾问时，在网页「AI 模型设置」中连接视觉模型。与 Skill 共用文件项目时，再运行 `npm run setup` 准备图片依赖。
+
+更多运行方式、Docker 与模型配置见 [部署说明](docs/DEPLOYMENT.md)。[Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) 当前需要 Vercel 访问权限；无法进入时可使用本地工作台。
+
+### 安装后没出现或运行失败
+
+| 遇到什么 | 怎么处理 |
+| --- | --- |
+| 终端找不到 `codex`，或没有 `plugin` 命令 | 安装 / 更新 Codex CLI，或选择独立 Skill 安装；仅运行 Web UI 不需要 Codex |
+| 提示 Skill 已安装 | 更新时加 `--update`；安装器会保留旧版备份 |
+| 插件 / Skill 列表没有新条目 | 开启新对话，或按宿主要求刷新 / 重启应用 |
+| 图片依赖下载失败 | 检查 Node 版本及 npm 网络连接后重试；安装器在依赖准备完成前保留旧 Skill |
+| 没有生图工具或视觉模型 | Skill 跳过不可用的 AI 生图环节；网页保留手动编辑，不能把光色统计当成看图审片 |
 
 ## 认识小帧
 
@@ -37,166 +154,6 @@
 > 用 $photo-retouch 从这个目录整理一组朋友圈九宫格。先确定主题，挑有变化又互相呼应的九张，再逐张精修。保留原片，入选副本与成片分别放好，给我整组预览。
 
 Skill 会先检查当前宿主是否有可用的生图或图片编辑工具；没有时跳过 AI 环节，继续原片精修。可用时按要求数量一次制作多图试片或综合精修板，逐格检查裁剪、光影、局部、质感与像素质量，再决定用作参考或交付。生成板不保证每格都有独立高分辨率，也不替代原片验收；流程见 [AI 多图试片与完整精修](skills/photo-retouch/references/generated-reference.md)。
-
-## 使用方式
-
-| 方式 | 用途 | 入口 |
-| --- | --- | --- |
-| **Online Demo** | 多图上传、诊断与内置顾问；需 Vercel 访问权限。 | [打开在线工作室](https://ai-photography-preview-geminilights-projects.vercel.app/) |
-| **Web UI** | 本地运行完整工作台，上传多图、手动精修、组图和导出；接入视觉模型后启用诊断与顾问。 | [一键启动](#web-ui) |
-| **Agent Skill** | 让自己的 Agent 审片、生成候选，在 Agent 暗房中比较和精调。无需另配模型服务。 | [安装 Skill](#agent-skill) |
-
-## 开始使用
-
-需要 **Node.js 20.9+**。以下命令使用 macOS / Linux shell。
-
-```sh
-git clone https://github.com/GeminiLight/FrameLark.git
-cd FrameLark
-```
-
-### Web UI
-
-一条命令启动完整工作台，无需先安装 npm 依赖：
-
-```sh
-npm start
-```
-
-打开 **http://localhost:3177**。未接入模型时，可以上传、手动精修、使用风格和导出；在本地界面的模型接入设置中配置有视觉能力的模型，即可启用 AI 审片与顾问。按 `Ctrl+C` 停止。
-
-也可以用 Docker 启动：
-
-```sh
-docker compose up -d --build
-```
-
-[部署与模型配置](docs/DEPLOYMENT.md) · [部署到 Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FFrameLark)
-
-### 与 Codex 继续同一个项目
-
-运行 `npm run setup` 后，网页的“文件项目”可将当前照片存到本机，或打开已有 Skill 项目。后续批注、候选、版本和导出记录共用同一份文件；未保存的并发修改会提示冲突。
-
-```sh
-npm run photo -- studio --project /你的/照片项目
-```
-
-打开返回的地址即可继续。诊断、复审、文字与保护设置会在同一工作台内进入协作精修，也可使用下方的独立暗房。详情见 [文件项目说明](docs/DEPLOYMENT.md#网页与-skill-共享文件项目)。
-
-本机上传照片后，可点“与 Agent 一起修”保存当前调整与版本并发起接续；已有文件项目中点击“交给 Agent 继续”，接续请求和实际处理进度会随项目同步。Agent 可使用 `handoff` 领取并回应，或用 `watch` 等待新请求；网页收到候选后由你比较、选择和接受。宿主负责模型与看图，等待命令不会自行调用模型。
-
-对话建议可拆为工具组合，逐项比较与勾选，复用区域或对象蒙版。工具目录、参数 Schema 和依赖编译在 Web 与 Skill 中共享；本机运行 `npm run setup` 后，每项工具可在独立子进程执行并保留中间预览。对象定位目前使用明确的几何蒙版。详见 [工具架构](docs/PHOTO_TOOLS_ARCHITECTURE.md) 与 [Skill 用法](skills/photo-retouch/references/tool-composition.md)。
-
-### Agent 暗房
-
-围绕文件项目与自己的 Agent 协作时，准备图片处理依赖并创建项目：
-
-```sh
-npm run setup
-mkdir -p projects
-
-node skills/photo-retouch/scripts/cli.mjs init \
-  --image "/你的/照片.jpg" \
-  --project "./projects/my-photo" \
-  --intent "保留自然色彩与原有光线"
-
-node skills/photo-retouch/scripts/cli.mjs serve \
-  --project "./projects/my-photo"
-```
-
-打开终端返回的地址，在 Agent 暗房中调整。点击 **生成试片** 查看对照，再 **接受这版** 或 **取消试片**；接受后导出。
-
-项目目录须是新目录。按 `Ctrl+C` 停止服务，重新运行 `serve` 即可继续已保存的项目。
-
-<details>
-<summary>Online Demo · 在线工作室</summary>
-
-[打开 Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) 体验多图上传、诊断与内置顾问，目前需要 Vercel 访问权限。视觉模型状态以页面显示为准。
-
-在线应用与 `npm start` 使用本仓库的 `apps/studio/public/`、`api/` 和服务端源码。工作台草稿保存在各自浏览器中；Agent 暗房使用文件项目，浏览器草稿独立保存；通过“文件项目”打开后，可与 Skill 共用批注、候选、版本和导出记录。 也可通过便携项目文件手动交换快照。
-
-</details>
-
-### Codex 插件：一次安装两套 Skill
-
-FrameLark 插件同时提供「摄影眼」和「照片精修」。在仓库中运行一个命令即可安装并准备图片依赖：
-
-```sh
-npm run plugin:install
-```
-
-或者直接对 Codex 说：「从 GeminiLight/FrameLark 注册插件市场，安装 framelark@framelark，确认包含摄影眼和照片精修。」安装后开启新对话，即可按场景使用两套能力。
-
-[插件安装、直接安装命令与 ZIP 分发](docs/PLUGIN.md)。当前使用仓库插件市场，尚未上架 OpenAI 通用插件目录。
-
-### Agent Skill
-
-需要能看图、运行本地工具并加载 Skill 的 Agent，例如 Codex。
-
-```sh
-npm run install:skill
-```
-
-默认安装到 `~/.codex/skills/photo-retouch`，首次安装自动准备图片处理依赖。Skill 标识为 `photo-retouch`；未显示时重新加载 Skill 列表或打开新任务。旧版 `guangjian-retouch` 使用 `npm run install:skill -- --update`，备份后迁移到新目录。
-
-在 Agent 中发送：
-
-```text
-用 $photo-retouch 审阅 /照片/清晨.jpg。
-保留清晨的安静和自然色彩。先说明值得保留的部分，再给可预览的调整方案。
-```
-
-让 Agent 打开本地暗房，比较候选或保存批注。继续时可以说：
-
-```text
-读取当前版本和全部最新批注，轻抬人物阴影，保留背景与暖光。
-先给我看试片，说明主要变化和代价。
-```
-
-风格调整可以先生成原片与候选的并排试片，再分别比较光色和构图。Agent 保存的试修不会自动成为你的风格偏好；明确拒绝的版本会从偏好参考中排除。[定调与试片流程](skills/photo-retouch/references/look-development.md)
-
-自动精修采用「诊断 → 试片 → 复评 → 接受 → 导出」流程。诊断记录目标、保留关系、具体位置与代价，允许零项调整。reviewed 模式下，Agent 接受前必须有当前组合的通过审核，并逐项回答诊断中的阻碍问题。工具核对版本身份，审美判断来自宿主实际看图。[审片与交付](skills/photo-retouch/references/reviewed-workflow.md)
-
-<details>
-<summary>校准、复审与跨工作空间继续</summary>
-
-- **真实对照**：三组有许可的原片、温和试片与过度处理反例；`examples` 打开实际图片，`probe` 在当前照片上比较单个参数。案例用于校准，不直接套配方。
-- **调整来源**：展开查看手动、风格与局部贡献；`rebuild` 清理指定旧层，生成可撤回试片，保留其他调整与约束。
-- **独立复审**：`review-packet` 准备原片、基础版、候选和检查点。宿主另行安排审片者；工具不自动调用第二模型，也不认证身份。
-- **可携带偏好**：按用户要求建立本地档案，记录明确选择及题材、光线、理由；支持修改、删除，当前意图优先。
-- **项目交换**：完整工作台「草稿 → 与 Agent 继续编辑」下载或打开 `.frameyn.json`；Skill 使用 `project-export/import`。交换原片、已保存版本、意图、批注和兼容调整，导入新增项目。文字、画笔、保护约束及对话不在交换范围内。
-
-[流程与命令](skills/photo-retouch/references/reviewed-workflow.md) · [视觉案例](skills/photo-retouch/references/visual-examples.md) · [偏好档案](skills/photo-retouch/references/learning-memory.md)
-
-</details>
-
-审片可以得出保留原片的结论。AI 使用宿主 Agent 的视觉模型、额度和数据规则，无需另配模型 Key。对话在原 Agent 中继续；Web UI 的「在 Agent 中继续」会复制项目提示。
-
-照片加字是单独的可选模式。例如：
-
-```text
-用 $photo-retouch 给当前修片版加一句“今天也有一点小确幸”。
-做一个克制的奶油贴纸，放在留白处，避开主体。先给我看文字版，也保留无字版。
-```
-
-Agent 暗房的 **文字点缀** 可修改文案、位置、字号、配色和轻装饰；接受前只生成候选。中文需本机有可用中文字体。详情见 [文字点缀](skills/photo-retouch/references/lettering.md)。
-
-<details>
-<summary>更新或安装到其他宿主</summary>
-
-更新前会备份旧 Skill：
-
-```sh
-npm run install:skill -- --update
-```
-
-指定兼容宿主的 Skill 目录：
-
-```sh
-node scripts/install-photo-skill.mjs /你的/skills/photo-retouch
-```
-
-</details>
 
 ## 功能与范围
 

@@ -2,17 +2,130 @@
 
 ![FrameLark · 帧好 — From first look to finished image. With Xiaozhen, our photography companion](docs/images/framelark-banner.png)
 
+[![Install the Codex plugin](https://img.shields.io/badge/Codex_Plugin-Install-DDA26C?style=for-the-badge&labelColor=2B2C34)](#codex-plugin)
 [![Open the Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "Online demo · Vercel access required")
-[![Install the agent skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
+[![Install standalone skills](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
 [![Start the local Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
 [![Deploy to Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FFrameLark)
 [![Browse photography knowledge](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#photography-knowledge)
 
-**Photo retouching with a complete Web studio, an Online Demo, and an agent skill.**
+**Photography guidance and retouching through a unified Codex plugin, standalone skills, or a browser studio.**
 
 Upload photos, adjust color, compare styles, curate a series, and export in your browser. Your own visual agent can also use the Skill to work with originals, annotations, and saved versions. The frontend, AI routes, and Skill source are all included in this repository.
 
 [简体中文](README.md) · [Get started](#get-started) · [Capabilities](#capabilities) · [Interface](#interface) · [Photography knowledge](#photography-knowledge)
+
+## Get started
+
+**For Codex, install the unified plugin to get photography-eye and photo-retouch together.** Choose standalone skills for another compatible agent, or the Web UI for hands-on browser editing. Pick one entry point.
+
+| How you want to work | Start | What you get |
+| --- | --- | --- |
+| Photography guidance and retouching in Codex (recommended) | [Unified plugin](#codex-plugin) | Both skills, knowledge, and portable retouch tools |
+| Standalone skills or another compatible agent | [Install skills](#agent-skill) | Both skills together, or either one individually |
+| Manual browser editing and comparison | [Web UI](#web-ui) | A complete studio; connect a visual model for its AI advisor |
+
+### Prerequisites
+
+Local retouching needs **Node.js 20.9+ with npm**. Cloning needs Git. Plugin installation also needs a Codex CLI with `codex plugin` support: check `codex plugin --help`, or follow the [official CLI setup](https://learn.chatgpt.com/docs/codex/cli). Installing the desktop application alone does not ensure `codex` is on your terminal’s PATH.
+
+The skills use your existing agent for vision and conversation; they do not require another model API key. Optional image generation depends on the host. The Web UI’s built-in advisor has its own connection settings.
+
+Commands below use macOS / Linux shell syntax. Download the repository:
+
+```sh
+git clone https://github.com/GeminiLight/FrameLark.git
+cd FrameLark
+```
+
+<a id="codex-plugin"></a>
+
+### Install the Codex plugin (recommended)
+
+```sh
+npm run plugin:install
+```
+
+Success reports `ok: true`, both skill names, and `retouchDependencies: ready`. **Open a new chat**, confirm FrameLark is enabled in the plugin / skill list, then attach an image:
+
+> Use FrameLark to find different photographs here. Explain the viewpoints, camera settings, and finishing directions.
+
+> Use FrameLark to refine this photograph. Preserve the feeling I like; review the original and show candidates I can compare.
+
+You can also ask an existing Codex chat to register GeminiLight/FrameLark as a marketplace and install `framelark@framelark`. [Direct installation commands, verification, and ZIP distribution](docs/PLUGIN.md). This uses a repository marketplace; FrameLark is not yet listed in OpenAI’s universal directory.
+
+<a id="agent-skill"></a>
+
+### Install standalone skills
+
+The plugin already includes both skills. Choose this route for standalone use or an agent without Codex plugin support.
+
+Install both into `~/.codex/skills/`:
+
+```sh
+npm run install:skills
+```
+
+Install retouching only:
+
+```sh
+npm run install:skill
+```
+
+Install photography guidance only:
+
+```sh
+npm run install:photography-eye
+```
+
+Reload the skill list or open a new chat. The defaults are `~/.codex/skills/photo-retouch` and `~/.codex/skills/photography-eye`. Photography-eye needs no extra image-processing dependencies; photo-retouch prepares its pinned dependencies during installation. Use an agent that can see images and run local tools:
+
+> Use $photography-eye to find worthwhile photographs here. Tell me where to stand, how to frame them, and which settings to use.
+
+> Use $photo-retouch to review this photograph, explain what to preserve, and show adjustments I can preview.
+
+To update, keeping backups:
+
+```sh
+npm run install:skills -- --update
+```
+
+For another compatible host, replace its **skills root directory** below:
+
+```sh
+npm run install:skills -- /your/agent/skills
+```
+
+Existing single-skill destination syntax remains supported:
+
+```sh
+node scripts/install-photo-skill.mjs /your/agent/skills/photo-retouch
+node scripts/install-photo-skill.mjs --skill photography-eye /your/agent/skills/photography-eye
+```
+
+An old `guangjian-retouch` installation can be backed up and migrated with `npm run install:skill -- --update`. See [retouching workflows](skills/photo-retouch/SKILL.md) and [photography guidance](skills/photography-eye/SKILL.md) for the complete usage.
+
+<a id="web-ui"></a>
+
+### Start the Web UI
+
+```sh
+npm start
+```
+
+Open **http://localhost:3177**. The browser studio uses Node’s built-in modules and needs no dependency installation or model key for manual editing, crop, styles, and export. Configure a visual model in the studio to enable diagnosis and its AI advisor. Run `npm run setup` when sharing local file projects with the skill.
+
+[Deployment, Docker, and model settings](docs/DEPLOYMENT.md). The [Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) currently requires Vercel access; use the local studio if access is unavailable.
+
+### If setup does not work
+
+| Symptom | Next step |
+| --- | --- |
+| `codex` is missing or has no `plugin` command | Install / update the CLI, or choose standalone skills; the Web UI does not require Codex |
+| A skill is already installed | Add `--update` to preserve a backup and replace it |
+| The new plugin / skill is not listed | Open a new chat, or refresh / restart the host as needed |
+| Native dependency download fails | Check Node and npm connectivity, then retry; previous skills stay intact until preparation succeeds |
+| Image generation or vision is unavailable | Skills skip unavailable generation; the Web UI keeps manual tools, and basic color statistics do not replace visual review |
 
 ## Meet Xiaozhen · 小帧
 
@@ -35,145 +148,6 @@ The skill offers viewpoints, timing, settings, and finishing targets, normally w
 For a series, define its theme, choose varied images that belong together, refine each photograph, then review the sequence. People, wider scenes, and details can work together; a nine-image grid need not repeat one subject. See the [series workflow](skills/photo-retouch/references/theme-led-series.md).
 
 The retouching skill checks which image-generation or editing tools the host actually provides. If none are available, it continues with the originals. When useful, it can generate a multi-image finishing board in one call, then review each panel before using it as a reference or deliverable. Individual panels still need adequate pixels and detail; see [AI finishing](skills/photo-retouch/references/generated-reference.md).
-
-## Choose how to work
-
-| Mode | Use | Start |
-| --- | --- | --- |
-| **Online Demo** | Multiple uploads, diagnosis, and an integrated advisor. Vercel access required. | [Open the online studio](https://ai-photography-preview-geminilights-projects.vercel.app/) |
-| **Web UI** | Run the complete studio locally: multiple uploads, manual retouching, series, and export. Connect a visual model for diagnosis and the advisor. | [Start the studio](#web-ui) |
-| **Agent skill** | Your agent reviews photos and proposes candidates; compare and refine them in the agent darkroom. No separate model service required. | [Install the skill](#agent-skill) |
-
-## Get started
-
-Requires **Node.js 20.9+**. Commands use macOS / Linux shell syntax.
-
-```sh
-git clone https://github.com/GeminiLight/FrameLark.git
-cd FrameLark
-```
-
-### Web UI
-
-Start the complete studio with one command; no npm dependency installation is needed:
-
-```sh
-npm start
-```
-
-Open **http://localhost:3177**. Upload, edit manually, apply styles, and export without a model connection. Configure a visual model in the local application's connection settings to enable AI review and the advisor. Press `Ctrl+C` to stop. The interface is currently in Chinese.
-
-Or run with Docker:
-
-```sh
-docker compose up -d --build
-```
-
-[Deployment and model settings](docs/DEPLOYMENT.md) · [Deploy to Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FFrameLark)
-
-### Agent darkroom
-
-For file-based projects with your own agent, prepare image dependencies and create a project:
-
-```sh
-npm run setup
-mkdir -p projects
-
-node skills/photo-retouch/scripts/cli.mjs init \
-  --image "/your/photo.jpg" \
-  --project "./projects/my-photo" \
-  --intent "Preserve natural colors and the existing light"
-
-node skills/photo-retouch/scripts/cli.mjs serve \
-  --project "./projects/my-photo"
-```
-
-Open the printed URL in the agent darkroom. Adjust controls, then select **生成试片** (Create trial), compare, and **接受这版** (Accept) or **取消试片** (Discard). Export after accepting.
-
-Use a new project directory. Press `Ctrl+C` to stop the server; run `serve` again to continue the saved project.
-
-<details>
-<summary>Online Demo · Studio preview</summary>
-
-The [Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) offers multiple uploads, diagnosis, and an integrated advisor. It currently requires Vercel access. Check the page for the visual-model connection status.
-
-The online application and `npm start` use this repository's frontend, API routes, and server. Studio drafts live in each browser; the agent darkroom uses file-based projects. Browser drafts remain separate; opening a shared file project synchronizes annotations, candidates, versions, and export records with the Skill. Portable project files remain available for explicit snapshot exchange.
-
-</details>
-
-### Codex plugin: both skills in one installation
-
-The FrameLark plugin bundles photography-eye and photo-retouch, including their instructions, knowledge, and portable retouching tools. From the repository:
-
-```sh
-npm run plugin:install
-```
-
-This installs the plugin and prepares its native image dependencies. Open a new Codex chat afterward. You can also ask Codex to register GeminiLight/FrameLark as a marketplace and install `framelark@framelark`.
-
-[Installation commands and ZIP distribution](docs/PLUGIN.md). The repository marketplace is available; the plugin has not been published to OpenAI’s universal directory.
-
-### Agent skill
-
-Requires an agent that can read images, run local tools, and load skills, such as Codex.
-
-```sh
-npm run install:skill
-```
-
-The default destination is `~/.codex/skills/photo-retouch`, with the identifier `photo-retouch`. The first installation prepares image dependencies. Reload the skill list or open a new task if it has not appeared. To migrate an existing `guangjian-retouch` installation, run `npm run install:skill -- --update`; the old installation is backed up before moving to the new directory.
-
-Compare the original and trial looks on a shared frame before choosing a direction; evaluate cropping separately. Agent-saved trials are not treated as your preferences, and explicitly rejected versions are excluded from preference evidence. [Look development and comparison](skills/photo-retouch/references/look-development.md)
-
-Send this to your agent:
-
-```text
-Use $photo-retouch to review /photos/morning.jpg.
-Keep the quiet morning atmosphere and natural colors.
-Explain what to preserve, then propose adjustments I can preview.
-```
-
-Ask the agent to open the local darkroom. Compare candidates or save annotations, then continue:
-
-```text
-Read the current version and all latest annotations.
-Lift the person's shadows slightly, preserving the background and warm light.
-Show a trial and explain the main changes and tradeoffs.
-```
-
-A review can recommend keeping the original. AI review uses your host agent's visual model, usage limits, and data rules, with no additional model key. Continue the conversation in that agent; “在 Agent 中继续” in the Web UI copies a project prompt.
-
-Automatic retouching follows diagnosis → trial → review → acceptance → export. Diagnosis records the goal, relationships to preserve, locations, and tradeoffs; it may recommend no changes. In reviewed mode, agent acceptance requires a ready audit of the current combination and a response to every blocking finding. Tools verify version identity; aesthetic judgment comes from the host viewing the image. [Review and delivery](skills/photo-retouch/references/reviewed-workflow.md)
-
-<details>
-<summary>Calibration, second review, and project exchange</summary>
-
-- **Actual photographs:** three licensed original / trial / overprocessed comparisons. `examples` opens the images; `probe` compares one control on the current photo without changing history.
-- **Adjustment sources:** inspect manual, style, and local contributions. `rebuild` clears selected old layers in a reversible candidate, preserving other edits and constraints.
-- **Separate review:** `review-packet` prepares originals, base and trial images, and checks. The host arranges the reviewer; tools do not call a second model or authenticate identity.
-- **Portable preferences:** explicitly requested local records of user choices, subjects, light and reasons. Editable and removable; current intent takes priority.
-- **Project exchange:** in the studio, open 草稿 → 与 Agent 继续编辑 to download or open `.frameyn.json`; use `project-export/import` in the Skill. Import adds a new project. Originals, saved versions, intent, comments and compatible edits transfer; lettering, brushes, protection constraints and conversations do not.
-
-[Workflow and commands](skills/photo-retouch/references/reviewed-workflow.md) · [Visual examples](skills/photo-retouch/references/visual-examples.md) · [Preference records](skills/photo-retouch/references/learning-memory.md) (Chinese)
-
-</details>
-
-<details>
-<summary>Update or install into another host</summary>
-
-Updates back up the previous skill:
-
-```sh
-npm run install:skill -- --update
-```
-
-Specify a compatible host's skill directory:
-
-```sh
-node scripts/install-photo-skill.mjs /your/skills/photo-retouch
-```
-
-</details>
 
 ## Capabilities
 
