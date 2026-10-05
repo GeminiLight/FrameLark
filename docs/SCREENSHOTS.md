@@ -2,7 +2,7 @@
 
 ## 完整工作台
 
-`docs/images/screenshots/studio-overview.png` 来自 2026-10-03 对整合后仓库实际运行的 `npm start` 的截图，视口 1280 × 720。使用内置 `apps/studio/public/assets/alpine-demo.png`，页面标注为示例光色分析，未配置视觉模型。
+`docs/images/screenshots/studio-overview.png` 来自 2026-10-06 当前仓库实际运行的 `npm start`，视口 1280 × 800。点击「试用示例照片」后截图，使用内置 `apps/studio/public/assets/alpine-demo.png`，展示「帧好」品牌、照片预览与小帧顾问。未配置视觉模型，页面显示「本地引导」；没有调用模型或将截图称为 AI 修片结果。
 
 ## 组图空间
 
