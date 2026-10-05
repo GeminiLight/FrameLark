@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 
 test('accepting a version keeps the clicked photo summary when an asynchronous save outlives a photo switch',async()=>{
-  const source=await readFile(new URL('../../public/app.js',import.meta.url),'utf8');
+  const source=await readFile(new URL('../../apps/studio/public/app.js',import.meta.url),'utf8');
   const fn=source.slice(source.indexOf('async function acceptCurrentVersion()'),source.indexOf('\nfunction showEmptyWorkspace()'));
   let release,ready;
   const waiting=new Promise(resolve=>{ready=resolve;});

@@ -1,9 +1,9 @@
-import {responseLanguage} from './public/response-language.js';
-import {seriesBrief,seriesSchema,seriesBounds,validateSeriesReview} from './public/photo-series.js';
-import {presets} from './public/presets.js';
-import {reviewContext} from './public/review-context.js';
-import {VisionError} from './vision-service.mjs';
-import {validCrop} from './public/crop-utils.js';
+import {responseLanguage} from '../../public/response-language.js';
+import {seriesBrief,seriesSchema,seriesBounds,validateSeriesReview} from '../../public/photo-series.js';
+import {presets} from '../../public/presets.js';
+import {reviewContext} from '../../public/review-context.js';
+import {VisionError} from './vision.mjs';
+import {validCrop} from '../../public/crop-utils.js';
 
 export async function reviewPhotoSeries(vision,body,signal) {
   const photos=body?.photos;

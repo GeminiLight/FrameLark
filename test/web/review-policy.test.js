@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {validateReviewDecision,reviewPresentation,buildBasicReview} from '../../public/review-policy.js';
-import {inspectPixels} from '../../public/diagnostics.js';
-import {neutralSettings,renderPixels} from '../../public/editor-engine.js';
-import {localDesignReply} from '../../public/design-agent.js';
+import {validateReviewDecision,reviewPresentation,buildBasicReview} from '../../apps/studio/public/review-policy.js';
+import {inspectPixels} from '../../apps/studio/public/diagnostics.js';
+import {neutralSettings,renderPixels} from '../../apps/studio/public/editor-engine.js';
+import {localDesignReply} from '../../apps/studio/public/design-agent.js';
 const original = JSON.parse(await readFile(new URL('./fixtures/vision-retention.json',import.meta.url),'utf8'));
 const adjustment = JSON.parse(await readFile(new URL('./fixtures/vision-review.json',import.meta.url),'utf8'));
 

@@ -45,6 +45,7 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - run: npm run architecture:check
       - run: npm run engine:check
       - run: npm run test:web
       - run: npm install --global agent-browser@0.38.1

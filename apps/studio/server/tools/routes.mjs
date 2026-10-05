@@ -1,12 +1,12 @@
 import {existsSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
-import {photoTools,normalizeToolPlan,compileToolPlan,validateToolState} from './public/photo-tools/registry.js';
-import {record,number,identifier,validate,fail} from './public/photo-tools/values.js';
+import {photoTools,normalizeToolPlan,compileToolPlan,validateToolState} from '../../public/photo-tools/registry.js';
+import {record,number,identifier,validate,fail} from '../../public/photo-tools/values.js';
 export const toolPreviewSummary=preview=>preview?Object.fromEntries(['width','height','pixelHash','frameSpecHash'].map(k=>[k,preview[k]])):undefined;
 export const publicToolRun=result=>({...result,records:result.records.map(({before,after,preview,...record})=>({...record,preview:toolPreviewSummary(preview)}))});
 const json=(response,status,value)=>{if(response.destroyed)return;response.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});response.end(JSON.stringify(value));};
 export async function handlePhotoToolRoutes(request,response,url,{readBody,allowed,cloud}){
-  const subprocess=!cloud&&existsSync(new URL('./skills/photo-retouch/scripts/photo-tool-worker.mjs',import.meta.url));
+  const subprocess=!cloud&&existsSync(new URL('../../../../skills/photo-retouch/scripts/photo-tool-worker.mjs',import.meta.url));
   if(!['/api/photo-tools','/api/photo-tools/run'].includes(url.pathname))return false;
   if(url.pathname==='/api/photo-tools'&&request.method==='GET'){json(response,200,{schemaVersion:1,tools:photoTools.describe(),operationSchema:photoTools.operationSchema(),execution:subprocess?'subprocess':'inline'});return true;}
   if(url.pathname!=='/api/photo-tools/run'||request.method!=='POST'){json(response,405,{error:{code:'METHOD_NOT_ALLOWED',message:'不支持这个工具操作。'}});return true;}
@@ -31,7 +31,7 @@ export async function handlePhotoToolRoutes(request,response,url,{readBody,allow
       result=compileToolPlan(state,operations,{source:body.source,notes,namespace,selected:body.selectedItemIds});
       result={...result,operations,namespace,records:result.records.map(r=>({...r,execution:{adapter:'inline',tool:r.operation.tool,version:r.operation.version}}))};
     }else{
-      const {runPhotoToolPlan}=await import('./skills/photo-retouch/scripts/photo-tool-runtime.mjs');
+      const {runPhotoToolPlan}=await import('../../../../skills/photo-retouch/scripts/photo-tool-runtime.mjs');
       result=await runPhotoToolPlan({operations:body.operations,state,source:body.source,notes,namespace,selectedItemIds:body.selectedItemIds,preview:body.image?{image:body.image}:undefined},{signal:controller.signal,onEvent:stream?event:()=>{}});
     }
     const value=publicToolRun(result);if(stream){emit({type:'result',value});response.end();}else json(response,200,value);

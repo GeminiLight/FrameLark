@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {validateStructured, createVisionService, invalidStructuredPaths } from '../../vision-service.mjs';
+import {validateStructured, createVisionService, invalidStructuredPaths } from '../../apps/studio/server/ai/vision.mjs';
 
 const schema = {type:'object',additionalProperties:false,properties:{finding:{type:'string',minLength:1}},required:['finding']};
 const payload = {input:[],text:{format:{schema}}};

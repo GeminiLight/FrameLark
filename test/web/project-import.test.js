@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {EventEmitter} from 'node:events';
-import {preparePhotoFile} from '../../public/import-conversion.js';
-import {runImportBatch} from '../../public/photo-import.js';
-import {handleProjectRoutes} from '../../project-routes.mjs';
+import {preparePhotoFile} from '../../apps/studio/public/import-conversion.js';
+import {runImportBatch} from '../../apps/studio/public/photo-import.js';
+import {handleProjectRoutes} from '../../apps/studio/server/projects/routes.mjs';
 import {openStudioProject} from '../../skills/photo-retouch/scripts/studio.mjs';
 
 test('HEIC preparation preserves the original for a shared project and imports converted pixels',async()=>{
-  const original=new File(['heic-test'],'photo.heic',{type:'image/heic'}),png=await readFile(new URL('../../public/assets/vision-probe.png',import.meta.url));let sent;
+  const original=new File(['heic-test'],'photo.heic',{type:'image/heic'}),png=await readFile(new URL('../../apps/studio/public/assets/vision-probe.png',import.meta.url));let sent;
   const rows=[{file:original,status:'waiting'}];
   await runImportBatch(rows,{prepare:(file,signal)=>preparePhotoFile(file,{signal,fetchImpl:async(url,options)=>{assert.equal(url,'/api/photos/convert');sent=options.body;return new Response(png,{headers:{'Content-Type':'image/png'}});}}),capacity:()=>({count:0,pixels:0}),commit:async(file,metadata,_signal,source)=>{assert.equal(source,original);assert.notEqual(file,original);assert.equal(metadata.format,'png');return {width:metadata.width,height:metadata.height};}});
   assert.equal(sent,original);assert.equal(rows[0].status,'success');assert.equal(rows[0].metadata.convertedFrom,'HEIC');
@@ -21,7 +21,7 @@ test('conversion failure stays a clear import failure rather than corrupting an 
 });
 
 test('actual PNG content is not sent to HEIC conversion just because of its filename',async()=>{
-  const png=await readFile(new URL('../../public/assets/vision-probe.png',import.meta.url));
+  const png=await readFile(new URL('../../apps/studio/public/assets/vision-probe.png',import.meta.url));
   const file=new File([png],'incorrect-extension.heic',{type:'image/heic'});
   assert.equal(await preparePhotoFile(file,{fetchImpl:()=>{throw new Error('must not convert a PNG');}}),file);
 });

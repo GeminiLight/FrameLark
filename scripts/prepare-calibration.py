@@ -3,7 +3,7 @@ from pathlib import Path
 from PIL import Image
 root=Path(__file__).resolve().parents[1]
 folder=root/'test/web/fixtures/calibration'
-cases=[('portrait',folder/'portrait.png',None),('night',folder/'night.jpg',None),('high-contrast',folder/'high-contrast.png',None),('backlight',root/'public/assets/alpine-demo.png',None),('sky',root/'public/assets/alpine-demo.png',(400,0,1448,340))]
+cases=[('portrait',folder/'portrait.png',None),('night',folder/'night.jpg',None),('high-contrast',folder/'high-contrast.png',None),('backlight',root/'apps/studio/public/assets/alpine-demo.png',None),('sky',root/'apps/studio/public/assets/alpine-demo.png',(400,0,1448,340))]
 for name,path,crop in cases:
  im=Image.open(path).convert('RGB')
  if crop:im=im.crop(crop)

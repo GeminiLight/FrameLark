@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {createTaskQueue} from '../../public/task-queue.js';
-import {inspectPhotoHeader,inspectPhotoFile,checkImportCapacity,validateDecodedPhoto,loadPhotoImage,runImportBatch,importProblem,PhotoImportError,importLimits} from '../../public/photo-import.js';
+import {createTaskQueue} from '../../apps/studio/public/task-queue.js';
+import {inspectPhotoHeader,inspectPhotoFile,checkImportCapacity,validateDecodedPhoto,loadPhotoImage,runImportBatch,importProblem,PhotoImportError,importLimits} from '../../apps/studio/public/photo-import.js';
 const fixture=name=>readFile(new URL(`fixtures/import/${name}`,import.meta.url));
 const header=async name=>{const bytes=await fixture(name);return inspectPhotoHeader(bytes,{name,size:bytes.length});};
 const code=(fn,wanted)=>assert.throws(fn,error=>error.code===wanted);

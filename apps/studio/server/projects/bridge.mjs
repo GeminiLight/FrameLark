@@ -1,4 +1,4 @@
-import {versionToolRuns} from './public/photo-tools/history.js';
+import {versionToolRuns} from '../../public/photo-tools/history.js';
 import {Worker} from 'node:worker_threads';
 import {readFile,writeFile,mkdir,rename,realpath,mkdtemp,rm,stat} from 'node:fs/promises';
 import {watch} from 'node:fs';
@@ -9,7 +9,7 @@ import {randomUUID} from 'node:crypto';
 export class ProjectBridge {
   constructor({root=process.cwd()}={}){this.root=resolve(root);this.file=join(this.root,'.guangjian/projects.json');this.records=null;this.writes=Promise.resolve();this.watchers=new Set();this.workers=new Set();}
   async runtime(){
-    try{return await import('./skills/photo-retouch/scripts/project.mjs');}
+    try{return await import('../../../../skills/photo-retouch/scripts/project.mjs');}
     catch(error){if(error.code==='ERR_MODULE_NOT_FOUND')throw Object.assign(new Error('请在项目目录运行 npm run setup，安装本地图片处理依赖后重试。'),{code:'PROJECT_SETUP_REQUIRED'});throw error;}
   }
   async capabilities(){try{await this.runtime();return {projects:true,heic:process.platform==='darwin'};}catch{return {projects:false,heic:process.platform==='darwin',setup:'npm run setup'};}}
@@ -37,7 +37,7 @@ export class ProjectBridge {
       exports:(p.exports||[]).map(e=>({path:e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
   }
   fingerprint(p){return this.hash?.({current:p.currentId,state:p.versions.find(v=>v.id===p.currentId)?.state,source:p.source,intent:p.intent,notes:p.notes,pipeline:this.pipeline});}
-  async mutationView(runtime,p,path){this.hash=runtime.hash;const {pipelineVersion}=await import('./skills/photo-retouch/scripts/engine/edit-identity.js');this.pipeline=pipelineVersion;return this.view(p,path,runtime);}
+  async mutationView(runtime,p,path){this.hash=runtime.hash;const {pipelineVersion}=await import('../../../../skills/photo-retouch/scripts/engine/edit-identity.js');this.pipeline=pipelineVersion;return this.view(p,path,runtime);}
   async get(id){const {runtime,p,path}=await this.resolve(id);return this.mutationView(runtime,p,path);}
   async list(){return Object.entries(await this.registry()).map(([id,r])=>({id,...r}));}
   async create(bytes,name){
@@ -82,8 +82,8 @@ export class ProjectBridge {
   async proposeTools(id,value,options={}){
     const {runtime,path,p}=await this.resolve(id),limitations=runtime.workspaceLimitations(p);
     if(limitations)throw Object.assign(new Error(limitations),{code:'WORKSPACE_UNSUPPORTED'});
-    const {createToolCandidate}=await import('./skills/photo-retouch/scripts/tool-candidates.mjs');
-    const {publicToolRun}=await import('./photo-tool-service.mjs');
+    const {createToolCandidate}=await import('../../../../skills/photo-retouch/scripts/tool-candidates.mjs');
+    const {publicToolRun}=await import('../tools/routes.mjs');
     const result=await createToolCandidate(path,{revision:value.revision,baseVersion:value.baseVersion,requestId:randomUUID(),name:String(value.name||'工具组合').slice(0,40),goal:String(value.goal||''),tradeoff:String(value.tradeoff||''),operations:value.operations,selectedItemIds:value.selectedItemIds},{...options,namespace:value.namespace});
     return {...await this.mutationView(runtime,result.project,path),candidateId:result.candidate.id,toolRun:{...publicToolRun(result.toolRun),history:result.candidate.toolRuns,label:result.candidate.name}};
   }
@@ -102,7 +102,7 @@ export class ProjectBridge {
   async render(action,folder,key,options,signal) {
     if(signal?.aborted)throw Object.assign(new Error('操作已取消。'),{code:'CANCELLED'});
     return new Promise((resolve,reject)=>{
-      const worker=new Worker(new URL('./skills/photo-retouch/scripts/worker.mjs',import.meta.url));this.workers.add(worker);
+      const worker=new Worker(new URL('../../../../skills/photo-retouch/scripts/worker.mjs',import.meta.url));this.workers.add(worker);
       let done=false;
       const finish=async(error,value)=>{if(done)return;done=true;clearTimeout(timer);signal?.removeEventListener('abort',cancel);this.workers.delete(worker);await worker.terminate();error?reject(error):resolve(value);};
       const cancel=()=>finish(Object.assign(new Error('操作已取消。'),{code:'CANCELLED'}));

@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync} from 'node:fs';
-import {renderPixels} from '../../public/editor-engine.js';
+import {renderPixels} from '../../apps/studio/public/editor-engine.js';
 function fixture(name) {
  const bytes=readFileSync(new URL(`./fixtures/calibration/${name}.ppm`,import.meta.url));
  const header=/^P6\n(\d+) (\d+)\n255\n/.exec(bytes.toString('latin1'));

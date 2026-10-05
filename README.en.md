@@ -20,7 +20,7 @@ Upload photos, adjust color, compare styles, curate a series, and export in your
 
 Its graphite feathers, cream chest, apricot wings, and upward gaze stay consistent. The pencil texture adds warmth to the welcome screen, advisor avatar, and agent darkroom while your photograph remains the focus. The product is **FrameLark · 帧好**; the companion is **Xiaozhen · 小帧**.
 
-[Transparent avatar](public/assets/xiaozhen-avatar.png) · [Character guidelines](docs/WEB_DESIGN.md#品牌与小帧)
+[Transparent avatar](apps/studio/public/assets/xiaozhen-avatar.png) · [Character guidelines](docs/WEB_DESIGN.md#品牌与小帧)
 
 ## Find your next photograph
 
@@ -177,7 +177,7 @@ Supported workflows include travel stories, portraits, events, product catalogs,
 
 [Collection workflow](skills/photo-retouch/references/collection-craft.md) · [CLI and tool contracts](skills/photo-retouch/references/collection-tools.md) (Chinese)
 
-![The photo-series workspace: purpose, intent, manual order, and individual inspection.](assets/screenshots/series-workspace.png)
+![The photo-series workspace: purpose, intent, manual order, and individual inspection.](docs/images/screenshots/series-workspace.png)
 
 | Feature | Support |
 | --- | --- |
@@ -216,28 +216,28 @@ Fonts are supplied by the host computer; Chinese text requires an installed CJK 
 
 **Complete studio**: started with `npm start`, using the same source as the online application. The screenshot shows the built-in example with no visual model configured.
 
-![Complete studio: photo navigation, retouching, learning, preferences, and review.](assets/screenshots/studio-overview.png)
+![Complete studio: photo navigation, retouching, learning, preferences, and review.](docs/images/screenshots/studio-overview.png)
 
 **Agent darkroom**: compare candidates in a file-based project with your own agent.
 
 **Manual retouching**
 
-![Local Web UI: the full photograph and light/color controls.](assets/screenshots/darkroom-edit.png)
+![Local Web UI: the full photograph and light/color controls.](docs/images/screenshots/darkroom-edit.png)
 
 <details>
 <summary>Annotations, comparison, and export</summary>
 
 **Annotations:** each marker has its own region and comment.
 
-![Separate markers for the person and morning light, with two comments.](assets/screenshots/darkroom-annotations.png)
+![Separate markers for the person and morning light, with two comments.](docs/images/screenshots/darkroom-annotations.png)
 
 **Comparison:** current version on the left, unaccepted trial on the right.
 
-![The current version and candidate share position and magnification.](assets/screenshots/darkroom-compare.png)
+![The current version and candidate share position and magnification.](docs/images/screenshots/darkroom-compare.png)
 
 **Export:** choose the purpose, format, size, and quality.
 
-![The sharing preset produces a 1448 × 1086 JPEG.](assets/screenshots/darkroom-export.png)
+![The sharing preset produces a 1448 × 1086 JPEG.](docs/images/screenshots/darkroom-export.png)
 
 </details>
 
@@ -245,7 +245,7 @@ Actual local-interface screenshots using the built-in demo image. [Capture notes
 
 ## Photography knowledge
 
-114 sections cover 10 subject and scene playbooks, look development and result review, collection curation and delivery, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
+169 sections cover 10 subject and scene playbooks, look development and result review, collection curation and delivery, with learning references from 10 photographers. These references guide observation; they are not official presets or exact reproductions.
 
 <details>
 <summary>Knowledge directory and search</summary>
@@ -293,8 +293,19 @@ The agent darkroom and CLI share file-based project records. Originals are store
 
 ## Development
 
+| Directory | Contents |
+| --- | --- |
+| `apps/studio` | Complete Web workspace and server |
+| `api` | Vercel function adapters |
+| `skills` | Standalone photo-retouch and photography-eye skills |
+| `scripts` / `test` | Developer tools, quality checks and tests |
+| `docs` | Architecture, deployment, design and screenshots |
+
+[Repository structure and dependencies](docs/ARCHITECTURE.md)
+
 ```sh
 npm run setup
+npm run architecture:check
 npm run engine:check
 npm run knowledge:check
 npm test

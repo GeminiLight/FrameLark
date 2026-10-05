@@ -2,11 +2,11 @@
 
 ## 完整工作台
 
-`assets/screenshots/studio-overview.png` 来自 2026-10-03 对整合后仓库实际运行的 `npm start` 的截图，视口 1280 × 720。使用内置 `public/assets/alpine-demo.png`，页面标注为示例光色分析，未配置视觉模型。
+`docs/images/screenshots/studio-overview.png` 来自 2026-10-03 对整合后仓库实际运行的 `npm start` 的截图，视口 1280 × 720。使用内置 `apps/studio/public/assets/alpine-demo.png`，页面标注为示例光色分析，未配置视觉模型。
 
 ## 组图空间
 
-`assets/screenshots/series-workspace.png` 来自 2026-10-03 的本地工作台，默认视口 1280 × 720。使用质量检查集中的猫与咖啡静物样张（CC0，来源见 `test/web/fixtures/quality/manifest.json`），展示用途、表达、手动封面顺序及逐张检查入口。未配置云端视觉模型，没有把原片缩略图称为 AI 修片结果。
+`docs/images/screenshots/series-workspace.png` 来自 2026-10-03 的本地工作台，默认视口 1280 × 720。使用质量检查集中的猫与咖啡静物样张（CC0，来源见 `test/web/fixtures/quality/manifest.json`），展示用途、表达、手动封面顺序及逐张检查入口。未配置云端视觉模型，没有把原片缩略图称为 AI 修片结果。
 
 ## Agent 暗房
 
@@ -14,10 +14,10 @@
 
 | 截图 | 内容 |
 | --- | --- |
-| [手动精调](../assets/screenshots/darkroom-edit.png) | 原片与光色控制。 |
-| [画面批注](../assets/screenshots/darkroom-annotations.png) | 人物和晨光的独立标记、评论与裁剪保护。 |
-| [候选对照](../assets/screenshots/darkroom-compare.png) | 当前版本与未接受试片，共享范围与倍率。 |
-| [成片导出](../assets/screenshots/darkroom-export.png) | 接受候选后生成的分享 JPEG，1448 × 1086。 |
+| [手动精调](images/screenshots/darkroom-edit.png) | 原片与光色控制。 |
+| [画面批注](images/screenshots/darkroom-annotations.png) | 人物和晨光的独立标记、评论与裁剪保护。 |
+| [候选对照](images/screenshots/darkroom-compare.png) | 当前版本与未接受试片，共享范围与倍率。 |
+| [成片导出](images/screenshots/darkroom-export.png) | 接受候选后生成的分享 JPEG，1448 × 1086。 |
 
 候选来自宿主 Agent 对演示图的观察，轻抬人物阴影并小幅处理高光。截图展示交互流程，不作为摄影质量基准或在线模型调用证据。原始照片、项目和会话文件未提交。
 

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { combineSettings, neutralSettings, renderPixels } from '../../public/editor-engine.js';
-import { presetById } from '../../public/presets.js';
-import { inspectPixels, metricLabels } from '../../public/diagnostics.js';
+import { combineSettings, neutralSettings, renderPixels } from '../../apps/studio/public/editor-engine.js';
+import { presetById } from '../../apps/studio/public/presets.js';
+import { inspectPixels, metricLabels } from '../../apps/studio/public/diagnostics.js';
 
 test('neutral rendering preserves original pixels and input buffer', () => {
   const source = new Uint8ClampedArray([33, 120, 210, 255, 230, 190, 110, 176]);

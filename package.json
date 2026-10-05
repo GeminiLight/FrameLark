@@ -8,8 +8,8 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "node --watch server.mjs",
-    "start": "node server.mjs",
+    "dev": "node --watch apps/studio/server/index.mjs",
+    "start": "node apps/studio/server/index.mjs",
     "photo": "node skills/photo-retouch/scripts/cli.mjs",
     "install:skill": "node scripts/install-photo-skill.mjs",
     "skill:install": "node scripts/install-photo-skill.mjs",
@@ -22,6 +22,7 @@
     "test:skill": "node scripts/run-tests.mjs skill",
     "test:navigation": "node scripts/check-navigation.mjs",
     "quality": "node scripts/photo-quality.mjs",
-    "quality:vision": "node scripts/photo-quality.mjs --vision"
+    "quality:vision": "node scripts/photo-quality.mjs --vision",
+    "architecture:check": "node scripts/check-architecture.mjs"
   }
 }

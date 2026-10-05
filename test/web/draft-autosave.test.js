@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createDraftAutosave} from '../../public/draft-autosave.js';
+import {createDraftAutosave} from '../../apps/studio/public/draft-autosave.js';
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 const timers={setTimer:()=>1,clearTimer:()=>{}};
 

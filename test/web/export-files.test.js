@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {inflateSync} from 'node:zlib';
-import {writeImageMetadata,createPhotoArchive,crc32} from '../../public/export-files.js';
+import {writeImageMetadata,createPhotoArchive,crc32} from '../../apps/studio/public/export-files.js';
 function chunks(bytes){const result=[];for(let offset=8;offset+12<=bytes.length;){const size=new DataView(bytes.buffer,bytes.byteOffset+offset).getUint32(0),type=new TextDecoder().decode(bytes.subarray(offset+4,offset+8)),data=bytes.subarray(offset+8,offset+8+size);assert.equal(crc32(bytes.subarray(offset+4,offset+8+size)),new DataView(bytes.buffer,bytes.byteOffset+offset+8+size).getUint32(0));result.push({type,data});offset+=size+12;}return result;}
 test('PNG metadata carries real 300 ppi density, sRGB and Unicode author, without changing compressed pixels',async()=>{
   const input=new Uint8Array(await readFile(new URL('./fixtures/quality/portrait.png',import.meta.url))),output=writeImageMetadata(input,'png',{dpi:300,includeArtwork:true,title:'自然版',author:'小林',copyright:'© 2026'});

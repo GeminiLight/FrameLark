@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {modelEffortChoices,normalizeModelTiers} from '../../public/model-routing.js';
+import {modelEffortChoices,normalizeModelTiers} from '../../apps/studio/public/model-routing.js';
 
 const models=[{id:'limited',efforts:['low','medium']},{id:'complete',efforts:['none','minimal','low','medium','high','xhigh','max','ultra']}];
 test('Codex model choices match the discovered model and retain extended supported efforts',()=>{

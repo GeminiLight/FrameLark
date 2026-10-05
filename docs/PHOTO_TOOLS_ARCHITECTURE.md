@@ -4,7 +4,7 @@
 
 ## 操作、目标与执行
 
-`public/photo-tools/registry.js` 是核心 Module，Interface 包含 `register`、`describe`、`normalize`、`execute` 和 `run`。其 Implementation 集中处理参数校验、工具版本、依赖排序、目标解析和效果合成，减少调用方重复维护的规则。
+`apps/studio/public/photo-tools/registry.js` 是核心 Module，Interface 包含 `register`、`describe`、`normalize`、`execute` 和 `run`。其 Implementation 集中处理参数校验、工具版本、依赖排序、目标解析和效果合成，减少调用方重复维护的规则。
 
 目前的 Adapter 包括光色、细节、颗粒与暗角、风格、旋转、裁剪和蒙版。目录与模型 Schema 从注册定义生成；参数和目标类型以 `photo-tools` 返回的目录为准。Web 与 Skill 的引擎文件保持逐字节一致，由 `npm run engine:check` 核对。
 

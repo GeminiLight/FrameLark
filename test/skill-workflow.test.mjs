@@ -11,10 +11,10 @@ import {previewPhoto,renderFrame} from '../skills/photo-retouch/scripts/render.m
 import {initProfile,learnProfile,inspectProfile,editProfile} from '../skills/photo-retouch/scripts/profile.mjs';
 import {probeControl} from '../skills/photo-retouch/scripts/probe.mjs';
 import {exportExchange,importExchange} from '../skills/photo-retouch/scripts/exchange.mjs';
-import {exchangeSnapshot,validateExchange,restoreWebExchange} from '../public/project-exchange.js';
-import {renderPhotoPixels} from '../public/photo-rendering.js';
-import {combineSettings} from '../public/editor-engine.js';
-import {presetById} from '../public/presets.js';
+import {exchangeSnapshot,validateExchange,restoreWebExchange} from '../apps/studio/public/project-exchange.js';
+import {renderPhotoPixels} from '../apps/studio/public/photo-rendering.js';
+import {combineSettings} from '../apps/studio/public/editor-engine.js';
+import {presetById} from '../apps/studio/public/presets.js';
 import {runCLI} from '../skills/photo-retouch/scripts/cli.mjs';
 async function fixture(t,name='portrait.png'){const root=await mkdtemp(path.join(os.tmpdir(),'frameyn-flow-'));t.after(()=>rm(root,{recursive:true,force:true}));const folder=path.join(root,'photo');await initProject(fileURLToPath(new URL('./web/fixtures/quality/'+name,import.meta.url)),folder,{intent:'肤色真实，保留光线'});return {root,folder};}
 const finding={id:'skin',dimension:'color',area:'脸部',rect:{x:.3,y:.1,width:.3,height:.4},observation:'肤色需要与环境光协调',impact:'影响真实感',action:'轻调白平衡',check:'脸与衣服的关系',tradeoff:'不漂白肤色',priority:'blocking',confidence:'medium'};

@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {toolStateFromSnapshot,toolRunCandidate} from '../../public/photo-tool-client.js';
-import {normalizeToolPlan,compileToolPlan} from '../../public/photo-tools/registry.js';
-import {snapshotSettings} from '../../public/batch-edits.js';
-import {effectiveAnnotations} from '../../public/adjustment-layers.js';
-import {renderPhotoPixels} from '../../public/photo-rendering.js';
-import {neutralSettings,combineSettings} from '../../public/editor-engine.js';
-import {presetById} from '../../public/presets.js';
+import {toolStateFromSnapshot,toolRunCandidate} from '../../apps/studio/public/photo-tool-client.js';
+import {normalizeToolPlan,compileToolPlan} from '../../apps/studio/public/photo-tools/registry.js';
+import {snapshotSettings} from '../../apps/studio/public/batch-edits.js';
+import {effectiveAnnotations} from '../../apps/studio/public/adjustment-layers.js';
+import {renderPhotoPixels} from '../../apps/studio/public/photo-rendering.js';
+import {neutralSettings,combineSettings} from '../../apps/studio/public/editor-engine.js';
+import {presetById} from '../../apps/studio/public/presets.js';
 const source={width:80,height:60},snapshot=()=>({manual:neutralSettings(),presetId:'daily-soft',presetAmount:50,advisorLayers:[{id:'old',label:'已应用的阴影',settings:{shadows:10},annotationId:null}],annotations:[{id:'note',note:'前景',rect:{x:.1,y:.2,width:.4,height:.5},localSettings:{exposure:.1},localAmount:50,maskType:'radial',feather:.2,localEnabled:true}],active:[],recommendations:[],crop:null});
 const operation=(id,tool,target,parameters,dependsOn=[])=>({id,title:id,tool,version:1,target,parameters,dependsOn});
 test('generic Web Adapter retains prior sources and matches native composed pixels',()=>{

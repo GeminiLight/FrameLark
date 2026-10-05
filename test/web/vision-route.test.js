@@ -38,7 +38,7 @@ test('vision route calls the configured image model and returns actionable analy
   const probe = http.createServer();
   const appPort = await listen(probe);
   await close(probe);
-  const app = spawn(process.execPath, ['server.mjs'], {
+  const app = spawn(process.execPath, ['apps/studio/server/index.mjs'], {
     cwd:projectDir,
     env:{...process.env,PORT:String(appPort),OPENAI_API_KEY:'test-key',OPENAI_MODEL:'gpt-6-astra',OPENAI_API_URL:`http://127.0.0.1:${providerPort}/v1/responses`},
     stdio:'ignore'
@@ -211,7 +211,7 @@ test('local connection route verifies vision, protects config, and surfaces safe
   const probe = http.createServer();
   const appPort = await listen(probe);
   await close(probe);
-  const app = spawn(process.execPath,[projectDir + 'server.mjs'],{cwd:root,env:{...process.env,PORT:String(appPort),OPENAI_API_KEY:'',OPENAI_MODEL:'test-only-vision',OPENAI_API_URL:`http://127.0.0.1:${providerPort}/v1/responses`},stdio:'ignore'});
+  const app = spawn(process.execPath,[projectDir + 'apps/studio/server/index.mjs'],{cwd:root,env:{...process.env,PORT:String(appPort),OPENAI_API_KEY:'',OPENAI_MODEL:'test-only-vision',OPENAI_API_URL:`http://127.0.0.1:${providerPort}/v1/responses`},stdio:'ignore'});
   t.after(() => { if (!app.killed) app.kill(); });
   const base = `http://127.0.0.1:${appPort}`;
   for (let attempt=0;attempt<50;attempt++) {

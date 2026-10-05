@@ -1,14 +1,8 @@
 **
 !Dockerfile
 !package.json
-!server.mjs
-!vision-service.mjs
-!codex-app-server.mjs
-!project-bridge.mjs
-!project-routes.mjs
-!photo-tool-service.mjs
-!series-review.mjs
-!public/
-!public/**
+!apps/
+!apps/studio/
+!apps/studio/**
 !api/
 !api/**
