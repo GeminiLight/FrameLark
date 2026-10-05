@@ -6,6 +6,7 @@ const modules=['project-exchange.js','adjustment-layers.js','control-reference.j
 const root=new URL('../',import.meta.url),changed=[];
 async function toolFiles(folder='photo-tools'){for(const entry of await readdir(new URL('apps/studio/public/'+folder+'/',root),{withFileTypes:true})){const name=folder+'/'+entry.name;if(entry.isDirectory())await toolFiles(name);else if(entry.name.endsWith('.js'))modules.push(name);}}
 await toolFiles();
+await toolFiles('edit-stack');
 for(const name of modules){
   const [web,skill]=await Promise.all([readFile(new URL('apps/studio/public/'+name,root)),readFile(new URL('skills/photo-retouch/scripts/engine/'+name,root))]);
   if(!web.equals(skill))changed.push(name);
