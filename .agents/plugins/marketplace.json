@@ -1,0 +1,20 @@
+{
+  "name": "framelark",
+  "interface": {
+    "displayName": "FrameLark · 帧好"
+  },
+  "plugins": [
+    {
+      "name": "framelark",
+      "source": {
+        "source": "local",
+        "path": "./"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE"
+      },
+      "category": "Creativity"
+    }
+  ]
+}

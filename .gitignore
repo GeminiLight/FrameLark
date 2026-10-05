@@ -13,3 +13,5 @@ drafts/
 test/fixtures/
 artifacts/
 coverage/
+
+/dist/

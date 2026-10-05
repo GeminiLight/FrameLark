@@ -24,6 +24,9 @@
     "quality": "node scripts/photo-quality.mjs",
     "quality:vision": "node scripts/photo-quality.mjs --vision",
     "architecture:check": "node scripts/check-architecture.mjs",
-    "test:collaboration": "node scripts/check-collaboration.mjs"
+    "test:collaboration": "node scripts/check-collaboration.mjs",
+    "plugin:build": "node scripts/build-framelark-plugin.mjs",
+    "plugin:check": "node scripts/check-framelark-plugin.mjs",
+    "plugin:install": "node scripts/install-framelark-plugin.mjs"
   }
 }

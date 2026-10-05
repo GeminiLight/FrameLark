@@ -101,6 +101,18 @@ The online application and `npm start` use this repository's frontend, API route
 
 </details>
 
+### Codex plugin: both skills in one installation
+
+The FrameLark plugin bundles photography-eye and photo-retouch, including their instructions, knowledge, and portable retouching tools. From the repository:
+
+```sh
+npm run plugin:install
+```
+
+This installs the plugin and prepares its native image dependencies. Open a new Codex chat afterward. You can also ask Codex to register GeminiLight/FrameLark as a marketplace and install `framelark@framelark`.
+
+[Installation commands and ZIP distribution](docs/PLUGIN.md). The repository marketplace is available; the plugin has not been published to OpenAI’s universal directory.
+
 ### Agent skill
 
 Requires an agent that can read images, run local tools, and load skills, such as Codex.

@@ -6,8 +6,8 @@ import {fileURLToPath} from 'node:url';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const files=execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{cwd:root,encoding:'utf8'}).split('\0').filter(Boolean);
-const rootDirectories=new Set(['apps','api','skills','scripts','test','docs','.agents','.github']);
-const rootFiles=new Set(['README.md','README.en.md','CONTRIBUTING.md','Dockerfile','compose.yaml','package.json','package-lock.json','vercel.json','.gitignore','.gitattributes','.dockerignore','.vercelignore','.env.local.example','AGENTS.md','LICENSE','LICENSE.md','SECURITY.md','CODE_OF_CONDUCT.md','CHANGELOG.md','.editorconfig','.npmrc']);
+const rootDirectories=new Set(['apps','api','skills','scripts','test','docs','assets','.agents','.github','.codex-plugin']);
+const rootFiles=new Set(['README.md','README.en.md','CONTRIBUTING.md','Dockerfile','compose.yaml','package.json','package-lock.json','vercel.json','.gitignore','.gitattributes','.dockerignore','.vercelignore','.env.local.example','AGENTS.md','LICENSE','LICENSE.md','SECURITY.md','CODE_OF_CONDUCT.md','CHANGELOG.md','plugin.json','.editorconfig','.npmrc']);
 const errors=[];
 const exists=async path=>{try{await access(path);return true;}catch{return false;}};
 async function checkPath(owner,spec){

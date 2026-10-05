@@ -117,6 +117,18 @@ node skills/photo-retouch/scripts/cli.mjs serve \
 
 </details>
 
+### Codex 插件：一次安装两套 Skill
+
+FrameLark 插件同时提供「摄影眼」和「照片精修」。在仓库中运行一个命令即可安装并准备图片依赖：
+
+```sh
+npm run plugin:install
+```
+
+或者直接对 Codex 说：「从 GeminiLight/FrameLark 注册插件市场，安装 framelark@framelark，确认包含摄影眼和照片精修。」安装后开启新对话，即可按场景使用两套能力。
+
+[插件安装、直接安装命令与 ZIP 分发](docs/PLUGIN.md)。当前使用仓库插件市场，尚未上架 OpenAI 通用插件目录。
+
 ### Agent Skill
 
 需要能看图、运行本地工具并加载 Skill 的 Agent，例如 Codex。

@@ -18,3 +18,9 @@ compose.yaml
 .dockerignore
 README*.md
 CONTRIBUTING.md
+
+/.codex-plugin/
+/.agents/plugins/
+/assets/
+/dist/
+plugin.json

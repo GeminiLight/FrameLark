@@ -1,0 +1,39 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "framelark",
+  "version": "0.1.0",
+  "description": "Photography guidance, theme-led selection and photo retouching in one plugin.",
+  "author": {
+    "name": "GeminiLight",
+    "url": "https://github.com/GeminiLight"
+  },
+  "homepage": "https://github.com/GeminiLight/FrameLark",
+  "repository": "https://github.com/GeminiLight/FrameLark",
+  "keywords": [
+    "photography",
+    "photo-retouch",
+    "photo-selection",
+    "composition",
+    "framelark"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "FrameLark · 帧好",
+        "shortDescription": "From scene to finished image",
+        "longDescription": "FrameLark bundles two photography workflows: photography-eye helps find viewpoints, timing and finishing targets; photo-retouch reviews, selects and refines existing photographs with portable local tools. Your current agent provides visual reasoning. Image generation is optional and uses the tools available in the host. Photo retouching requires Node.js 20.9+ and the bundled dependency setup.",
+        "developerName": "GeminiLight",
+        "category": "Creativity",
+        "websiteURL": "https://github.com/GeminiLight/FrameLark",
+        "defaultPrompt": [
+          "用 FrameLark 看看这个场景怎么拍，给我不同的拍法。",
+          "用 FrameLark 精修这张照片，先审片再给能比较的试片。",
+          "帮我按主题选一组照片，逐张精修后排成九宫格。"
+        ],
+        "brandColor": "#DE965B",
+        "composerIcon": "./assets/framelark-avatar.png",
+        "logo": "./assets/framelark-avatar.png"
+      }
+    }
+  }
+}
