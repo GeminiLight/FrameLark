@@ -1,0 +1,11 @@
+{
+  "label": "2026-10-04新增后期功能的人工开发查询；用于本地词法路由，不是未见保留集或模型行为验证",
+  "cases": [
+    {"id":"finish-scope","query":"拍完怎么调色精修，哪些靠拍摄，哪些靠后期","expected":["finishing#1","finishing#2"]},
+    {"id":"finish-recipe","query":"每张候选图应该调什么颜色和哪里，具体调色步骤、数字和回退","expected":["finishing#3","finishing#2"]},
+    {"id":"finish-table","query":"红桌布、黄纸巾、白盘和金属反光，怎么精修成片","expected":["finishing#4","finishing#2"]},
+    {"id":"finish-file","query":"JPEG和RAW白平衡数值一样吗，色温是Kelvin还是相对滑块","expected":["finishing#2","finishing#3"]},
+    {"id":"finish-reference","query":"生成的精修目标能不能说已经真的修了原片，怎么区分实际修图","expected":["finishing#5","reference-visuals#1"]},
+    {"id":"finish-detail","query":"精修以后花瓣纹理和小人物的脸更清楚，能不能靠锐化恢复这些缺失细节","expected":["finishing#1","finishing#5","finishing#2"]}
+  ]
+}

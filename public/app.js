@@ -424,7 +424,7 @@ function renderAccountAvatar() {
   const avatar=$('#account-avatar');
   avatar.replaceChildren();
   if(personalProfile.name)avatar.textContent=[...personalProfile.name][0];
-  else {const image=document.createElement('img');image.src='/assets/guangjian-mark.svg?v=4';image.alt='';image.width=20;image.height=20;avatar.append(image);}
+  else {const image=document.createElement('img');image.src='/assets/xiaozhen-avatar.png?v=1';image.alt='';image.className='xiaozhen-avatar';image.width=28;image.height=28;avatar.append(image);}
 }
 
 function renderPersonalProfile() {
@@ -1911,7 +1911,7 @@ function renderAgent({follow=false}={}) {
     thread.innerHTML = photo.conversation.map((message,index) => message.role === 'status'
       ? `<div class="agent-request-status" role="status">${escapeHtml(message.text)}${message.requestQuestion ? `<button type="button" data-agent-retry="${index}" ${photo.agentBusy ? 'disabled':''}>继续这条提问</button>`:''}</div>` : message.role === 'user'
       ? `<div class="agent-message user">${escapeHtml(message.text)}${agentMessageContext(message,index)}</div>`
-      : `<div class="agent-message assistant" data-reply-id="${escapeHtml(message.id || String(index))}"><div class="agent-message-head"><i><img src="/assets/guangjian-icon.svg?v=4" alt="" /></i>帧映 · ${message.source === 'ai' ? '审美顾问' : message.source === 'local' ? '本地引导':'历史回复'}</div>${message.provenance?.model ? `<small class="agent-model-source">${escapeHtml(message.provenance.model)} · ${escapeHtml(tierNames[message.provenance.tier] || '标准')}</small>`:''}${message.failure ? `<div class="agent-failure"><p>${escapeHtml(message.failure)}</p><button type="button" data-agent-retry="${index}" ${photo.agentBusy || !state.aiAvailable ? 'disabled':''}>用最新批注重试</button></div>`:''}<div class="agent-message-body">${escapeHtml(message.text)}</div>${message.principle ? `<p class="agent-principle"><b>摄影笔记</b> · ${escapeHtml(message.principle)}</p>` : ''}${message.clarification ? `<div class="agent-clarification"><strong>${escapeHtml(message.clarification.question)}</strong>${message.clarification.choices.map(choice=>`<button type="button" data-agent-intent="${escapeHtml(choice)}">${escapeHtml(choice)}</button>`).join('')}</div>` : ''}${agentActionMarkup(message,index)}</div>`).join('');
+      : `<div class="agent-message assistant" data-reply-id="${escapeHtml(message.id || String(index))}"><div class="agent-message-head"><i class="xiaozhen-message-avatar"><img class="xiaozhen-avatar" src="/assets/xiaozhen-avatar.png?v=1" alt="" /></i>小帧 · ${message.source === 'ai' ? '审美顾问' : message.source === 'local' ? '本地引导':'历史回复'}</div>${message.provenance?.model ? `<small class="agent-model-source">${escapeHtml(message.provenance.model)} · ${escapeHtml(tierNames[message.provenance.tier] || '标准')}</small>`:''}${message.failure ? `<div class="agent-failure"><p>${escapeHtml(message.failure)}</p><button type="button" data-agent-retry="${index}" ${photo.agentBusy || !state.aiAvailable ? 'disabled':''}>用最新批注重试</button></div>`:''}<div class="agent-message-body">${escapeHtml(message.text)}</div>${message.principle ? `<p class="agent-principle"><b>摄影笔记</b> · ${escapeHtml(message.principle)}</p>` : ''}${message.clarification ? `<div class="agent-clarification"><strong>${escapeHtml(message.clarification.question)}</strong>${message.clarification.choices.map(choice=>`<button type="button" data-agent-intent="${escapeHtml(choice)}">${escapeHtml(choice)}</button>`).join('')}</div>` : ''}${agentActionMarkup(message,index)}</div>`).join('');
   }
   hydrateIcons(thread);
   if (photo?.agentBusy) {thread.insertAdjacentHTML('beforeend','<div class="agent-typing" role="status"><span></span><p class="agent-partial"></p></div>');renderAgentProgress();}
@@ -2685,7 +2685,7 @@ $('#tasks-download').addEventListener('click',async()=>{
   const ready=exportQueue.tasks.filter(task=>task.status==='done'),names=new Set();
   const files=ready.map(task=>{let name=task.name;if(names.has(name))name=name.replace(/(\.[^.]+)$/,`-${task.id}$1`);names.add(name);return {name,blob:task.result.blob};});
   $('#tasks-download').disabled=true;
-  try {const archive=await createPhotoArchive(files);triggerDownload(archive,'帧映成片.zip');for(const task of ready)registerExport(task);showToast(`已开始下载 ${ready.length} 张成片的压缩包。`);}
+  try {const archive=await createPhotoArchive(files);triggerDownload(archive,'帧好成片.zip');for(const task of ready)registerExport(task);showToast(`已开始下载 ${ready.length} 张成片的压缩包。`);}
   catch(error){showToast(error.message);}finally{renderTasks();}
 });
 $('#library-select-mode').addEventListener('click',()=>{librarySelecting=!librarySelecting;if(!librarySelecting)selectedPhotos.clear();$('#library-select-all').hidden=!librarySelecting;renderLibrary();});

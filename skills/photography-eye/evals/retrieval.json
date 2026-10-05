@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "frozenAt": "2026-10-03",
+  "method": "Top-3 contains at least one independently specified relevant heading. Development permits revision; holdout first run is recorded separately and cannot stay unseen after it is inspected.",
+  "development": [
+    {"id":"d01","query":"手机怎么控制景深，没有手动光圈","expected":["camera-settings#6","casebook#8"]},
+    {"id":"d02","query":"变焦是否真的能改变前后景透视","expected":["camera-settings#1"]},
+    {"id":"d03","query":"A档 自动ISO 到上限后最低快门还能保证吗","expected":["casebook#5","camera-settings#2"]},
+    {"id":"d04","query":"一张参考板同时生成主图与多张候选怎么排版","expected":["reference-visuals#2"]},
+    {"id":"d05","query":"第3个方案怎么蹲，沿用编号","expected":["field-format#3","casebook#6"]},
+    {"id":"d06","query":"草挡住楼了，蹲下满屏都是草","expected":["casebook#1"]},
+    {"id":"d07","query":"复杂街头人群是否必须简化","expected":["casebook#7","subject-playbooks#6"]},
+    {"id":"d08","query":"人物手势和彼此背向，居中肖像也成立吗","expected":["master-methods#2"]},
+    {"id":"d09","query":"Adams 亮河流和暗谷远山的观看关系","expected":["master-methods#3"]},
+    {"id":"d10","query":"Leiter 遮挡反射与前景色块","expected":["master-methods#4"]},
+    {"id":"d11","query":"Eggleston 普通物体的颜色如何组织画面","expected":["master-methods#6"]},
+    {"id":"d12","query":"同一地点暮色如何改变观看 Meyerowitz","expected":["master-methods#5"]},
+    {"id":"d13","query":"静物食物窗光咖啡怎么取景","expected":["subject-playbooks#8"]},
+    {"id":"d14","query":"宠物运动要怎么选快门和对焦","expected":["subject-playbooks#9","camera-settings#3"]},
+    {"id":"d15","query":"拍完之后怎么对比选片做观察练习","expected":["selection-learning#1","selection-learning#2"]},
+    {"id":"d16","query":"用户不能走动坐轮椅，同位置还有什么拍法","expected":["casebook#9"]}
+  ],
+  "holdout": [
+    {"id":"h01","query":"靠拉近镜头能让树枝不挡住后面的房子吗","expected":["camera-settings#1"]},
+    {"id":"h02","query":"只有iPhone，能不能调到1.8让后面散掉","expected":["camera-settings#6","casebook#8"]},
+    {"id":"h03","query":"想看这杯浓缩和勺子摆在木桌上还能拍成啥样","expected":["subject-playbooks#8"]},
+    {"id":"h04","query":"橘猫突然扭头了，不想拍糊","expected":["subject-playbooks#9","camera-settings#3"]},
+    {"id":"h05","query":"四个人互相靠着，有两个人看不见脸就一定不好吗","expected":["master-methods#2","subject-playbooks#5"]},
+    {"id":"h06","query":"画面边上很暗，中间弯曲的亮带通向远方，如何保留这种力量","expected":["master-methods#3","seeing#3"]},
+    {"id":"h07","query":"窗子上看见外面又映出屋里，遮住半个人也可以吗","expected":["master-methods#4"]},
+    {"id":"h08","query":"不要拆开做五张再贴起来，一次把大图小图和每张拍法都画好","expected":["reference-visuals#2"]},
+    {"id":"h09","query":"200出现在屏幕右下角，能不能确定是镜头毫米数","expected":["casebook#4","camera-settings#1"]},
+    {"id":"h10","query":"我已经坐在这里了，没法再挪窝，还能找到别的画面吗","expected":["casebook#9"]}
+  ]
+}

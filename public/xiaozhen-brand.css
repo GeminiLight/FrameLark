@@ -1,0 +1,12 @@
+/* 帧好 keeps the darkroom quiet; 小帧 appears where the user meets their companion. */
+.xiaozhen-avatar { object-fit:contain; }
+.account-avatar:has(.xiaozhen-avatar) { background:#f2e9d9;border-radius:50%; }
+.account-avatar img.xiaozhen-avatar { width:28px;height:28px;padding:2px; }
+.empty-workspace-icon.xiaozhen-welcome { width:88px;height:88px;background:transparent; }
+.empty-workspace-icon.xiaozhen-welcome img { width:88px;height:88px; }
+.agent-welcome>img.xiaozhen-avatar { width:84px;height:84px;margin-bottom:18px;opacity:1; }
+.agent-message-head i.xiaozhen-message-avatar { display:grid;place-items:center;flex:none;width:28px;height:28px;background:#f2e9d9;border-radius:50%; }
+.agent-message-head i.xiaozhen-message-avatar img { width:26px;height:26px;padding:2px; }
+@media (max-width:600px) {
+  .agent-welcome>img.xiaozhen-avatar { width:68px;height:68px;margin-bottom:12px; }
+}

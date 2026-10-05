@@ -162,7 +162,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
   $('project-details').addEventListener('click',async event=>{
     const button=event.target.closest('button');if(!button||!selected)return;
     try{
-      if(button.hasAttribute('data-project-copy')){await navigator.clipboard.writeText(`请用 Frameyn Skill 继续编辑这个项目：\n${selected.path}\n先 inspect 并查看当前预览与全部批注，基于最新 revision 生成候选。网页会同步候选，先让我比较再应用。`);notice('已复制项目位置和继续编辑说明。');return;}
+      if(button.hasAttribute('data-project-copy')){await navigator.clipboard.writeText(`请用 Zhenhao Skill 继续编辑这个项目：\n${selected.path}\n先 inspect 并查看当前预览与全部批注，基于最新 revision 生成候选。网页会同步候选，先让我比较再应用。`);notice('已复制项目位置和继续编辑说明。');return;}
       if(button.hasAttribute('data-project-reload')){await load(selected.id);return;}
       if(button.dataset.projectDiscard){await projectRequest(`/api/projects/${selected.id}/discard`,{method:'POST',value:{id:button.dataset.projectDiscard,revision:selected.revision}});await load(selected.id);return;}
       if(button.dataset.projectRestore){await projectRequest(`/api/projects/${selected.id}/restore`,{method:'POST',value:{id:button.dataset.projectRestore,revision:selected.revision}});await load(selected.id);return;}

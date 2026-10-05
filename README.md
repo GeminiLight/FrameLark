@@ -1,11 +1,11 @@
-# Frameyn · 帧映
+# 帧好 · AI 摄影工作台
 
-![Frameyn — An eye for every frame.](assets/frameyn-cover.svg)
+![小帧，帧好的摄影伙伴：观察、发现与取景](docs/images/xiaozhen-character-board.png)
 
 [![打开 Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "在线体验 · 需要 Vercel 访问权限")
 [![安装 Agent Skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
 [![启动本地 Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
-[![部署到 Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
+[![部署到 Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FZhenhao)
 [![浏览摄影知识](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#摄影知识)
 
 **照片精修，提供完整 Web 工作台、Online Demo 和 Agent Skill。**
@@ -13,6 +13,30 @@
 在浏览器中上传照片，审片、调色、比较风格、整理组图和导出。也可以让自己的视觉 Agent 使用 Skill，围绕原片、批注和版本继续精修。前端、AI 接口和 Skill 源码都在这个仓库中。
 
 [English](README.en.md) · [开始使用](#开始使用) · [功能与范围](#功能与范围) · [界面](#界面) · [摄影知识](#摄影知识)
+
+## 认识小帧
+
+**小帧是帧好的摄影伙伴，一只有「摄影眼」的观察小鸟。** 它好奇、细心，陪你看光落在哪里、构图如何取舍，再把照片修成想留下的样子。
+
+石墨灰的羽毛、奶油白的胸口、杏橙色的翅膀和向光看的眼神，是小帧的固定特征。彩铅质感保留手绘温度；它出现在欢迎区、顾问头像和 Agent 暗房，编辑时仍以照片为主角。产品名是 **帧好（Zhenhao）**，摄影伙伴叫 **小帧**。
+
+[透明头像](public/assets/xiaozhen-avatar.png) · [形象使用规范](docs/WEB_DESIGN.md#品牌与小帧)
+
+## 摄影眼：从现场找到下一张照片
+
+附上一张现场照，使用项目内的 [photography-eye · 摄影眼](skills/photography-eye/SKILL.md)：
+
+> 用 $photography-eye 看这里能拍什么。给我不同拍法，告诉我站哪、相机多高、怎么取景、用什么参数，以及拍完怎么调色精修。
+
+它提供机位、时机、参数和后期成片目标，默认一张主推加四个候选。它通过 `.agents/skills/photography-eye` 链接供项目内 Codex 发现；网站尚未接入这套现场拍摄辅导。
+
+## 主题选片与 AI 精修
+
+整理组图时，先确定主题，再挑有共同气氛、各自有内容的照片，逐张打磨后再比较整组节奏。人物、大场景和细节可以互相呼应，不要求九张都拍同一种东西。完整流程见 [主题驱动的组图](skills/photo-retouch/references/theme-led-series.md)。
+
+> 用 $photo-retouch 从这个目录整理一组朋友圈九宫格。先确定主题，挑有变化又互相呼应的九张，再逐张精修。保留原片，入选副本与成片分别放好，给我整组预览。
+
+Skill 会先检查当前宿主是否有可用的生图或图片编辑工具；没有时跳过 AI 环节，继续原片精修。可用时按要求数量一次制作多图试片或综合精修板，逐格检查裁剪、光影、局部、质感与像素质量，再决定用作参考或交付。生成板不保证每格都有独立高分辨率，也不替代原片验收；流程见 [AI 多图试片与完整精修](skills/photo-retouch/references/generated-reference.md)。
 
 ## 使用方式
 
@@ -27,8 +51,8 @@
 需要 **Node.js 20.9+**。以下命令使用 macOS / Linux shell；克隆私有仓库需要 GitHub 访问权限。
 
 ```sh
-git clone https://github.com/GeminiLight/frameyn.git
-cd frameyn
+git clone https://github.com/GeminiLight/Zhenhao.git
+cd Zhenhao
 ```
 
 ### Web UI
@@ -47,7 +71,7 @@ npm start
 docker compose up -d --build
 ```
 
-[部署与模型配置](docs/DEPLOYMENT.md) · [部署到 Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
+[部署与模型配置](docs/DEPLOYMENT.md) · [部署到 Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FZhenhao)
 
 ### 与 Codex 继续同一个项目
 
@@ -292,4 +316,4 @@ npm test
 
 ## 贡献者
 
-感谢 [Yijie Xu（@yeahjack）](https://github.com/yeahjack) 贡献逐项调整采纳、参数与局部层锁定、画面区域保护，以及渲染和预览响应优化：[#1](https://github.com/GeminiLight/frameyn/pull/1)、[#2](https://github.com/GeminiLight/frameyn/pull/2)。
+感谢 [Yijie Xu（@yeahjack）](https://github.com/yeahjack) 贡献逐项调整采纳、参数与局部层锁定、画面区域保护，以及渲染和预览响应优化：[#1](https://github.com/GeminiLight/Zhenhao/pull/1)、[#2](https://github.com/GeminiLight/Zhenhao/pull/2)。

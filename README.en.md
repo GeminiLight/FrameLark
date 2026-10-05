@@ -1,11 +1,11 @@
-# Frameyn · 帧映
+# Zhenhao · 帧好
 
-![Frameyn — An eye for every frame.](assets/frameyn-cover.svg)
+![Xiaozhen, the Zhenhao photography companion](docs/images/xiaozhen-character-board.png)
 
 [![Open the Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "Online demo · Vercel access required")
 [![Install the agent skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
 [![Start the local Web UI](https://img.shields.io/badge/Web_UI-Local-686D79?style=for-the-badge&labelColor=2B2C34)](#web-ui)
-[![Deploy to Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
+[![Deploy to Vercel](https://img.shields.io/badge/Deploy-Vercel-2B2C34?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FZhenhao)
 [![Browse photography knowledge](https://img.shields.io/badge/Photo_Knowledge-Browse-75677D?style=for-the-badge&labelColor=2B2C34)](#photography-knowledge)
 
 **Photo retouching with a complete Web studio, an Online Demo, and an agent skill.**
@@ -13,6 +13,28 @@
 Upload photos, adjust color, compare styles, curate a series, and export in your browser. Your own visual agent can also use the Skill to work with originals, annotations, and saved versions. The frontend, AI routes, and Skill source are all included in this repository.
 
 [简体中文](README.md) · [Get started](#get-started) · [Capabilities](#capabilities) · [Interface](#interface) · [Photography knowledge](#photography-knowledge)
+
+## Meet Xiaozhen · 小帧
+
+**Xiaozhen is Zhenhao’s photography companion: a curious little bird with an eye for photographs.** It helps you notice light, consider composition, and refine the feeling you want to keep.
+
+Its graphite feathers, cream chest, apricot wings, and upward gaze stay consistent. The pencil texture adds warmth to the welcome screen, advisor avatar, and agent darkroom while your photograph remains the focus. The product is **Zhenhao · 帧好**; the companion is **Xiaozhen · 小帧**.
+
+[Transparent avatar](public/assets/xiaozhen-avatar.png) · [Character guidelines](docs/WEB_DESIGN.md#品牌与小帧)
+
+## Find your next photograph
+
+Attach a scene photo and use the project’s [photography-eye skill](skills/photography-eye/SKILL.md):
+
+> Use $photography-eye to find different photographs here. Tell me where to stand, how high to hold the camera, how to frame the shot, which settings to use, and how to finish the image afterward.
+
+The skill offers viewpoints, timing, settings, and finishing targets, normally with one recommended image and four alternatives. Codex discovers it through `.agents/skills/photography-eye`. This scene-scouting workflow is currently available as a project skill.
+
+## Theme-led selection and optional AI finishing
+
+For a series, define its theme, choose varied images that belong together, refine each photograph, then review the sequence. People, wider scenes, and details can work together; a nine-image grid need not repeat one subject. See the [series workflow](skills/photo-retouch/references/theme-led-series.md).
+
+The retouching skill checks which image-generation or editing tools the host actually provides. If none are available, it continues with the originals. When useful, it can generate a multi-image finishing board in one call, then review each panel before using it as a reference or deliverable. Individual panels still need adequate pixels and detail; see [AI finishing](skills/photo-retouch/references/generated-reference.md).
 
 ## Choose how to work
 
@@ -27,8 +49,8 @@ Upload photos, adjust color, compare styles, curate a series, and export in your
 Requires **Node.js 20.9+**. Commands use macOS / Linux shell syntax. Cloning a private repository requires GitHub access.
 
 ```sh
-git clone https://github.com/GeminiLight/frameyn.git
-cd frameyn
+git clone https://github.com/GeminiLight/Zhenhao.git
+cd Zhenhao
 ```
 
 ### Web UI
@@ -47,7 +69,7 @@ Or run with Docker:
 docker compose up -d --build
 ```
 
-[Deployment and model settings](docs/DEPLOYMENT.md) · [Deploy to Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2Fframeyn)
+[Deployment and model settings](docs/DEPLOYMENT.md) · [Deploy to Vercel](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FGeminiLight%2FZhenhao)
 
 ### Agent darkroom
 
@@ -284,7 +306,7 @@ npm test
 
 ## Contributors
 
-Thanks to [Yijie Xu (@yeahjack)](https://github.com/yeahjack) for selective edit acceptance, parameter and local-layer locks, protected regions, and rendering and preview responsiveness improvements: [#1](https://github.com/GeminiLight/frameyn/pull/1), [#2](https://github.com/GeminiLight/frameyn/pull/2).
+Thanks to [Yijie Xu (@yeahjack)](https://github.com/yeahjack) for selective edit acceptance, parameter and local-layer locks, protected regions, and rendering and preview responsiveness improvements: [#1](https://github.com/GeminiLight/Zhenhao/pull/1), [#2](https://github.com/GeminiLight/Zhenhao/pull/2).
 
 ## Shared local projects
 

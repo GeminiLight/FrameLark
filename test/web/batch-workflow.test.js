@@ -57,7 +57,7 @@ test('original output obeys both pixel and side budgets, retains crop, and never
   const panorama=outputGeometry(null,30000,1000,8192);assert.equal(panorama.width,8192);assert.ok(panorama.height<=274);
 });
 test('export names preserve readable Unicode and cannot create archive paths',()=>{
-  assert.equal(safeFilename('../人物:夜景.png','jpg','01'),'.._人物_夜景-01-光间.jpg');assert.ok(!safeFilename('a\\b.jpg','png').includes('\\'));
+  assert.equal(safeFilename('../人物:夜景.png','jpg','01'),'.._人物_夜景-01-帧好.jpg');assert.ok(!safeFilename('a\\b.jpg','png').includes('\\'));
 });
 test('queued export snapshots remain immutable when the photo continues to be edited',()=>{
   const photo={...snapshot(),active:new Set(['a']),analysis:{recommendations:[{id:'a',adjustments:{exposure:.2}}]}};

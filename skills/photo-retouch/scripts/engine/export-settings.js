@@ -7,5 +7,5 @@ export function outputGeometry(crop,w,h,maxSide=8192) {
   const scale=Math.min(1,side/Math.max(rect.width,rect.height),Math.sqrt(exportLimits.maxPixels/(rect.width*rect.height)));
   return {rect,width:Math.max(1,Math.floor(rect.width*scale)),height:Math.max(1,Math.floor(rect.height*scale)),limited:scale<1,original:scale===1};
 }
-export function safeFilename(name,extension,index='') {return `${String(name).replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').slice(0,100) || 'photo'}${index ? `-${index}`:''}-帧映.${extension}`;}
+export function safeFilename(name,extension,index='') {return `${String(name).replace(/\.[^.]+$/,'').replace(/[\\/:*?"<>|\x00-\x1f]/g,'_').slice(0,100) || 'photo'}${index ? `-${index}`:''}-帧好.${extension}`;}
 export const printCentimeters=(pixels,dpi)=>pixels/Math.max(1,dpi)*2.54;

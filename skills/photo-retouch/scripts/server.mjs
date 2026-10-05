@@ -44,7 +44,7 @@ export async function serveProject(folder,{port=0,sessionFile,quiet=false}={}) {
         return json(res,404,{error:{message:'找不到这个操作。'}});
       }
       if(req.method!=='GET')return json(res,405,{error:{message:'不支持这个请求。'}});
-      const files={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/lettering.js':['lettering.js','text/javascript'],'/controlled-edits.js':['controlled-edits.js','text/javascript'],'/controlled-edits-model.js':['controlled-edits-model.js','text/javascript'],'/preview-requests.js':['preview-requests.js','text/javascript'],'/style.css':['style.css','text/css'],'/mark.svg':['mark.svg','image/svg+xml']};
+      const files={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/lettering.js':['lettering.js','text/javascript'],'/controlled-edits.js':['controlled-edits.js','text/javascript'],'/controlled-edits-model.js':['controlled-edits-model.js','text/javascript'],'/preview-requests.js':['preview-requests.js','text/javascript'],'/style.css':['style.css','text/css'],'/mark.svg':['mark.svg','image/svg+xml'],'/xiaozhen-avatar.png':['xiaozhen-avatar.png','image/png']};
       let file=files[url.pathname];
       if(['/engine/photo-geometry.js','/engine/crop-utils.js','/engine/editor-engine.js','/engine/render-frame.js','/engine/tone-processing.js','/engine/detail-processing.js'].includes(url.pathname))file=[new URL('.'+url.pathname,import.meta.url),'text/javascript'];
       if(!file)return json(res,404,{error:{message:'页面不存在。'}});

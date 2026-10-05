@@ -24,9 +24,9 @@ test('JPEG density, Exif ColorSpace and XMP are written while scan pixels remain
 });
 test('invalid encoders fail visibly instead of claiming a completed export',()=>{assert.throws(()=>writeImageMetadata(Uint8Array.of(1,2,3),'png'));assert.throws(()=>writeImageMetadata(Uint8Array.of(255,216,255,224,0,0),'jpeg'));});
 test('ZIP uses valid UTF-8 entry flags, CRC32, central directory and uncompressed data',async()=>{
-  const data=Uint8Array.of(0,1,2,3,255),blob=await createPhotoArchive([{name:'人物-光间.jpg',blob:new Blob([data])},{name:'风景.png',blob:new Blob(['hello'])}]),bytes=new Uint8Array(await blob.arrayBuffer()),v=new DataView(bytes.buffer);
+  const data=Uint8Array.of(0,1,2,3,255),blob=await createPhotoArchive([{name:'人物-帧好.jpg',blob:new Blob([data])},{name:'风景.png',blob:new Blob(['hello'])}]),bytes=new Uint8Array(await blob.arrayBuffer()),v=new DataView(bytes.buffer);
   assert.equal(v.getUint32(0,true),0x04034b50);assert.equal(v.getUint16(6,true),0x800);assert.equal(v.getUint16(8,true),0);assert.equal(v.getUint32(14,true),crc32(data));
-  const size=v.getUint16(26,true);assert.equal(new TextDecoder().decode(bytes.subarray(30,30+size)),'人物-光间.jpg');assert.deepEqual(bytes.subarray(30+size,30+size+5),data);
+  const size=v.getUint16(26,true);assert.equal(new TextDecoder().decode(bytes.subarray(30,30+size)),'人物-帧好.jpg');assert.deepEqual(bytes.subarray(30+size,30+size+5),data);
   const end=new DataView(bytes.buffer,bytes.length-22);assert.equal(end.getUint32(0,true),0x06054b50);assert.equal(end.getUint16(10,true),2);assert.equal(v.getUint32(end.getUint32(16,true),true),0x02014b50);
   await assert.rejects(()=>createPhotoArchive([]));await assert.rejects(()=>createPhotoArchive([{name:'a',blob:new Blob(['large'])}],{limit:1}));
 });
