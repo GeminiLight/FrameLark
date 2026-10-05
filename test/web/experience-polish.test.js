@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import {reviewContext,reviewContextPrompt,reviewBaseline,anchoredAssessment} from '../../public/review-context.js';
-import {exposureTrials,photoToolTrials,validReviewTrials,trialPrompt} from '../../public/review-calibration.js';
-import {photoMetering,meteringPrompt} from '../../public/photo-metering.js';
-import {createTaskQueue,latestReviewTask,elapsedReview,unresolvedFailure} from '../../public/task-queue.js';
-import {retryReview} from '../../public/review-retry.js';
-import {suggestionCandidate,scalePreview,scalablePreview} from '../../public/advisor-candidate.js';
-import {snapshotSettings} from '../../public/batch-edits.js';
+import {reviewContext,reviewContextPrompt,reviewBaseline,anchoredAssessment} from '../../apps/studio/public/review-context.js';
+import {exposureTrials,photoToolTrials,validReviewTrials,trialPrompt} from '../../apps/studio/public/review-calibration.js';
+import {photoMetering,meteringPrompt} from '../../apps/studio/public/photo-metering.js';
+import {createTaskQueue,latestReviewTask,elapsedReview,unresolvedFailure} from '../../apps/studio/public/task-queue.js';
+import {retryReview} from '../../apps/studio/public/review-retry.js';
+import {suggestionCandidate,scalePreview,scalablePreview} from '../../apps/studio/public/advisor-candidate.js';
+import {snapshotSettings} from '../../apps/studio/public/batch-edits.js';
 const fixture=JSON.parse(await readFile(new URL('./fixtures/vision-review.json',import.meta.url),'utf8'));
 
 test('reassessment uses validated operation facts without allowing client text into the parameter log',()=>{

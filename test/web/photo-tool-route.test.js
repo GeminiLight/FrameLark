@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EventEmitter} from 'node:events';
-import {handlePhotoToolRoutes} from '../../photo-tool-service.mjs';
-import {neutralSettings} from '../../public/editor-engine.js';
+import {handlePhotoToolRoutes} from '../../apps/studio/server/tools/routes.mjs';
+import {neutralSettings} from '../../apps/studio/public/editor-engine.js';
 const response=()=>{const res=new EventEmitter();res.writeHead=(status,headers)=>{res.status=status;res.headers=headers;res.headersSent=true;};res.end=value=>{res.writableEnded=true;res.value=JSON.parse(value);};return res;};
 const operation={id:'light',title:'提亮',tool:'tone',version:1,target:{kind:'image'},parameters:{mode:'delta',changes:[{key:'exposure',value:.1}]},dependsOn:[]};
 const payload=()=>({operations:[operation],state:{settings:neutralSettings(),locals:[],crop:null,style:null},source:{width:20,height:20},namespace:'route'});

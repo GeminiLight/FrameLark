@@ -1,28 +1,27 @@
-import {handlePhotoToolRoutes} from './photo-tool-service.mjs';
-import {photoTools} from './public/photo-tools/registry.js';
-import {ProjectBridge} from './project-bridge.mjs';
-import {handleProjectRoutes} from './project-routes.mjs';
-import {responseLanguage} from './public/response-language.js';
-import http from 'node:http';
+import {handlePhotoToolRoutes} from './tools/routes.mjs';
+import {photoTools} from '../public/photo-tools/registry.js';
+import {ProjectBridge} from './projects/bridge.mjs';
+import {handleProjectRoutes} from './projects/routes.mjs';
+import {responseLanguage} from '../public/response-language.js';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
-import {pathToFileURL,fileURLToPath} from 'node:url';
-import {cleanIntent} from './public/creative-intent.js';
-import { presets } from './public/presets.js';
-import { agentAdjustmentKeys, normalizeDesignReply } from './public/design-agent.js';
-import { createVisionService, VisionError } from './vision-service.mjs';
-import {normalizeMetricEvidence,normalizeAssessment} from './public/diagnosis-explanation.js';
-import {normalizeObservations} from './public/vision-review.js';
-import { validateReviewDecision } from './public/review-policy.js';
-import {controlReferencePrompt} from './public/control-reference.js';
-import {validPhotoMetering,meteringPrompt} from './public/photo-metering.js';
-import {reviewContext,reviewContextPrompt,reviewBaseline,anchoredAssessment} from './public/review-context.js';
-import {validReviewTrials,trialPrompt} from './public/review-calibration.js';
-import {reviewPhotoSeries} from './series-review.mjs';
+import {fileURLToPath} from 'node:url';
+import {cleanIntent} from '../public/creative-intent.js';
+import { presets } from '../public/presets.js';
+import { agentAdjustmentKeys, normalizeDesignReply } from '../public/design-agent.js';
+import { createVisionService, VisionError } from './ai/vision.mjs';
+import {normalizeMetricEvidence,normalizeAssessment} from '../public/diagnosis-explanation.js';
+import {normalizeObservations} from '../public/vision-review.js';
+import { validateReviewDecision } from '../public/review-policy.js';
+import {controlReferencePrompt} from '../public/control-reference.js';
+import {validPhotoMetering,meteringPrompt} from '../public/photo-metering.js';
+import {reviewContext,reviewContextPrompt,reviewBaseline,anchoredAssessment} from '../public/review-context.js';
+import {validReviewTrials,trialPrompt} from '../public/review-calibration.js';
+import {reviewPhotoSeries} from './ai/series.mjs';
 
-const port = Number(process.env.PORT || 3177);
-const host = process.env.HOST || '127.0.0.1';
-const publicDir = fileURLToPath(new URL('./public/',import.meta.url)).replace(/[\\/]$/,'');
+export const port = Number(process.env.PORT || 3177);
+export const host = process.env.HOST || '127.0.0.1';
+const publicDir = fileURLToPath(new URL('../public/',import.meta.url)).replace(/[\\/]$/,'');
 const cloudDeployment=process.env.VERCEL==='1';
 const vision = await createVisionService();
 const projects = new ProjectBridge();
@@ -371,15 +370,4 @@ async function routeRequest(request, response) {
   } catch { sendJson(response, 404, {error:'NOT_FOUND'}); }
 }
 
-if(process.argv[1] && import.meta.url===pathToFileURL(resolve(process.argv[1])).href){
-  const server=http.createServer(handleRequest);
-  server.on('close',()=>{vision.close();projects.close();});
-  for(const signal of ['SIGINT','SIGTERM'])process.once(signal,()=>{vision.close();projects.close();server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),1500).unref();});
-  server.on('error',error=>{
-    console.error(error.code==='EADDRINUSE'
-      ? `端口 ${port} 已被占用。请停止之前的工作台，或设置 PORT 使用其他端口。`
-      : `工作台未能启动：${error.message}`);
-    process.exitCode=1;
-  });
-  server.listen(port, host, () => console.log(`帧好工作台已启动：http://localhost:${server.address().port}\n未配置视觉模型时，仍可上传、手动精修和导出。按 Ctrl+C 停止。`));
-}
+export function closeServices(){vision.close();projects.close();}

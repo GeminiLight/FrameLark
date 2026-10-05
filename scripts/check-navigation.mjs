@@ -13,7 +13,7 @@ import {checkPhotoToolUI} from './check-photo-tool-ui.mjs';
 const exec=promisify(execFile),root=fileURLToPath(new URL('../',import.meta.url));
 const temporary=await mkdtemp(join(tmpdir(),'frameyn-navigation-'));
 const session='frameyn-nav-'+randomUUID();
-const server=spawn(process.execPath,[join(root,'server.mjs')],{cwd:temporary,env:{...process.env,PORT:'0',HOST:'127.0.0.1',VERCEL:'1',OPENAI_API_KEY:'',OPENAI_MODEL:''},stdio:['ignore','pipe','pipe']});
+const server=spawn(process.execPath,[join(root,'apps/studio/server/index.mjs')],{cwd:temporary,env:{...process.env,PORT:'0',HOST:'127.0.0.1',VERCEL:'1',OPENAI_API_KEY:'',OPENAI_MODEL:''},stdio:['ignore','pipe','pipe']});
 const browser=(...args)=>exec('agent-browser',['--session',session,...args],{timeout:30_000,maxBuffer:1_000_000}).then(r=>r.stdout.trim());
 const evaluate=async code=>{const result=JSON.parse(await browser('eval',code));return typeof result==='string'?JSON.parse(result):result;};
 const visible=id=>`(()=>{const e=document.querySelector(${JSON.stringify(id)}),r=e?.getBoundingClientRect();return JSON.stringify(Boolean(e&&!e.hidden&&r.width>0&&r.height>0&&r.top>=0&&r.bottom<=innerHeight&&r.left>=0&&r.right<=innerWidth));})()`;

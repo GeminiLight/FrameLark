@@ -1,7 +1,7 @@
 import { readFile, mkdir, writeFile, rename, chmod, rm } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import {CodexAppServer,CodexError} from './codex-app-server.mjs';
-import {normalizeModelTiers,routeModel} from './public/model-routing.js';
+import {CodexAppServer,CodexError} from './codex.mjs';
+import {normalizeModelTiers,routeModel} from '../../public/model-routing.js';
 
 export const defaultVisionModel = 'gpt-6.1-sol';
 export const defaultVisionEndpoint = 'https://api.openai.com/v1/responses';
@@ -237,7 +237,7 @@ export async function createVisionService({env = process.env, fetchImpl = fetch,
       if(!info.authenticated)throw new VisionError('CODEX_LOGIN_REQUIRED','请先运行 codex login，使用 ChatGPT 登录。',{status:401});
       for(const entry of Object.values(candidate.tiers)){const available=info.models.find(item=>item.id===entry.model);if(!available || !available.efforts.includes(entry.effort))throw new VisionError('INVALID_MODEL','所选模型或思考强度不在当前 Codex 列表中。',{status:400});}
     }
-    const bytes = await readFile(new URL('./public/assets/vision-probe.png',import.meta.url));
+    const bytes = await readFile(new URL('../../public/assets/vision-probe.png',import.meta.url));
     const probeSchema = {type:'object',additionalProperties:false,properties:{shape:{type:'string',enum:['circle','square','triangle','other']},foreground:{type:'string',enum:['red','blue','green','yellow','other']},background:{type:'string',enum:['red','blue','green','yellow','other']}},required:['shape','foreground','background']};
     const result = await request({
       max_output_tokens:1800,reasoning:{effort:'low'},

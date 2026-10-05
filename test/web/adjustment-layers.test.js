@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {globalAdjustments,effectiveAnnotations,remainingAdjustments,adjustmentSignature} from '../../public/adjustment-layers.js';
-import {presetById} from '../../public/presets.js';
-import {localDesignReply} from '../../public/design-agent.js';
+import {globalAdjustments,effectiveAnnotations,remainingAdjustments,adjustmentSignature} from '../../apps/studio/public/adjustment-layers.js';
+import {presetById} from '../../apps/studio/public/presets.js';
+import {localDesignReply} from '../../apps/studio/public/design-agent.js';
 
 test('removing one source preserves other suggestions, style, advisor and manual values',()=>{
   const input={manual:{exposure:.1,saturation:-4},recommendations:[{id:'light',adjustments:{exposure:.2}},{id:'color',adjustments:{saturation:8}}],active:new Set(['light','color']),preset:presetById('open-road'),amount:60,advisorLayers:[{id:'advice',settings:{shadows:7}}]};
@@ -40,7 +40,7 @@ test('local geometry and enable changes invalidate proposals while note-only cha
 });
 
 test('disabled or zero-strength local edits are stored, but no longer count as a visible effect',async()=>{
- const {hasLocalEffects}=await import('../../public/adjustment-layers.js');
+ const {hasLocalEffects}=await import('../../apps/studio/public/adjustment-layers.js');
  const item={id:'x',rect:{x:0,y:0,width:1,height:1},localSettings:{exposure:.2}};
  assert.equal(hasLocalEffects([item]),true);assert.equal(hasLocalEffects([{...item,localEnabled:false}]),false);assert.equal(hasLocalEffects([{...item,localAmount:0}]),false);
  assert.equal(hasLocalEffects([{...item,localSettings:null}],[{annotationId:'x',settings:{shadows:10}}]),true);

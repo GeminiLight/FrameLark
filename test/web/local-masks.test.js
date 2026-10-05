@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {maskWeight,brushBounds} from '../../public/local-masks.js';import {renderRegionEdits} from '../../public/region-edits.js';
-import {viewToOriginalPoint,originalToViewPoint,ratioCrop,straightenTransform,cropProtectedRegions} from '../../public/photo-geometry.js';
-import {grainAt,resolveRenderFrame} from '../../public/render-frame.js';
+import {maskWeight,brushBounds} from '../../apps/studio/public/local-masks.js';import {renderRegionEdits} from '../../apps/studio/public/region-edits.js';
+import {viewToOriginalPoint,originalToViewPoint,ratioCrop,straightenTransform,cropProtectedRegions} from '../../apps/studio/public/photo-geometry.js';
+import {grainAt,resolveRenderFrame} from '../../apps/studio/public/render-frame.js';
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 test('rectangle, radial, gradient and brush weights respect feathering and independent enable switch',()=>{
  const item={rect:{x:.1,y:.1,width:.8,height:.8},feather:.5};
@@ -30,7 +30,7 @@ test('local effects and grain follow original positions across rotated/cropped v
 });
 
 test('a ratio-locked corner resize retains the opposite anchor and exact source aspect',async()=>{
- const {resizeRatioCrop}=await import('../../public/photo-geometry.js');
+ const {resizeRatioCrop}=await import('../../apps/studio/public/photo-geometry.js');
  const box={x:.1,y:.1,width:.6,height:.8,angle:3},next=resizeRatioCrop(box,'nw',.05,.02,1.5,1200,800);
  near(next.x+next.width,box.x+box.width);near(next.y+next.height,box.y+box.height);near(next.width*1200/(next.height*800),1.5);assert.equal(next.angle,3);
 });

@@ -1,8 +1,8 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {renderPixels} from '../../public/editor-engine.js';
-import {assertTintCorrectionDirection,editorControlReference,controlReferencePrompt} from '../../public/control-reference.js';
-import {validateReviewDecision} from '../../public/review-policy.js';
-import {normalizeDesignReply} from '../../public/design-agent.js';
+import {renderPixels} from '../../apps/studio/public/editor-engine.js';
+import {assertTintCorrectionDirection,editorControlReference,controlReferencePrompt} from '../../apps/studio/public/control-reference.js';
+import {validateReviewDecision} from '../../apps/studio/public/review-policy.js';
+import {normalizeDesignReply} from '../../apps/studio/public/design-agent.js';
 import {readFile} from 'node:fs/promises';
 const fixture=JSON.parse(await readFile(new URL('./fixtures/vision-review.json',import.meta.url),'utf8'));
 test('actual tint response reduces green in the positive direction and magenta in the negative direction',()=>{

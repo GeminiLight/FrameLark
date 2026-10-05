@@ -113,7 +113,7 @@ FRAMEYN_PORT=3180 FRAMEYN_NODE_IMAGE=public.ecr.aws/docker/library/node:24-alpin
 | --- | --- |
 | Root Directory | 仓库根目录 |
 | Framework Preset | Other |
-| Output Directory | `public`，由 `vercel.json` 指定 |
+| Output Directory | `apps/studio/public`，由 `vercel.json` 指定 |
 | Build / Install Command | 留空，运行时代码不需要依赖安装 |
 | 模型环境变量 | `OPENAI_API_KEY`、`OPENAI_MODEL`、`OPENAI_API_URL` |
 
@@ -142,15 +142,17 @@ Skill 运行时以 `skills/photo-retouch/scripts/` 为准。安装器直接安�
 
 | 目录或文件 | 内容 |
 | --- | --- |
-| `public/` | 完整工作台的前端与浏览器图片处理 |
+| `apps/studio/` | 完整工作台，分为浏览器端 `public/` 与服务端 `server/` |
 | `api/` | Vercel 函数入口 |
-| `server.mjs` | 本地静态服务和 AI 路由 |
-| `vision-service.mjs`、`series-review.mjs` | 模型协议、连接校验、组图审阅 |
+| `apps/studio/server/index.mjs` | 本地启动入口，管理监听和关闭 |
+| `apps/studio/server/app.mjs` | 本地与 Vercel 共用的 HTTP 请求处理 |
+| `apps/studio/server/ai/`、`projects/`、`tools/` | 模型接入、文件项目桥接与工具执行 |
 | `skills/photo-retouch/` | 可独立安装的 Skill、CLI 与 Agent 暗房 |
 | `test/web/` | 工作台测试、授权照片和导入样张 |
 | `test/*.test.mjs` | Skill、逐项选择、保护和性能测试 |
 
 ```sh
+npm run architecture:check
 npm run engine:check
 npm run test:web
 npm run setup

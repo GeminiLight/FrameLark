@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validCrop, cropPixelRect, cropPixels } from '../../public/crop-utils.js';
+import { validCrop, cropPixelRect, cropPixels } from '../../apps/studio/public/crop-utils.js';
 
 test('image-aware crop suggestions reject unsafe or non-crops', () => {
   assert.equal(validCrop({x:.1,y:.1,width:.15,height:.8},{suggestion:true}),null);

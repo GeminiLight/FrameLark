@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {neutralSettings} from '../../public/editor-engine.js';
-import {planSync,planStyle,photoSnapshot,snapshotSettings,exposureOffset} from '../../public/batch-edits.js';
-import {createPhotoRenderer} from '../../public/photo-rendering.js';
-import {createTaskQueue} from '../../public/task-queue.js';
-import {outputGeometry,safeFilename} from '../../public/export-settings.js';
+import {neutralSettings} from '../../apps/studio/public/editor-engine.js';
+import {planSync,planStyle,photoSnapshot,snapshotSettings,exposureOffset} from '../../apps/studio/public/batch-edits.js';
+import {createPhotoRenderer} from '../../apps/studio/public/photo-rendering.js';
+import {createTaskQueue} from '../../apps/studio/public/task-queue.js';
+import {outputGeometry,safeFilename} from '../../apps/studio/public/export-settings.js';
 const snapshot=()=>({manual:neutralSettings(),active:[],advisorLayers:[],recommendations:[],presetId:null,presetAmount:75,crop:null,annotations:[]});
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 const histogram=index=>Array.from({length:64},(_,i)=>i===index ? 100:0);

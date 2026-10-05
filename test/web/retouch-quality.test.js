@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {editorControlReference} from '../../public/control-reference.js';
-import {renderPixels} from '../../public/editor-engine.js';
-import {photoMetering,validPhotoMetering,meteringPrompt} from '../../public/photo-metering.js';
-import {suggestionCandidate} from '../../public/advisor-candidate.js';
-import {createPhotoRequests} from '../../public/photo-requests.js';
-import {snapshotSettings} from '../../public/batch-edits.js';
-import {normalizeDesignReply} from '../../public/design-agent.js';
+import {editorControlReference} from '../../apps/studio/public/control-reference.js';
+import {renderPixels} from '../../apps/studio/public/editor-engine.js';
+import {photoMetering,validPhotoMetering,meteringPrompt} from '../../apps/studio/public/photo-metering.js';
+import {suggestionCandidate} from '../../apps/studio/public/advisor-candidate.js';
+import {createPhotoRequests} from '../../apps/studio/public/photo-requests.js';
+import {snapshotSettings} from '../../apps/studio/public/batch-edits.js';
+import {normalizeDesignReply} from '../../apps/studio/public/design-agent.js';
 const pixels=values=>new Uint8ClampedArray(values.flatMap(v=>[v,v,v,255]));
 const snapshot=()=>({manual:{exposure:.2},active:['a'],recommendations:[{id:'a',adjustments:{highlights:-12}},{id:'b',adjustments:{denoise:18}}],advisorLayers:[{id:'advisor',settings:{warmth:5}}],annotations:[{id:'sky',localSettings:{shadows:10}}],crop:{x:.1,y:0,width:.8,height:1,angle:2},presetId:'daily-soft',presetAmount:42});
 test('metering preserves encoded brightness and positional reference without automatic exposure decisions',()=>{

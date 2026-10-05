@@ -2,7 +2,7 @@ import {createLetteringEditor} from './lettering.js';
 import {createControlledEdits} from './controlled-edits.js';
 import {createPreviewRequests, createProjectPoller} from './preview-requests.js';
 import {createPreviewGate, selectedCandidateCanAccept, imageMatchesIdentity, hasLetteringContent, refinementSource, refinementSourceMatches, abortable} from './controlled-edits-model.js';
-import {ratioCrop,transformRect,originalToViewPoint} from './engine/photo-geometry.js';
+import {ratioCrop,transformRect,originalToViewPoint} from '../engine/photo-geometry.js';
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],token=new URLSearchParams(location.hash.slice(1)).get('token')||sessionStorage.getItem('guangjian-local-session');
 const embedded=new URLSearchParams(location.search).get('embedded')==='1',apiBase=new URL('./api/',location.href);
 if(embedded){document.body.classList.add('embedded');document.querySelector('.inspector-title h1').textContent='接着修这一张';}

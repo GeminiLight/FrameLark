@@ -1,11 +1,11 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {renderPixels} from '../public/editor-engine.js';
-import {inspectPixels} from '../public/diagnostics.js';
-import {validCrop} from '../public/crop-utils.js';
-import {normalizeObservations} from '../public/vision-review.js';
-import {normalizeMetricEvidence} from '../public/diagnosis-explanation.js';
-import {validateReviewDecision} from '../public/review-policy.js';
+import {renderPixels} from '../apps/studio/public/editor-engine.js';
+import {inspectPixels} from '../apps/studio/public/diagnostics.js';
+import {validCrop} from '../apps/studio/public/crop-utils.js';
+import {normalizeObservations} from '../apps/studio/public/vision-review.js';
+import {normalizeMetricEvidence} from '../apps/studio/public/diagnosis-explanation.js';
+import {validateReviewDecision} from '../apps/studio/public/review-policy.js';
 const root=new URL('../',import.meta.url),folder=new URL('test/web/fixtures/quality/',root);
 export async function qualityFixture(item) {
  const bytes=await readFile(new URL(item.pixels,folder)),header=/^P6\n(\d+) (\d+)\n255\n/.exec(bytes.toString('latin1'));

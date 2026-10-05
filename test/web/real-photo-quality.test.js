@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {createHash} from 'node:crypto';
-import {qualityFixture,qualityRecipes,reviewIssues} from '../../scripts/photo-quality.mjs';import {renderPixels} from '../../public/editor-engine.js';
+import {qualityFixture,qualityRecipes,reviewIssues} from '../../scripts/photo-quality.mjs';import {renderPixels} from '../../apps/studio/public/editor-engine.js';
 const folder=new URL('./fixtures/quality/',import.meta.url),manifest=JSON.parse(await readFile(new URL('manifest.json',folder))),baseline=JSON.parse(await readFile(new URL('baseline.json',folder)));
 test('licensed real-photo set has intact source checksums and explicitly labels derived exposure/noise/frames',async()=>{
  assert.equal(manifest.independentPhotos,6);assert.equal(manifest.cases.length,11);assert.ok(manifest.cases.some(item=>item.height>item.width));assert.ok(manifest.cases.some(item=>item.variant.includes('noise')));

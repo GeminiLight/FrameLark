@@ -20,7 +20,7 @@
 
 石墨灰的羽毛、奶油白的胸口、杏橙色的翅膀和向光看的眼神，是小帧的固定特征。彩铅质感保留手绘温度；它出现在欢迎区、顾问头像和 Agent 暗房，编辑时仍以照片为主角。产品名是 **帧好（FrameLark）**，摄影伙伴叫 **小帧**。
 
-[透明头像](public/assets/xiaozhen-avatar.png) · [形象使用规范](docs/WEB_DESIGN.md#品牌与小帧)
+[透明头像](apps/studio/public/assets/xiaozhen-avatar.png) · [形象使用规范](docs/WEB_DESIGN.md#品牌与小帧)
 
 ## 摄影眼：从现场找到下一张照片
 
@@ -113,7 +113,7 @@ node skills/photo-retouch/scripts/cli.mjs serve \
 
 [打开 Online Demo](https://ai-photography-preview-geminilights-projects.vercel.app/) 体验多图上传、诊断与内置顾问，目前需要 Vercel 访问权限。视觉模型状态以页面显示为准。
 
-在线应用与 `npm start` 使用本仓库的 `public/`、`api/` 和服务端源码。工作台草稿保存在各自浏览器中；Agent 暗房使用文件项目，浏览器草稿独立保存；通过“文件项目”打开后，可与 Skill 共用批注、候选、版本和导出记录。 也可通过便携项目文件手动交换快照。
+在线应用与 `npm start` 使用本仓库的 `apps/studio/public/`、`api/` 和服务端源码。工作台草稿保存在各自浏览器中；Agent 暗房使用文件项目，浏览器草稿独立保存；通过“文件项目”打开后，可与 Skill 共用批注、候选、版本和导出记录。 也可通过便携项目文件手动交换快照。
 
 </details>
 
@@ -202,7 +202,7 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 
 执行命令与 JSON：[组图工具](skills/photo-retouch/references/collection-tools.md) · 选片方法：[组图创作](skills/photo-retouch/references/collection-craft.md)
 
-![组图空间：选择用途、主题和阅读顺序，再逐张检查。](assets/screenshots/series-workspace.png)
+![组图空间：选择用途、主题和阅读顺序，再逐张检查。](docs/images/screenshots/series-workspace.png)
 
 | 功能 | 支持内容 |
 | --- | --- |
@@ -230,28 +230,28 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 
 **完整工作台**：`npm start` 启动，与在线应用使用同一份源码。下图使用内置示例照片，未配置视觉模型。
 
-![完整工作台：图库、修片、学习、偏好与照片审阅。](assets/screenshots/studio-overview.png)
+![完整工作台：图库、修片、学习、偏好与照片审阅。](docs/images/screenshots/studio-overview.png)
 
 **Agent 暗房**：与自己的 Agent 协作，比较文件项目中的候选。
 
 **手动精调**
 
-![本地 Web UI：完整照片与光色控制。](assets/screenshots/darkroom-edit.png)
+![本地 Web UI：完整照片与光色控制。](docs/images/screenshots/darkroom-edit.png)
 
 <details>
 <summary>批注、对照与导出</summary>
 
 **画面批注**：每处标记有独立范围与评论。
 
-![人物和晨光分别标记，右侧显示两条评论。](assets/screenshots/darkroom-annotations.png)
+![人物和晨光分别标记，右侧显示两条评论。](docs/images/screenshots/darkroom-annotations.png)
 
 **候选对照**：左侧为当前版本，右侧为未接受的试片。
 
-![当前版本与候选共享位置和倍率。](assets/screenshots/darkroom-compare.png)
+![当前版本与候选共享位置和倍率。](docs/images/screenshots/darkroom-compare.png)
 
 **导出成片**：按用途选择格式、尺寸与画质。
 
-![分享预设实际生成 1448 × 1086 JPEG。](assets/screenshots/darkroom-export.png)
+![分享预设实际生成 1448 × 1086 JPEG。](docs/images/screenshots/darkroom-export.png)
 
 </details>
 
@@ -259,7 +259,7 @@ Skill 按用途整理主题与必留条件，生成带编号的联系表，记�
 
 ## 摄影知识
 
-114 个章节，覆盖 10 类题材与场景、定调与成片审核、整组选片与交付，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
+169 个章节，覆盖 10 类题材与场景、定调与成片审核、整组选片与交付，并收录 10 位摄影师的学习参考。摄影师参考用于学习，不代表官方预设或精确复刻。
 
 <details>
 <summary>知识目录与检索</summary>
@@ -305,8 +305,19 @@ Agent 暗房与 CLI 读写同一份文件项目。原片单独保存，候选接
 
 ## 开发
 
+| 目录 | 内容 |
+| --- | --- |
+| `apps/studio` | 完整 Web 工作台与服务端 |
+| `api` | Vercel 函数入口 |
+| `skills` | 可独立安装的修片、摄影眼 Skill |
+| `scripts` / `test` | 开发工具、质量检查与测试 |
+| `docs` | 架构、运行说明、设计规范与截图 |
+
+[项目结构与依赖关系](docs/ARCHITECTURE.md)
+
 ```sh
 npm run setup
+npm run architecture:check
 npm run engine:check
 npm run knowledge:check
 npm test

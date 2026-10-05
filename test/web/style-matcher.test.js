@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { presets } from '../../public/presets.js';
-import { rankStyles, filterStyles } from '../../public/style-matcher.js';
-import { createAcceptedRecord } from '../../public/taste-memory.js';
+import { presets } from '../../apps/studio/public/presets.js';
+import { rankStyles, filterStyles } from '../../apps/studio/public/style-matcher.js';
+import { createAcceptedRecord } from '../../apps/studio/public/taste-memory.js';
 
 const brightPhoto = {stats:{mean:.62,deviation:.19,saturation:.27,brightClip:.02,darkClip:.01}};
 

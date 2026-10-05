@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createAcceptedRecord,sanitizeTasteRecords,summarizeTaste,tasteAffinity,rememberedStyleAmount } from '../../public/taste-memory.js';
-import { presetById } from '../../public/presets.js';
+import { createAcceptedRecord,sanitizeTasteRecords,summarizeTaste,tasteAffinity,rememberedStyleAmount } from '../../apps/studio/public/taste-memory.js';
+import { presetById } from '../../apps/studio/public/presets.js';
 
 const base = {mean:.48,deviation:.21,saturation:.25,warmth:.04,brightClip:.01,darkClip:.01};
 const accepted = (id,override = {}) => createAcceptedRecord({

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
-import { normalizeObservations, retainAppliedRecommendations, reviewSourceLabel } from '../../public/vision-review.js';
-import { combineSettings, renderPixels } from '../../public/editor-engine.js';
+import { normalizeObservations, retainAppliedRecommendations, reviewSourceLabel } from '../../apps/studio/public/vision-review.js';
+import { combineSettings, renderPixels } from '../../apps/studio/public/editor-engine.js';
 const reviewFixture = JSON.parse(await readFile(new URL('./fixtures/vision-review.json',import.meta.url),'utf8'));
 
 test('four review dimensions require specific evidence and safe approximate locations',() => {

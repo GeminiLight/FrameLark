@@ -14,7 +14,7 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
       if(process.platform!=='darwin')throw Object.assign(new Error('当前系统不支持 HEIC 转换，请先转为 JPEG/PNG。'),{code:'HEIC_UNAVAILABLE'});
       const bytes=await readBody(request,30*1024*1024);
       const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort();});
-      const {convertHeic}=await import('./skills/photo-retouch/scripts/heic.mjs');
+      const {convertHeic}=await import('../../../../skills/photo-retouch/scripts/heic.mjs');
       const png=await convertHeic(bytes,{signal:controller.signal});
       if(!response.destroyed){response.writeHead(200,{'Content-Type':'image/png','Cache-Control':'no-store'});response.end(png);}return true;
     }

@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
-import {normalizeMetricEvidence,normalizeAssessment,buildStatisticalAssessment} from '../../public/diagnosis-explanation.js';
-import {normalizeObservations} from '../../public/vision-review.js';import {inspectPixels} from '../../public/diagnostics.js';
+import {normalizeMetricEvidence,normalizeAssessment,buildStatisticalAssessment} from '../../apps/studio/public/diagnosis-explanation.js';
+import {normalizeObservations} from '../../apps/studio/public/vision-review.js';import {inspectPixels} from '../../apps/studio/public/diagnostics.js';
 const fixture=JSON.parse(await readFile(new URL('./fixtures/vision-review.json',import.meta.url)));
 test('visual interpretation requires evidence and applicability for subjective dimensions and every score',()=>{
  const observations=normalizeObservations(fixture.observations);assert.ok(observations.order.condition);assert.ok(observations.emotion.condition);

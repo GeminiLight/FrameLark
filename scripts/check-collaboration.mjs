@@ -29,7 +29,7 @@ let output='',server;
 try{
   const p=(await initProject(join(root,'test/web/fixtures/quality/portrait.png'),folder,{intent:'保留自然肤色，先比较再接受'})).project;
   await configureWorkflow(folder,{revision:p.revision,mode:'reviewed'});
-  server=spawn(process.execPath,[join(root,'server.mjs')],{cwd:temporary,env:{...process.env,PORT:'0',HOST:'127.0.0.1',VERCEL:'0',OPENAI_API_KEY:'',OPENAI_MODEL:''},stdio:['ignore','pipe','pipe']});
+  server=spawn(process.execPath,[join(root,'apps/studio/server/index.mjs')],{cwd:temporary,env:{...process.env,PORT:'0',HOST:'127.0.0.1',VERCEL:'0',OPENAI_API_KEY:'',OPENAI_MODEL:''},stdio:['ignore','pipe','pipe']});
   server.stderr.on('data',()=>{});
   const base=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('Studio did not start')),10000);server.once('error',reject);server.stdout.on('data',chunk=>{output+=chunk;const match=output.match(/http:\/\/localhost:(\d+)/);if(match){clearTimeout(timer);resolve('http://127.0.0.1:'+match[1]);}});});
   const studio=await cli('studio',null,['--url',base]);await browser('open',studio.url);await browser('set','viewport','1280','800');
