@@ -1,6 +1,6 @@
 # FrameLark · 帧好
 
-![Xiaozhen, the FrameLark photography companion](docs/images/xiaozhen-character-board.png)
+![FrameLark · 帧好 — See first. Shoot better. With Xiaozhen, our photography companion](docs/images/framelark-banner.png)
 
 [![Open the Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "Online demo · Vercel access required")
 [![Install the agent skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
