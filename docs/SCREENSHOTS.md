@@ -6,7 +6,7 @@ README 每项能力各展示一句调用示例、一张图和一段说明。图�
 
 | 示例 | 展示内容与来源 |
 | --- | --- |
-| [找画面 · 摄影眼](images/showcase/photography-eye.png) | 2026-10-05 制作的雨夜拍法参考，精选环境人物、伞面细节、城市灯光三个方向。由内置 imagegen 根据 [Andrey Grushnikov 的原图](https://www.pexels.com/photo/photo-of-a-person-holding-an-umbrella-940034/)制作，来源采用 [Pexels License](https://www.pexels.com/license/)。图内保留作者与 AI 示意标识；这是拍摄与后期目标，会重画伞骨、水珠和灯牌，不能当作准确原片裁剪或现场复拍成果。 |
+| [找画面 · 摄影眼](images/showcase/photography-eye.png) | 复用用户认可的 2026-10-04「光影楼梯」图板，展示层叠空间、暖光切片、扶手折线、暗面灯点与柱面光带。由内置 imagegen 根据 [Willian Justen de Vasconcellos 的原图](https://unsplash.com/photos/modern-architectural-staircase-with-dramatic-light-and-shadows-MKgocPMj2uM)制作，来源采用 [Unsplash License](https://unsplash.com/license)。原图已有成熟构图，本例展示不同表达方向；AI 会重画砖格与投影边界，不能当作精确原图裁剪或现场复拍成果。2026-10-06 直接复用原图板，没有重新生成。 |
 | [修照片 · 精修台](images/showcase/photo-retouch.png) | 2026-10-06 从已安装的 FrameLark 0.1.1 插件暗房实际截取，视口 1280 × 800。使用内置 `alpine-demo.png` 与已有示例项目，进入「对照」，左侧为原片，右侧为已保存的「晨光 · 轻调人物」。本轮只展示已有版本，没有重新调用模型或生成照片。 |
 | [做组图 · 组图册](images/screenshots/series-workspace.png) | 使用下面记录的真实组图空间截图：猫与咖啡两张 CC0 样片，展示「安静日常」的表达、顺序与逐张精调。它是两图操作示例，不是已完成的九宫格交付。 |
 

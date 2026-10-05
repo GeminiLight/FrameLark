@@ -59,11 +59,11 @@ Manual browser editing needs no model key. Connect a visual model in settings fo
 
 Attach a scene photo and describe your equipment and intent:
 
-> Use FrameLark to find photographs in this rainy night scene. Suggest viewpoints, compositions, and finishing directions.
+> Use FrameLark to explore this staircase and its light and shadows. Suggest different compositions and finishing directions.
 
-![Photography Eye: rainy-night portraits, umbrella details, and city lights](docs/images/showcase/photography-eye.png)
+![Photography Eye: five staircase compositions around layered space, warm light, and handrail lines](docs/images/showcase/photography-eye.png)
 
-Find different images in one scene, then use the viewpoint, settings, and finishing advice to photograph them. This board shows AI shot goals that need a real reshoot.
+Explore layered space, slices of warm light, and handrail lines, with framing, camera settings, and finishing advice. This board shows AI shot goals that need a real reshoot.
 
 <a id="photo-retouch-demo"></a>
 

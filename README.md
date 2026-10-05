@@ -59,11 +59,11 @@ npm run plugin:install
 
 附上现场照，告诉小帧你的设备和拍摄想法：
 
-> 用 FrameLark 看这个雨夜怎么拍，给我不同机位、构图和后期方向。
+> 用 FrameLark 看这个光影楼梯怎么拍，给我几种取景与后期方向。
 
-![摄影眼：雨夜人物、伞面细节与城市灯光的三种拍法参考](docs/images/showcase/photography-eye.png)
+![摄影眼：光影楼梯的层叠空间、暖光与扶手折线等五种取景参考](docs/images/showcase/photography-eye.png)
 
-从同一现场找到不同的画面，再按机位、参数和后期建议去拍。上图是 AI 拍摄目标示意，需现场复拍。
+围绕层叠空间、暖光切片和扶手折线，给出取景、参数与后期方向。上图为 AI 拍摄目标示意，需现场试拍。
 
 <a id="photo-retouch-demo"></a>
 
