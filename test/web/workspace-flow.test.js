@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {photoPhase,editorTab,inspectionVisibility,panelGuidance} from '../../public/workspace-flow.js';
+import {photoPhase,editorTab,inspectionVisibility,panelGuidance} from '../../apps/studio/public/workspace-flow.js';
 
 test('completion belongs only to the exact accepted or exported effect',()=>{
   const accepted={edited:true,signature:'a',acceptedSignature:'a',hasAcceptedRecord:true,exported:true};

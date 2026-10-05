@@ -1,1 +1,1 @@
-export {handleRequest as default} from '../server.mjs';
+export {handleRequest as default} from '../apps/studio/server/app.mjs';

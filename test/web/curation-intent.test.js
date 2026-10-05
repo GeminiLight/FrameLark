@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {cleanIntent,describeIntent,styleSelections} from '../../public/creative-intent.js';
-import {rankStyles} from '../../public/style-matcher.js';
-import {localDesignReply,normalizeDesignReply} from '../../public/design-agent.js';
-import {advisorCandidate,previewStillValid,actionExplanation} from '../../public/advisor-candidate.js';
-import {buildDraftWorkspace,restoreDraftPhoto} from '../../public/draft-store.js';
-import {snapshotSettings} from '../../public/batch-edits.js';
+import {cleanIntent,describeIntent,styleSelections} from '../../apps/studio/public/creative-intent.js';
+import {rankStyles} from '../../apps/studio/public/style-matcher.js';
+import {localDesignReply,normalizeDesignReply} from '../../apps/studio/public/design-agent.js';
+import {advisorCandidate,previewStillValid,actionExplanation} from '../../apps/studio/public/advisor-candidate.js';
+import {buildDraftWorkspace,restoreDraftPhoto} from '../../apps/studio/public/draft-store.js';
+import {snapshotSettings} from '../../apps/studio/public/batch-edits.js';
 const base=()=>({manual:{exposure:.12,saturation:5},active:['light'],recommendations:[{id:'light',adjustments:{highlights:-8}}],advisorLayers:[{id:'old',settings:{shadows:6}}],crop:{x:.05,y:.05,width:.9,height:.9,angle:3},presetId:'daily-soft',presetAmount:48,annotations:[{id:'face',rect:{x:.2,y:.2,width:.2,height:.2},note:'太暗',feather:.8,localSettings:{exposure:.1}}],agentApplied:[]});
 const message=action=>({id:'new',action,actionFingerprint:'new action'});
 test('explicit intent outranks conflicting profile, favorites and previous visual style picks',()=>{

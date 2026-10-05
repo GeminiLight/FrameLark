@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {attachmentContext,annotationPreviewFrame,validAttachmentRect} from '../../public/annotation-attachments.js';
+import {attachmentContext,annotationPreviewFrame,validAttachmentRect} from '../../apps/studio/public/annotation-attachments.js';
 
 const rect={x:.62,y:.08,width:.21,height:.18};
 test('sent attachment geometry and comments stay independent of later edits',()=>{

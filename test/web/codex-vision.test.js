@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import {mkdtemp,readFile,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {createVisionService} from '../../vision-service.mjs';
-import {defaultModelTiers} from '../../public/model-routing.js';
+import {createVisionService} from '../../apps/studio/server/ai/vision.mjs';
+import {defaultModelTiers} from '../../apps/studio/public/model-routing.js';
 const schema={type:'object',properties:{finding:{type:'string'}},required:['finding'],additionalProperties:false};
 const payload={instructions:'Review',input:[{role:'user',content:[{type:'input_text',text:'Review this photo.'}]}],text:{format:{schema}}};
 

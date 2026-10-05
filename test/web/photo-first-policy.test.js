@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {onDemandReview,canPreviewAdvisorResult} from '../../public/photo-first-policy.js';
-import {globalAdjustments} from '../../public/adjustment-layers.js';
-import {neutralSettings} from '../../public/editor-engine.js';
-import {inspectPixels} from '../../public/diagnostics.js';
+import {onDemandReview,canPreviewAdvisorResult} from '../../apps/studio/public/photo-first-policy.js';
+import {globalAdjustments} from '../../apps/studio/public/adjustment-layers.js';
+import {neutralSettings} from '../../apps/studio/public/editor-engine.js';
+import {inspectPixels} from '../../apps/studio/public/diagnostics.js';
 
 test('a new photo has usable local context without inventing a visual review',()=>{
   const photo={originalInspection:inspectPixels(new Uint8ClampedArray([100,120,140,255]),1,1),isDemo:false};

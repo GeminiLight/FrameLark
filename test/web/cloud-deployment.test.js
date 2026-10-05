@@ -4,7 +4,7 @@ import {EventEmitter} from 'node:events';
 
 process.env.VERCEL='1';
 process.env.OPENAI_API_KEY='';
-const {handleRequest,readBody}=await import('../../server.mjs');
+const {handleRequest,readBody}=await import('../../apps/studio/server/app.mjs');
 
 function response(){
   const res=new EventEmitter();

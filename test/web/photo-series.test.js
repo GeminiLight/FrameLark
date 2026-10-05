@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {seriesBrief,seriesSchema,seriesCandidate,seriesSignature,restoreSeries,validateSeriesReview} from '../../public/photo-series.js';
-import {neutralSettings} from '../../public/editor-engine.js';
-import {snapshotSettings} from '../../public/batch-edits.js';
-import {buildDraftWorkspace} from '../../public/draft-store.js';
-import {createVisionService} from '../../vision-service.mjs';
-import {reviewPhotoSeries} from '../../series-review.mjs';
+import {seriesBrief,seriesSchema,seriesCandidate,seriesSignature,restoreSeries,validateSeriesReview} from '../../apps/studio/public/photo-series.js';
+import {neutralSettings} from '../../apps/studio/public/editor-engine.js';
+import {snapshotSettings} from '../../apps/studio/public/batch-edits.js';
+import {buildDraftWorkspace} from '../../apps/studio/public/draft-store.js';
+import {createVisionService} from '../../apps/studio/server/ai/vision.mjs';
+import {reviewPhotoSeries} from '../../apps/studio/server/ai/series.mjs';
 const photo=id=>({id,imageName:id,creativeIntent:'保留安静',manual:neutralSettings(),active:new Set(),advisorLayers:[],analysis:{recommendations:[]},presetId:null,presetAmount:75,crop:null,annotations:[]});
 const review=()=>({title:'安静的山间',summary:'从全景到细节。',preserve:'保留日出和阴影差异。',tradeoff:'共同定调会压低色彩。',order:['b','a'],sharedStyle:{presetId:'none',amount:0,reason:'保留现有光色。'},photos:['a','b'].map(id=>({id,role:id==='b'?'开场':'细节',reason:'看得见的光线层次。',preserve:'自然晨光。',tradeoff:'注意暗部。',cropNote:'保持原片，不切主体。',changes:[]}))});
 test('a series can preserve every photo without adding adjustments',()=>{

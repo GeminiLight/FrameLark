@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {auditionSnapshot,createStyleAudition} from '../../public/style-audition.js';
-import {shortcutAction,photoNavigationIndex,pinchTransform,readerPosition} from '../../public/editor-navigation.js';
-import {globalAdjustments,effectiveAnnotations} from '../../public/adjustment-layers.js';
-import {neutralSettings} from '../../public/editor-engine.js';
-import {presetById} from '../../public/presets.js';
-import {renderPhotoPixels} from '../../public/photo-rendering.js';
+import {auditionSnapshot,createStyleAudition} from '../../apps/studio/public/style-audition.js';
+import {shortcutAction,photoNavigationIndex,pinchTransform,readerPosition} from '../../apps/studio/public/editor-navigation.js';
+import {globalAdjustments,effectiveAnnotations} from '../../apps/studio/public/adjustment-layers.js';
+import {neutralSettings} from '../../apps/studio/public/editor-engine.js';
+import {presetById} from '../../apps/studio/public/presets.js';
+import {renderPhotoPixels} from '../../apps/studio/public/photo-rendering.js';
 
 const snapshot=()=>({presetId:'golden-hour',presetAmount:50,manual:{...neutralSettings(),exposure:.12},active:['a'],recommendations:[{id:'a',adjustments:{shadows:7}}],crop:{x:.05,y:.1,width:.8,height:.7,angle:2},advisorLayers:[{id:'guide',settings:{highlights:-8}}],annotations:[{id:'mask',rect:{x:.1,y:.1,width:.2,height:.2},localSettings:{exposure:-.1}}]});
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};

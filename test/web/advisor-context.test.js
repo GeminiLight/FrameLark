@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {snapshotAnnotations,annotationsChanged} from '../../public/advisor-context.js';
+import {snapshotAnnotations,annotationsChanged} from '../../apps/studio/public/advisor-context.js';
 const notes=()=>[{id:'a',rect:{x:.1,y:.2,width:.2,height:.3},note:'这里太亮'},
   {id:'b',rect:{x:.5,y:.2,width:.1,height:.1},note:'保留这处的暖光',localSettings:{exposure:.1}}];
 test('advisor sends every current note and resolves an explicit focus without retaining mutable references',()=>{

@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {buildDraftWorkspace,restoreDraftPhoto} from '../../public/draft-store.js';
+import {buildDraftWorkspace,restoreDraftPhoto} from '../../apps/studio/public/draft-store.js';
 const photo=()=>({id:'photo-2',isDemo:false,originalBlob:new Blob(['original bytes'],{type:'image/png'}),imageName:'人物',active:new Set(['light']),manual:{exposure:.12},crop:{x:.1,y:0,width:.8,height:1},annotations:[{id:'note-1',note:'保留肤色',rect:{x:.2,y:.2,width:.2,height:.2}}],advisorLayers:[{id:'a',settings:{saturation:-5}}],history:{past:[{active:[],manual:{exposure:0},annotations:[]}],future:[]},conversation:[{role:'assistant',text:'轻调',id:'a',applied:true}],exported:true,acceptedSignature:'accepted',versions:[{kind:'manual',label:'保留气氛',snapshot:{active:[],manual:{exposure:.12},annotations:[]}}]});
 test('unsynchronized file edits keep a browser recovery copy until the project confirms saving',async()=>{
   const source={...photo(),projectId:'project',projectPending:true,sourceOriginalBlob:new Blob(['raw JPEG bytes'],{type:'image/jpeg'}),originalFileName:'original.jpg'};

@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {renderPhotoPixels,createPhotoRenderer} from '../../public/photo-rendering.js';
-import {cropPixelRect} from '../../public/crop-utils.js';
+import {renderPhotoPixels,createPhotoRenderer} from '../../apps/studio/public/photo-rendering.js';
+import {cropPixelRect} from '../../apps/studio/public/crop-utils.js';
 const image=(w,h,fn)=>Uint8ClampedArray.from({length:w*h*4},(_,i)=>i%4===3 ? 255:fn(Math.floor(i/4)%w,Math.floor(i/4/w),i%4));
 test('grain stays anchored to the same original pixels after cropping',()=>{
   const frame={fullWidth:100,fullHeight:80},settings={grain:30,exposure:.2};

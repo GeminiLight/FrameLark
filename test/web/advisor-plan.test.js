@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeDesignReply} from '../../public/design-agent.js';
-import {advisorCandidate} from '../../public/advisor-candidate.js';
-import {effectiveAnnotations} from '../../public/adjustment-layers.js';
-import {renderPhotoPixels} from '../../public/photo-rendering.js';
-import {neutralSettings} from '../../public/editor-engine.js';
+import {normalizeDesignReply} from '../../apps/studio/public/design-agent.js';
+import {advisorCandidate} from '../../apps/studio/public/advisor-candidate.js';
+import {effectiveAnnotations} from '../../apps/studio/public/adjustment-layers.js';
+import {renderPhotoPixels} from '../../apps/studio/public/photo-rendering.js';
+import {neutralSettings} from '../../apps/studio/public/editor-engine.js';
 const full={x:0,y:0,width:1,height:1};
 const excluded={x:.2,y:.2,width:.2,height:.2};
 const snapshot=()=>({manual:neutralSettings(),annotations:[],advisorLayers:[],active:[],recommendations:[],crop:null,presetId:null,presetAmount:75});

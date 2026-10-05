@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createProjectWorkspace} from '../../public/project-workspace.js';
+import {createProjectWorkspace} from '../../apps/studio/public/project-workspace.js';
 
 function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onLoad=()=>photo,onUpdate=()=>{},getVersions=()=>[]}={}){
   const previous={document:globalThis.document,location:globalThis.location,history:globalThis.history,EventSource:globalThis.EventSource,fetch:globalThis.fetch};

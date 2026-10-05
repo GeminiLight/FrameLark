@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readServiceJSON,requestFailure} from '../../public/service-response.js';
+import {readServiceJSON,requestFailure} from '../../apps/studio/public/service-response.js';
 test('session, oversized uploads and timeouts retain actionable failure reasons',async()=>{
   for(const [status,code] of [[401,'SESSION_REQUIRED'],[403,'SESSION_REQUIRED'],[413,'REQUEST_TOO_LARGE'],[504,'MODEL_TIMEOUT']]){
     await assert.rejects(readServiceJSON(new Response('{"error":"opaque"}',{status})),e=>e.code===code&&e.visionFailure.message.includes('保留'));

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {readFile} from 'node:fs/promises';
+import {realpathSync} from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {initProject,loadProject,publicProject,preferenceChoices,currentVersion,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,saveResultAudit,saveFeedback,recordExport,fail,localFailure} from './project.mjs';
@@ -122,4 +123,4 @@ export async function runCLI(values=process.argv.slice(2)) {
     default:fail('UNKNOWN_COMMAND','未知命令。运行 help 查看用法。');
   }
 }
-if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href)runCLI().then(result=>{if(result)console.log(JSON.stringify({ok:true,...result},null,2));}).catch(error=>{console.error(JSON.stringify({ok:false,error:localFailure(error)},null,2));process.exitCode=1;});
+if(process.argv[1]&&import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href)runCLI().then(result=>{if(result)console.log(JSON.stringify({ok:true,...result},null,2));}).catch(error=>{console.error(JSON.stringify({ok:false,error:localFailure(error)},null,2));process.exitCode=1;});

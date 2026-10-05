@@ -1,9 +1,9 @@
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {qualityFixture,reviewIssues} from './photo-quality.mjs';
-import {combineSettings,renderPixels,renderingVersion} from '../public/editor-engine.js';
-import {photoMetering} from '../public/photo-metering.js';
-import {inspectPixels} from '../public/diagnostics.js';
+import {combineSettings,renderPixels,renderingVersion} from '../apps/studio/public/editor-engine.js';
+import {photoMetering} from '../apps/studio/public/photo-metering.js';
+import {inspectPixels} from '../apps/studio/public/diagnostics.js';
 
 const base=process.env.PHOTO_EVAL_URL || 'http://localhost:3177';
 const phase=process.argv.find(arg=>arg.startsWith('--phase='))?.split('=')[1] || 'baseline';

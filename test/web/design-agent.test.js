@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { localDesignReply, normalizeDesignReply } from '../../public/design-agent.js';
+import { localDesignReply, normalizeDesignReply } from '../../apps/studio/public/design-agent.js';
 
 test('design actions only expose safe existing controls and valid crops', () => {
   const response = normalizeDesignReply({reply:'试一组光线调整。',principle:'保护高光。',action:{

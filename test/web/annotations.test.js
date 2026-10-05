@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { rectFromPoints,viewToImageRect,imageToViewRect,measureRegion } from '../../public/annotations.js';
-import { renderRegionEdits } from '../../public/region-edits.js';
+import { rectFromPoints,viewToImageRect,imageToViewRect,measureRegion } from '../../apps/studio/public/annotations.js';
+import { renderRegionEdits } from '../../apps/studio/public/region-edits.js';
 
 test('annotation stays anchored to the original image when crop changes', () => {
   const view = rectFromPoints({x:.2,y:.2},{x:.6,y:.5});

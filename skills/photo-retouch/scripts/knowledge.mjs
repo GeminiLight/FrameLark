@@ -1,4 +1,5 @@
 import {readFile,readdir} from 'node:fs/promises';
+import {realpathSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
 import {presets} from './engine/presets.js';
 import {adjustmentKeys} from './engine/editor-engine.js';
@@ -77,7 +78,7 @@ export async function runKnowledge(command='help',options={}){
   }
   fail('UNKNOWN_COMMAND','未知命令，运行 help 查看 search/read/check。');
 }
-if(process.argv[1]===fileURLToPath(import.meta.url)){
+if(process.argv[1]&&realpathSync(process.argv[1])===fileURLToPath(import.meta.url)){
   try{
     const [command,...rest]=process.argv.slice(2),options={};
     for(let i=0;i<rest.length;i+=2){if(!/^--(query|id|limit)$/.test(rest[i])||rest[i+1]===undefined)fail('ARGUMENT','选项需要值：--query、--id 或 --limit。');options[rest[i].slice(2)]=rest[i+1];}

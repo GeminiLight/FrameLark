@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {renderPixels} from '../../public/editor-engine.js';
+import {renderPixels} from '../../apps/studio/public/editor-engine.js';
 
 const row = values => new Uint8ClampedArray(values.flatMap(value => [value,value,value,255]));
 const values = pixels => Array.from({length:pixels.length/4},(_,i) => pixels[i*4]);

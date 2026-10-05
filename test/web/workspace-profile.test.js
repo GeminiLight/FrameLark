@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {aspectKind,summarizeWorkspace} from '../../public/workspace-profile.js';
+import {aspectKind,summarizeWorkspace} from '../../apps/studio/public/workspace-profile.js';
 
 test('workspace profile counts actual photo subjects and aspect ratios', () => {
   const summary = summarizeWorkspace([
