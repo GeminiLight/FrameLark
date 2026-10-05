@@ -54,6 +54,7 @@ jobs:
       - run: npm run test:navigation
       - run: npm run setup
       - run: npm run test:collaboration
+      - run: npm run test:exports
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10

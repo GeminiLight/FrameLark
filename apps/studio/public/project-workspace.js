@@ -10,7 +10,13 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
   document.querySelector('.page-heading').insertAdjacentHTML('afterend','<div class="project-sync-status" id="project-sync-status" hidden role="status"></div>');
   document.body.insertAdjacentHTML('beforeend',`<dialog id="project-dialog" class="project-dialog"><header><h2>文件项目</h2><button type="button" id="project-close" aria-label="关闭文件项目">×</button></header><p>照片、批注和版本保存在本机，网页与 Codex Skill 共用同一个项目。</p><button type="button" id="project-create">将当前照片保存为文件项目</button><form id="project-register"><label for="project-path">已有项目的文件夹路径</label><div><input id="project-path" placeholder="包含 project.json 的文件夹" /><button type="submit">打开</button></div></form><p id="project-notice" role="status"></p><section id="project-details"></section><h3>最近项目</h3><div id="project-recent"></div></dialog>
   <dialog id="project-preview" class="project-preview"><header><h2 id="project-preview-title">比较方案</h2><button type="button" id="project-preview-close" aria-label="关闭项目预览">×</button></header><div class="project-preview-images"><figure><figcaption>当前版本</figcaption><img id="project-before" alt="项目当前版本" /></figure><figure><figcaption>候选方案</figcaption><img id="project-after" alt="项目候选预览" /></figure></div><p id="project-preview-note"></p><button type="button" id="project-accept" disabled>应用这个方案</button></dialog>`);
-  const $=id=>document.getElementById(id),links=new Map();let selected=null,previewToken=null,available=false,updating=false;
+  const $=id=>document.getElementById(id),links=new Map(),updatingPhotos=new WeakMap();let selected=null,previewToken=null,available=false;
+  async function updatePhoto(photo,action){
+    if(!photo)return action();
+    updatingPhotos.set(photo,(updatingPhotos.get(photo)||0)+1);
+    try{return await action();}
+    finally{const count=updatingPhotos.get(photo)-1;if(count)updatingPhotos.set(photo,count);else updatingPhotos.delete(photo);}
+  }
   const collaboration=createProjectCollaboration({getPhoto,onOpen:()=>open(),onPreview:previewCandidate,onRequest:requestContinue,
     onSwitchEditor:photo=>flush(photo),
     onCancel:async id=>{const photo=getPhoto();await flush(photo);return mutate(photo,'handoff',{action:'cancel',id,revision:photo.projectRevision});},
@@ -62,8 +68,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     if(getPhoto()?.projectNativePending)throw new Error('协作精修里还有未保存的输入，请先保存、试片或重置后再切换项目。');
     const existing=getPhotos().find(p=>p.projectId===id),link=existing&&links.get(existing.id);
     if(link&&(link.dirty||link.busy||link.conflict))throw new Error('这个项目仍有未同步修改，请先保存或导出副本。');
-    updating=true;let photo;
-    try{photo=await onLoad(data,existing);if(!photo)throw new Error('照片未能打开。');await attach(photo,data);}finally{updating=false;}
+    const photo=await updatePhoto(existing,async()=>{const loaded=await onLoad(data,existing);if(!loaded)throw new Error('照片未能打开。');await attach(loaded,data);return loaded;});
     notice('已打开文件项目，后续修改会自动保存。');return photo;
   }
   async function refresh(photo){
@@ -72,8 +77,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     if(links.get(photo.id)!==link)return;
     if(data.revision<=photo.projectRevision)return;
     if(link.dirty||link.busy||!collaboration.isNative(photo)&&JSON.stringify(getPatch(photo))!==link.baseline){link.conflict=true;status();return;}
-    updating=true;
-    try{await onUpdate(photo,data);Object.assign(photo,{projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});link.data=data;link.error=null;link.baseline=JSON.stringify(getPatch(photo));if(previewToken&&previewToken.revision!==data.revision){previewToken=null;$('project-accept').disabled=true;}if(selected?.id===data.id)render(data);}finally{updating=false;status();}
+    try{await updatePhoto(photo,async()=>{await onUpdate(photo,data);Object.assign(photo,{projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});link.data=data;link.error=null;link.baseline=JSON.stringify(getPatch(photo));if(previewToken&&previewToken.revision!==data.revision){previewToken=null;$('project-accept').disabled=true;}if(selected?.id===data.id)render(data);});}finally{status();}
   }
   async function drainRemote(photo){
     const link=links.get(photo.id);if(!link||link.busy||photo.projectNativePending)return;
@@ -88,7 +92,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     try{await link.refreshing;}finally{link.refreshing=null;status();}
   }
   function schedule(photo){
-    if(updating||!photo?.projectId)return;
+    if(!photo?.projectId||updatingPhotos.has(photo))return;
     const link=links.get(photo.id);if(!link)return;
     if(collaboration.isNative(photo)){status(photo);return;}
     link.dirty=JSON.stringify(getPatch(photo))!==link.baseline||getVersions(photo).some(v=>!link.data.versions.some(saved=>saved.id===v.id));status();
@@ -132,7 +136,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
       if(reload){
         if(JSON.stringify(getPatch(photo))!==beforeReload){link.conflict=true;throw new Error('恢复已写入文件项目，但等待期间有新的网页修改。已保留这些修改，请先另存副本或重新读取项目。');}
         if(!data.supported){link.conflict=true;throw new Error(data.limitations||'这个版本需要在 Skill 中继续编辑。当前网页编辑仍保留。');}
-        updating=true;try{await onUpdate(photo,data);}finally{updating=false;}link.baseline=JSON.stringify(getPatch(photo));link.dirty=false;
+        await updatePhoto(photo,()=>onUpdate(photo,data));link.baseline=JSON.stringify(getPatch(photo));link.dirty=false;
       }
       Object.assign(photo,{projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});link.data=data;
       onVersions(photo,data);

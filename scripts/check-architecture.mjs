@@ -11,12 +11,14 @@ const rootFiles=new Set(['README.md','README.en.md','CONTRIBUTING.md','Dockerfil
 const errors=[];
 const exists=async path=>{try{await access(path);return true;}catch{return false;}};
 async function checkPath(owner,spec){
+  if(owner.startsWith('apps/studio/public/')&&spec.startsWith('node:'))errors.push(`${owner}: browser runtime imports Node-only code: ${spec}`);
   if(!spec.startsWith('.'))return;
   const target=resolve(root,dirname(owner),spec.split('?')[0]);
   if(!await exists(target))errors.push(`${owner}: missing module/resource ${spec}`);
   const destination=relative(root,target).split(sep).join('/');
   if(owner.startsWith('apps/studio/public/')&&!destination.startsWith('apps/studio/public/'))errors.push(`${owner}: browser code imports outside the public application: ${spec}`);
   if(owner.startsWith('skills/')&&!destination.startsWith('skills/'))errors.push(`${owner}: standalone skill depends on repository runtime: ${spec}`);
+  if(owner.startsWith('apps/studio/server/')&&owner!=='apps/studio/server/app.mjs'&&!owner.endsWith('/routes.mjs')&&destination.startsWith('apps/studio/server/')&&destination.endsWith('/routes.mjs'))errors.push(`${owner}: runtime depends on an HTTP route adapter: ${spec}; move shared logic to its own module`);
 }
 for(const file of files){
   const first=file.split('/')[0];

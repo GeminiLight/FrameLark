@@ -1,5 +1,6 @@
 import {versionToolRuns} from '../../public/photo-tools/history.js';
-import {Worker} from 'node:worker_threads';
+import {createProjectRenderPool} from './render-pool.mjs';
+import {publicToolRun} from '../tools/results.mjs';
 import {readFile,writeFile,mkdir,rename,realpath,mkdtemp,rm,stat} from 'node:fs/promises';
 import {watch} from 'node:fs';
 import {resolve,join,basename,sep} from 'node:path';
@@ -7,7 +8,7 @@ import {tmpdir} from 'node:os';
 import {randomUUID} from 'node:crypto';
 
 export class ProjectBridge {
-  constructor({root=process.cwd()}={}){this.root=resolve(root);this.file=join(this.root,'.guangjian/projects.json');this.records=null;this.writes=Promise.resolve();this.watchers=new Set();this.workers=new Set();}
+  constructor({root=process.cwd()}={}){this.root=resolve(root);this.file=join(this.root,'.guangjian/projects.json');this.records=null;this.writes=Promise.resolve();this.watchers=new Set();this.renderer=createProjectRenderPool();this.workers=this.renderer.workers;}
   async runtime(){
     try{return await import('../../../../skills/photo-retouch/scripts/project.mjs');}
     catch(error){if(error.code==='ERR_MODULE_NOT_FOUND')throw Object.assign(new Error('请在项目目录运行 npm run setup，安装本地图片处理依赖后重试。'),{code:'PROJECT_SETUP_REQUIRED'});throw error;}
@@ -90,7 +91,6 @@ export class ProjectBridge {
     const {runtime,path,p}=await this.resolve(id),limitations=runtime.workspaceLimitations(p);
     if(limitations)throw Object.assign(new Error(limitations),{code:'WORKSPACE_UNSUPPORTED'});
     const {createToolCandidate}=await import('../../../../skills/photo-retouch/scripts/tool-candidates.mjs');
-    const {publicToolRun}=await import('../tools/routes.mjs');
     const result=await createToolCandidate(path,{revision:value.revision,baseVersion:value.baseVersion,requestId:randomUUID(),actorId:'workspace-user',name:String(value.name||'工具组合').slice(0,40),goal:String(value.goal||''),tradeoff:String(value.tradeoff||''),operations:value.operations,selectedItemIds:value.selectedItemIds},{...options,namespace:value.namespace});
     return {...await this.mutationView(runtime,result.project,path),candidateId:result.candidate.id,toolRun:{...publicToolRun(result.toolRun),history:result.candidate.toolRuns,label:result.candidate.name}};
   }
@@ -107,18 +107,7 @@ export class ProjectBridge {
     return this.mutationView(runtime,result.project,path);
   }
   async render(action,folder,key,options,signal) {
-    if(signal?.aborted)throw Object.assign(new Error('操作已取消。'),{code:'CANCELLED'});
-    return new Promise((resolve,reject)=>{
-      const worker=new Worker(new URL('../../../../skills/photo-retouch/scripts/worker.mjs',import.meta.url));this.workers.add(worker);
-      let done=false;
-      const finish=async(error,value)=>{if(done)return;done=true;clearTimeout(timer);signal?.removeEventListener('abort',cancel);this.workers.delete(worker);await worker.terminate();error?reject(error):resolve(value);};
-      const cancel=()=>finish(Object.assign(new Error('操作已取消。'),{code:'CANCELLED'}));
-      const timer=setTimeout(()=>finish(Object.assign(new Error('图片处理超时，请缩小输出尺寸后重试。'),{code:'RENDER_TIMEOUT'})),120000);
-      signal?.addEventListener('abort',cancel,{once:true});
-      worker.once('error',error=>finish(error));worker.once('exit',()=>{if(!done)finish(new Error('图片处理已停止，请重试。'));});
-      worker.once('message',({result,error})=>finish(error?Object.assign(new Error(error.message),{code:error.code}):null,result));
-      worker.postMessage({id:1,action,folder,key,options});
-    });
+    return this.renderer.run({id:1,action,folder,key,options},{signal});
   }
   async preview(id,version,revision,signal){
     const {runtime,p,path}=await this.resolve(id);
@@ -151,5 +140,5 @@ export class ProjectBridge {
     const close=()=>{closed=true;clearTimeout(timer);watcher.close();this.watchers.delete(close);};
     watcher.on('error',()=>{send({error:'项目更新通知已断开，请重新打开。'});close();});this.watchers.add(close);return close;
   }
-  close(){for(const close of this.watchers)close();for(const worker of this.workers)worker.terminate();}
+  close(){for(const close of this.watchers)close();return this.renderer.close();}
 }

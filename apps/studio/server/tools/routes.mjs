@@ -2,8 +2,8 @@ import {existsSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {photoTools,normalizeToolPlan,compileToolPlan,validateToolState} from '../../public/photo-tools/registry.js';
 import {record,number,identifier,validate,fail} from '../../public/photo-tools/values.js';
-export const toolPreviewSummary=preview=>preview?Object.fromEntries(['width','height','pixelHash','frameSpecHash'].map(k=>[k,preview[k]])):undefined;
-export const publicToolRun=result=>({...result,records:result.records.map(({before,after,preview,...record})=>({...record,preview:toolPreviewSummary(preview)}))});
+import {toolPreviewSummary,publicToolRun} from './results.mjs';
+export {toolPreviewSummary,publicToolRun} from './results.mjs';
 const json=(response,status,value)=>{if(response.destroyed)return;response.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});response.end(JSON.stringify(value));};
 export async function handlePhotoToolRoutes(request,response,url,{readBody,allowed,cloud}){
   const subprocess=!cloud&&existsSync(new URL('../../../../skills/photo-retouch/scripts/photo-tool-worker.mjs',import.meta.url));
