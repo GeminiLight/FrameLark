@@ -16,7 +16,8 @@ import {emptyGuards,guardsOf,assertGuards,lockState,unlockState,validateGuards,g
 import {validateReferences,verifyReferences,protectionLimits} from './reference-store.mjs';
 export {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,hash};
 const text=(v,max=300)=>String(v??'').trim().slice(0,max),id=()=>randomUUID(),now=()=>new Date().toISOString();
-import {contextHash,activeDiagnosis,workflowStatus,assertWorkflowDelivery} from './workflow-state.mjs';
+import {contextHash,activeDiagnosis,workflowStatus,assertWorkflowDelivery,latestAudit} from './workflow-state.mjs';
+import {handoffView} from './handoff-state.mjs';
 const fingerprint=contextHash;
 export const currentVersion=p=>p.versions.find(v=>v.id===p.currentId);
 export function localFailure(error){
@@ -139,7 +140,13 @@ export async function createCandidate(folder,plan,{toolExecution,toolNamespace,s
     if(prior){if(prior.planHash!==planHash&&!(prior.legacy&&prior.planHash===legacyHash(plan)))fail('REQUEST_CONFLICT','同一请求编号对应不同方案，请使用新编号。');return {project:p,candidate:prior,reused:true};}
     if(!Number.isInteger(plan.revision)||plan.baseVersion!==p.currentId)fail('STALE_REVISION','方案需填写 inspect 返回的 revision 和 currentId。');expect(p,plan.revision);
     if(p.candidates.length>=8)fail('CANDIDATE_LIMIT','最多保留 8 个候选。请接受或取消一个后继续。');
-    object(plan,[...planKeys,'actorId','diagnosisId']);
+    object(plan,[...planKeys,'actorId','diagnosisId','handoffId']);
+    if(plan.handoffId!==undefined){
+      const request=p.handoffs?.find(r=>r.id===plan.handoffId);
+      if(!request||request.status!=='running')fail('HANDOFF_CLOSED','接续请求尚未接手或已结束，不再生成新结果。');
+      if(request.actorId!==plan.actorId)fail('HANDOFF_OWNER','候选需由接手此请求的 Agent 提交。');
+      if(request.contextHash!==fingerprint(p))fail('HANDOFF_STALE','接续上下文已更新，请重新读取后接手。');
+    }
     const diagnosis=activeDiagnosis(p);
     if(plan.actorId!==undefined&&(typeof plan.actorId!=='string'||!plan.actorId.trim()||plan.actorId.length>80))fail('INVALID_PLAN','actorId 需有效宿主身份。');
     if(plan.diagnosisId!==undefined&&plan.diagnosisId!==diagnosis?.id)fail('DIAGNOSIS_STALE','方案的诊断已过期。');
@@ -153,7 +160,7 @@ export async function createCandidate(folder,plan,{toolExecution,toolNamespace,s
       source=compileCandidate(p,source);
       if(source.guardOperation)fail('GUARD_SELECTION','解除保护试片需单独预览并接受，不能继续叠加精调。');
     }
-    const executable={...plan};delete executable.actorId;delete executable.diagnosisId;
+    const executable={...plan};delete executable.actorId;delete executable.diagnosisId;delete executable.handoffId;
     const namespace=toolNamespace||id();
     const normalized=normalizePlan(executable,{base:source.state,notes:p.notes,source:p.source,toolNamespace:namespace,cleanText:cleanTextOverlays});
     if(toolExecution)for(const item of normalized.items){const receipt=toolExecution.find(r=>r.id===item.id);if(receipt)item.execution={...structuredClone(receipt.execution),preview:receipt.preview?Object.fromEntries(['path','width','height','pixelHash','frameSpecHash'].map(k=>[k,receipt.preview[k]])):undefined};}
@@ -163,7 +170,7 @@ export async function createCandidate(folder,plan,{toolExecution,toolNamespace,s
       normalized.items=[snapshotItem(base.state,result.state,plan.name||'整组精调')];
       normalized.selectedItemIds=['whole-plan'];
     }
-    const draft={id:id(),name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:base.id,...(plan.fromCandidate?{refinedFrom:plan.fromCandidate}:{}),baseRevision:plan.revision,createdAt:now(),...(plan.operations?{toolNamespace:namespace,inheritedToolRuns:versionToolRuns(base)}:{toolRuns:versionToolRuns(base)}),baseFingerprint:fingerprint(p),actorId:plan.actorId||diagnosis?.actorId||'host-agent',diagnosisId:diagnosis?.id||null,goal:text(plan.goal),tradeoff:text(plan.tradeoff),requestId:text(plan.requestId,80),planHash,allowProtectedCrop:plan.allowProtectedCrop===true,...normalized};
+    const draft={id:id(),handoffId:plan.handoffId||null,name:text(plan.name,40)||'精调候选',mode:plan.mode==='lettering'?'lettering':'retouch',parentId:base.id,...(plan.fromCandidate?{refinedFrom:plan.fromCandidate}:{}),baseRevision:plan.revision,createdAt:now(),...(plan.operations?{toolNamespace:namespace,inheritedToolRuns:versionToolRuns(base)}:{toolRuns:versionToolRuns(base)}),baseFingerprint:fingerprint(p),actorId:plan.actorId||diagnosis?.actorId||'host-agent',diagnosisId:diagnosis?.id||null,goal:text(plan.goal),tradeoff:text(plan.tradeoff),requestId:text(plan.requestId,80),planHash,allowProtectedCrop:plan.allowProtectedCrop===true,...normalized};
     const candidate=compileCandidate(p,draft);
     if(candidate.legacy&&candidate.noChange)fail('NO_CHANGE','这份方案与当前效果一致，可以保留当前版本。');
     await verifyReferences(root,p,candidate.state);
@@ -449,5 +456,5 @@ export function preferenceChoices(p){
 }
 export const recordExport=(folder,value)=>mutateProject(folder,undefined,p=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...value,createdAt:now()});return {};});
 export function publicProject(p) {
-  return {...p,workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，macOS 可转换静态 HEIC/HEIF；JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
+  return {...p,currentAudit:currentVersion(p)?latestAudit(p,currentVersion(p))||null:null,collaboration:handoffView(p),workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:['8 位 sRGB；JPEG/PNG/WebP/AVIF 输入，macOS 可转换静态 HEIC/HEIF；JPEG/PNG 输出','输出最多 8192 px / 1600 万像素；局部范围是几何蒙版，不是自动主体分割','工具不调用模型；审片笔记来自宿主 Agent，图像统计不是审美结论']};
 }

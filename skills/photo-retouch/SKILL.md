@@ -104,9 +104,21 @@ description: 摄影审片、选片与精修：单张诊断，或从一批照片�
 
 网页与本 Skill 读写同一个 `project.json`，批注、候选选择、已保存版本和导出记录会同步。继续前仍须重新 `inspect`，使用最新 revision；网页有未同步修改时不要绕过冲突检查。网页预览不会自动接受候选。
 
-启用诊断与复审流程，含文字、保护设置，或批注与局部范围无法在完整工作台中一致表示的项目，继续使用下面的独立 Agent 暗房；完整工作台会明确提示，不会删除这些内容。
+开启诊断与复审、含文字或保护设置的项目会在完整工作台内进入“协作精修”，仍使用同一份项目和原生处理流程。也可用下面的 `serve` 独立预览。不要通过网页快照接口绕过诊断、复评或保护检查。
 
 macOS 可直接 `init` 静态 HEIC/HEIF，工具用系统解码器生成 8 位工作图，保留原文件字节。其他系统仍需先转换；RAW/TIFF 仍需导出 JPEG/PNG。
+
+## 接续请求与等待
+
+网页的“交给 Agent 继续”保存真实接续请求。查看 `inspect` 返回的 `project.collaboration`：queued 是等待接手，running 是已由 Agent 领取，不代表运行时会自行调用模型。
+
+1. 先 inspect 并看最新图与批注。用户要求处理网页接续时，用 `handoff --input` 提交 `{action:"claim", revision, id:<请求id>, actorId:<本宿主标识>}`。actorId 是宿主声明，不是认证身份。
+2. 每次写入用最新 revision。用 `{action:"progress", revision, id, actorId, summary}` 报告实际进度。生成候选或 compose 时填写 `handoffId: id` 和同一个 actorId，避免取消后的旧工作再次提交。
+3. 实际检查候选后，以 `{action:"complete", revision, id, actorId, summary, candidateIds:[<实际候选id>]}` 回应，留给用户比较。没有调整也可返回空列表并说明保留依据；complete 不等于接受、审核或偏好学习。失败用 action:"fail"，说明原因。
+4. 用户取消、当前意图／批注变化，或 HANDOFF_STALE/HANDOFF_CLOSED 时停止旧接续；重新 inspect，保留用户修改，不盲目重试。正常的 reviewed 和成片审核规则仍适用。
+5. 只有用户要求继续等待这个项目时，运行 `watch --project <project> --after-revision <刚读到的revision> --timeout 60`。它等待文件事件并返回 handoff、project-updated 或 timeout；收到事件后重新 inspect，处理已授权范围。不要声称仅启动 watch 就已开始审片，也不要在无人要求时无限等待。
+
+完整 JSON 和取消方式见 [工具参考](references/tools.md#接续请求)。
 
 ## 用户精调与批注
 

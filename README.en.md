@@ -324,3 +324,9 @@ Thanks to [Yijie Xu (@yeahjack)](https://github.com/yeahjack) for selective edit
 After `npm run setup`, use **文件项目** in the Web workspace to save the current photo or open an existing Skill project. Both surfaces share annotations, candidates, saved versions and export records, with revision checks for concurrent edits. `npm run photo -- studio --project /path/to/project` returns a link to the same project in the complete workspace. Protected or lettering projects continue in the standalone darkroom.
 
 The macOS local workspace can convert static HEIC/HEIF images with the system decoder and preserve original bytes. Other platforms, RAW and TIFF still require conversion.
+
+### Continuing with an agent in the local studio
+
+Local file projects now open reviewed workflows, text overlays, and protected edits inside the full studio's collaboration editor. The native project runtime remains authoritative; advanced edits are not flattened into browser snapshots. The standalone `serve` command remains available.
+
+“Continue with Agent” stores a handoff request and copies project context. Use `handoff` to claim work, report progress, and return real candidates; `watch --project <folder> --timeout 60` waits for requests or project changes. The host agent owns model execution and visual assessment. Human acceptance, cancellation, revision checks, and audit requirements remain separate.

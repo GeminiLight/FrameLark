@@ -23,6 +23,10 @@
       "type": "string",
       "pattern": "^[-\\w]{1,80}$"
     },
+    "handoffId": {
+      "type": "string",
+      "pattern": "^[-\\w]{1,80}$"
+    },
     "requestId": {
       "type": "string",
       "maxLength": 80

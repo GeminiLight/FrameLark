@@ -580,6 +580,7 @@ function showEmptyWorkspace() {
   reassessGeneration++;
   selectedEvidenceKey = null;
   currentPhotoId = null;
+  projectWorkspace.status(null);
   state.image = null;
   state.previewSource = null;
   state.previewData = null;
@@ -627,6 +628,7 @@ function preparePhotoPreview(photo) {
 
 function activatePhoto(id) {
   if (id === currentPhotoId || state.loading) return;
+  if(currentPhoto()?.projectNativePending){showToast('协作精修里还有未保存的输入，请先保存、试片或重置。');return;}
   const photo = photoSessions.find(item => item.id === id);
   if (!photo) return;
   endStyleAudition();
@@ -689,6 +691,7 @@ function removePhoto(id) {
   const index = photoSessions.findIndex(photo => photo.id === id);
   if (index < 0) return;
   const photo = photoSessions[index];
+  if(photo.projectNativePending){showToast('请先保存协作精修里的输入，或生成试片。');return;}
   projectWorkspace.release(photo);
   advisorRequests.cancel(id,'removed');reassessmentRequests.cancel(id,'removed');
   if(reassessmentRequest?.id===id)cancelReassessment('removed');
@@ -709,6 +712,7 @@ function removePhoto(id) {
 function requestClosePhoto(id) {
   const photo = photoSessions.find(item => item.id === id);
   if (!photo || state.loading) return;
+  if(photo.projectNativePending){showToast('请先保存协作精修里的输入，或生成试片。');return;}
   if ((photoHasEdits(photo) && !(id === currentPhotoId ? state.exported : photo.exported)) || photoHasNotes(photo)) {
     pendingCloseId = id;
     $('#replace-description').textContent = `「${photo.imageName}」有调整、批注或调整目标。这些随草稿保存，导出照片不会包含批注与意图。移出会从当前草稿移除这张照片，原片文件仍然保留。`;

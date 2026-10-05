@@ -27,6 +27,8 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
     const match=/^\/api\/projects\/([-a-zA-Z0-9]{1,80})(?:\/(.*))?$/.exec(url.pathname);
     if(!match){json(response,404,{error:{message:'找不到这个项目操作。'}});return true;}
     const [,id,operation='']=match;
+    if(operation==='editor'){response.writeHead(302,{Location:`/api/projects/${id}/editor/${url.search}`});response.end();return true;}
+    if(operation.startsWith('editor/')){await bridge.editor(request,response,url,id,`/api/projects/${id}/editor/`,readBody,controller.signal);return true;}
     if(!operation&&request.method==='GET'){json(response,200,await bridge.get(id));return true;}
     if(operation==='original'&&request.method==='GET'){const bytes=await bridge.original(id);response.writeHead(200,{'Content-Type':'application/octet-stream','Cache-Control':'no-store'});response.end(bytes);return true;}
     if(operation==='source'&&request.method==='GET') {const png=await bridge.source(id);response.writeHead(200,{'Content-Type':'image/png','Cache-Control':'no-store'});response.end(png);return true;}
@@ -36,6 +38,10 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
       const close=await bridge.subscribe(id,send);response.once('close',close);if(response.destroyed)close();return true;
     }
     if(operation==='save'&&request.method==='POST'){json(response,200,await bridge.save(id,await body(4*1024*1024)));return true;}
+    if(operation==='handoff'&&request.method==='POST'){
+      const value=await body();if(!['request','cancel'].includes(value.action))throw Object.assign(new Error('请由 Agent 工具接手或报告进度。'),{code:'HANDOFF_INVALID'});
+      json(response,200,await bridge.handoff(id,value));return true;
+    }
     if(operation==='versions'&&request.method==='POST'){json(response,200,await bridge.edition(id,await body()));return true;}
     if(operation==='versions/rename'&&request.method==='POST'){json(response,200,await bridge.renameVersion(id,await body()));return true;}
     if(operation==='tools'&&request.method==='POST'){

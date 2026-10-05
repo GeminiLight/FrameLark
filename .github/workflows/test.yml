@@ -51,6 +51,8 @@ jobs:
       - run: npm install --global agent-browser@0.38.1
       - run: agent-browser install --with-deps
       - run: npm run test:navigation
+      - run: npm run setup
+      - run: npm run test:collaboration
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10

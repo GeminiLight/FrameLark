@@ -81,7 +81,9 @@ docker compose up -d --build
 npm run photo -- studio --project /你的/照片项目
 ```
 
-打开返回的地址即可继续。含文字或保护设置的项目仍可使用下方的独立暗房。详情见 [文件项目说明](docs/DEPLOYMENT.md#网页与-skill-共享文件项目)。
+打开返回的地址即可继续。诊断、复审、文字与保护设置会在同一工作台内进入协作精修，也可使用下方的独立暗房。详情见 [文件项目说明](docs/DEPLOYMENT.md#网页与-skill-共享文件项目)。
+
+本机上传照片后，可点“与 Agent 一起修”保存当前调整与版本并发起接续；已有文件项目中点击“交给 Agent 继续”，接续请求和实际处理进度会随项目同步。Agent 可使用 `handoff` 领取并回应，或用 `watch` 等待新请求；网页收到候选后由你比较、选择和接受。宿主负责模型与看图，等待命令不会自行调用模型。
 
 对话建议可拆为工具组合，逐项比较与勾选，复用区域或对象蒙版。工具目录、参数 Schema 和依赖编译在 Web 与 Skill 中共享；本机运行 `npm run setup` 后，每项工具可在独立子进程执行并保留中间预览。对象定位目前使用明确的几何蒙版。详见 [工具架构](docs/PHOTO_TOOLS_ARCHITECTURE.md) 与 [Skill 用法](skills/photo-retouch/references/tool-composition.md)。
 

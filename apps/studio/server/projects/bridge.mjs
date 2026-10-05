@@ -30,16 +30,23 @@ export class ProjectBridge {
     return {runtime,p,path:entry.path};
   }
   view(p,path,runtime){
-    const current=p.versions.find(v=>v.id===p.currentId),limitations=runtime.workspaceLimitations(p);
+    const current=p.versions.find(v=>v.id===p.currentId),limitations=runtime.workspaceLimitations(p),native=runtime.publicProject(p);
     return {id:p.id,path,name:p.source.name,source:p.source,revision:p.revision,currentId:p.currentId,intent:p.intent,notes:p.notes,current:current.state,toolRuns:versionToolRuns(current),
-      supported:!limitations,limitations,
-      versions:p.versions.map((v,index)=>({id:v.id,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,toolRuns:versionToolRuns(v),state:v.state,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn,operation,execution})=>({id,title,dependsOn,operation,execution})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
+      supported:!limitations,limitations,editor:`/api/projects/${p.id}/editor/?embedded=1`,workflow:native.workflowStatus,collaboration:native.collaboration,
+      diagnosis:p.diagnoses?.find(d=>d.id===native.workflowStatus.diagnosisId)||null,updatedAt:p.updatedAt,acceptedBy:current.acceptedBy||null,
+      versions:p.versions.map((v,index)=>({id:v.id,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,toolRuns:versionToolRuns(v),state:v.state,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,actorId:c.actorId||null,handoffId:c.handoffId||null,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn,operation,execution})=>({id,title,dependsOn,operation,execution})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
       exports:(p.exports||[]).map(e=>({path:e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
   }
   fingerprint(p){return this.hash?.({current:p.currentId,state:p.versions.find(v=>v.id===p.currentId)?.state,source:p.source,intent:p.intent,notes:p.notes,pipeline:this.pipeline});}
   async mutationView(runtime,p,path){this.hash=runtime.hash;const {pipelineVersion}=await import('../../../../skills/photo-retouch/scripts/engine/edit-identity.js');this.pipeline=pipelineVersion;return this.view(p,path,runtime);}
   async get(id){const {runtime,p,path}=await this.resolve(id);return this.mutationView(runtime,p,path);}
   async list(){return Object.entries(await this.registry()).map(([id,r])=>({id,...r}));}
+  async handoff(id,value){const {runtime,path}=await this.resolve(id);const {handoffProject}=await import('../../../../skills/photo-retouch/scripts/handoff.mjs');const result=await handoffProject(path,value);return this.mutationView(runtime,result.project,path);}
+  async editor(request,response,url,id,base,readBody,signal){
+    const {path}=await this.resolve(id),{handleNativeProjectRoute}=await import('../../../../skills/photo-retouch/scripts/native-router.mjs');
+    return handleNativeProjectRoute(request,response,url,{folder:path,base,embedded:true,readBody:async req=>JSON.parse((await readBody(req,64*1024)).toString('utf8')),
+      render:(action,key,options)=>this.render(action,path,key,options,signal)});
+  }
   async create(bytes,name){
     const runtime=await this.runtime(),scratch=await mkdtemp(join(tmpdir(),'frameyn-project-import-'));
     try{
@@ -76,7 +83,7 @@ export class ProjectBridge {
       items.push({id:'local-'+a.id,title:'局部调整',patch:{locals:[local]}});
     }
     if(!items.length)throw new Error('这份方案与当前项目版本相同。');
-    const result=await runtime.createCandidate(path,{revision,baseVersion,requestId:randomUUID(),name:String(goal||'网页候选').slice(0,40),goal,tradeoff,items});
+    const result=await runtime.createCandidate(path,{revision,baseVersion,requestId:randomUUID(),actorId:'workspace-user',name:String(goal||'网页候选').slice(0,40),goal,tradeoff,items});
     return {...await this.mutationView(runtime,result.project,path),candidateId:result.candidate.id};
   }
   async proposeTools(id,value,options={}){
@@ -84,7 +91,7 @@ export class ProjectBridge {
     if(limitations)throw Object.assign(new Error(limitations),{code:'WORKSPACE_UNSUPPORTED'});
     const {createToolCandidate}=await import('../../../../skills/photo-retouch/scripts/tool-candidates.mjs');
     const {publicToolRun}=await import('../tools/routes.mjs');
-    const result=await createToolCandidate(path,{revision:value.revision,baseVersion:value.baseVersion,requestId:randomUUID(),name:String(value.name||'工具组合').slice(0,40),goal:String(value.goal||''),tradeoff:String(value.tradeoff||''),operations:value.operations,selectedItemIds:value.selectedItemIds},{...options,namespace:value.namespace});
+    const result=await createToolCandidate(path,{revision:value.revision,baseVersion:value.baseVersion,requestId:randomUUID(),actorId:'workspace-user',name:String(value.name||'工具组合').slice(0,40),goal:String(value.goal||''),tradeoff:String(value.tradeoff||''),operations:value.operations,selectedItemIds:value.selectedItemIds},{...options,namespace:value.namespace});
     return {...await this.mutationView(runtime,result.project,path),candidateId:result.candidate.id,toolRun:{...publicToolRun(result.toolRun),history:result.candidate.toolRuns,label:result.candidate.name}};
   }
   async original(id){const {path}=await this.resolve(id);return readFile(join(path,'source/original.bin'));}

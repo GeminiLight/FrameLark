@@ -50,6 +50,14 @@ test('a remote update never overwrites an edit made while it is being read',asyn
   assert.equal(env.photo.projectRevision,1);assert.equal(env.patch.settings.exposure,.3);assert.equal(env.workspace.hasPending(),true);
 });
 
+test('a lost mutation response still reconciles its committed file event',async t=>{
+  let rejectWrite,updated;
+  const env=fixture(t,{fetchImpl:async(_url,options)=>options?.method==='POST'?new Promise((_resolve,reject)=>{rejectWrite=reject;}):response(data(2)),onUpdate:(_photo,value)=>{updated=value;}});
+  await env.workspace.attach(env.photo,data());const write=env.workspace.discard(env.photo,{id:'candidate'});
+  await Promise.resolve();await env.events[0].onmessage({data:JSON.stringify({revision:2})});rejectWrite(Error('lost response'));await write;
+  assert.equal(env.photo.projectRevision,2);assert.equal(updated.revision,2);assert.equal(env.workspace.hasPending(),false);
+});
+
 test('a failed version migration keeps the browser draft; retry reuses its staged project',async t=>{
   const originalBlob=new Blob(['original']),versions=[{id:'edition',name:'自然版'}],photo={id:'photo',imageName:'test.png',originalBlob,versions};let created=0,saves=0;
   const env=fixture(t,{photo,getVersions:()=>versions,fetchImpl:async(url,options)=>{

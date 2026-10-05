@@ -200,7 +200,7 @@ function sendVisionFailure(response,error) {
 
 function canAccessLocalFiles(request,write=false) {
   if(cloudDeployment)return false;
-  const authorities=['localhost:'+port,'127.0.0.1:'+port,'[::1]:'+port],origins=authorities.map(h=>'http://'+h);
+  const localPort=request.socket?.localPort||port,authorities=['localhost:'+localPort,'127.0.0.1:'+localPort,'[::1]:'+localPort],origins=authorities.map(h=>'http://'+h);
   if(!authorities.includes(request.headers.host)||request.headers['sec-fetch-site']==='cross-site')return false;
   if(request.headers.origin&&!origins.includes(request.headers.origin))return false;
   return !write || origins.includes(request.headers.origin)&&['application/json','application/octet-stream'].some(type=>request.headers['content-type']?.startsWith(type));
@@ -208,7 +208,7 @@ function canAccessLocalFiles(request,write=false) {
 
 function canConfigureVision(request) {
   if(cloudDeployment)return false;
-  const authorities = ['localhost:' + port,'127.0.0.1:' + port,'[::1]:' + port];
+  const localPort=request.socket?.localPort||port,authorities = ['localhost:' + localPort,'127.0.0.1:' + localPort,'[::1]:' + localPort];
   const origins = authorities.map(authority => 'http://' + authority);
   return authorities.includes(request.headers.host) && origins.includes(request.headers.origin) && request.headers['content-type']?.startsWith('application/json');
 }
