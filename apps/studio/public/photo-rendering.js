@@ -1,8 +1,12 @@
-import {renderPixels} from './editor-engine.js';
+import {renderPixels,combineSettings} from './editor-engine.js';
 import {renderRegionEdits} from './region-edits.js';
+import {presetById} from './presets.js';
+import {renderStackPixels} from './edit-stack/render.js';
 
-export function renderPhotoPixels({pixels,width,height,settings,annotations,crop,frame}) {
-  return renderRegionEdits(renderPixels(pixels,width,height,settings,frame),width,height,annotations,crop,frame);
+export function renderPhotoPixels({pixels,width,height,settings,annotations,crop,frame,document,signal,maskView}) {
+  if(document){const base=document.base.state;settings=combineSettings({settings:base.settings},{settings:presetById(base.style?.id)?.adjustments,amount:(base.style?.amount||0)/100});annotations=base.locals;}
+  const legacy=renderRegionEdits(renderPixels(pixels,width,height,settings,frame),width,height,annotations,crop,frame);
+  return document?renderStackPixels({pixels:legacy,originalPixels:pixels,width,height,document,frame,signal,maskView}).pixels:legacy;
 }
 
 export function createPhotoRenderer() {

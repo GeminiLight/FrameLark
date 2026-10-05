@@ -47,6 +47,7 @@ export function applyCommands(document,commands,{expectedRevision=document.revis
 }
 export function restoreTransaction(document,transaction,direction,{expectedRevision=document.revision}={}){
   validateDocument(document);if(!['undo','redo'].includes(direction)||transaction.documentId!==document.documentId||expectedRevision!==document.revision)fail('STALE_REVISION','撤销记录与当前编辑不一致。');
+  validateDocument(transaction.before);validateDocument(transaction.after);if(documentHash(transaction.before)!==transaction.beforeHash||documentHash(transaction.after)!==transaction.afterHash||contentHash(transaction.before.source)!==contentHash(document.source)||contentHash(transaction.after.source)!==contentHash(document.source))fail('STALE_REVISION','撤销记录的来源或内容身份不一致。');
   const expected=direction==='undo'?transaction.afterHash:transaction.beforeHash;if(documentHash(document)!==expected)fail('STALE_REVISION','已有其他修改，请先读取当前编辑。');const next=clone(direction==='undo'?transaction.before:transaction.after);next.revision=document.revision+1;next.receipts=[];validateDocument(next);return next;
 }
 export function duplicateCommands(document,id,newId){const step=clone(stepAt(document,id));step.id=identifier(newId);step.title=step.title+' · 副本';return [{type:'AddStep',step,index:document.steps.findIndex(value=>value.id===id)+1}];}
