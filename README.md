@@ -1,6 +1,6 @@
 # 帧好 · FrameLark
 
-![帧好 · FrameLark：先看见，再拍好。右侧是一只小帧](docs/images/framelark-banner.png)
+![帧好 · FrameLark：从看见，到成片。右侧是一只小帧](docs/images/framelark-banner.png)
 
 [![打开 Online Demo](https://img.shields.io/badge/Online_Demo-Open_Studio-CDBB9E?style=for-the-badge&logo=vercel&logoColor=white&labelColor=2B2C34)](https://ai-photography-preview-geminilights-projects.vercel.app/ "在线体验 · 需要 Vercel 访问权限")
 [![安装 Agent Skill](https://img.shields.io/badge/Agent_Skill-Install-6C6A86?style=for-the-badge&labelColor=2B2C34)](#agent-skill)
