@@ -36,6 +36,11 @@ for(const file of files.filter(file=>/\.md$/.test(file))){
 }
 const manifest=JSON.parse(await readFile(new URL('../package.json',import.meta.url)));
 const deployment=JSON.parse(await readFile(new URL('../vercel.json',import.meta.url)));
+const ignored=(await readFile(new URL('../.vercelignore',import.meta.url),'utf8')).split(/\r?\n/).map(line=>line.trim());
+for(const pattern of ignored.filter(line=>/^[\w.-]+\/$/.test(line))){
+  const directory=pattern.slice(0,-1);
+  if(files.some(file=>file.startsWith('apps/studio/')&&file.split('/').slice(0,-1).includes(directory)))errors.push(`Vercel exclusion ${pattern} also removes application source; anchor repository-only exclusions with /`);
+}
 assert.equal(manifest.scripts.start,'node apps/studio/server/index.mjs');
 assert.equal(deployment.outputDirectory,'apps/studio/public');
 for(const options of Object.values(deployment.functions))assert.equal(await exists(resolve(root,options.includeFiles)),true,'Vercel probe image is packaged');
