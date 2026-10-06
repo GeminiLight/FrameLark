@@ -59,17 +59,18 @@ test('eye-only build never reads tracked retouch configuration',async t=>{
 
 test('standalone installer leaves retouch setup untouched and reports one available workflow',async t=>{
   const {root,put}=await fixture(t);
-  for(const name of ['build-framelark-plugin.mjs','install-framelark-plugin.mjs','installation-guide.mjs'])await put('scripts/'+name,await readFile(join(repositoryRoot,'scripts',name)));
+  for(const name of ['build-framelark-plugin.mjs','install-framelark-plugin.mjs','install-photography-eye.mjs','installation-guide.mjs'])await put('scripts/'+name,await readFile(join(repositoryRoot,'scripts',name)));
   await put('bin/codex',`#!/usr/bin/env node
 const args=process.argv.slice(2),eye=args.some(a=>a.startsWith('framelark-eye@'));
-if(args.includes('list'))console.log(JSON.stringify({marketplaces:[]}));
+if(args.includes('marketplace')&&args.includes('list'))console.log(JSON.stringify({marketplaces:[]}));
+else if(args.includes('list')){const market=args[args.indexOf('--marketplace')+1],name=market==='framelark-eye'?'framelark-eye':'framelark';console.log(JSON.stringify({installed:[{pluginId:name+'@'+market,installed:true,enabled:true}]}));}
 else if(args.includes('add')&&args.includes('plugin')&&!args.includes('marketplace')&&!args.includes('--help'))console.log(JSON.stringify({installedPath:${JSON.stringify(root)}+'/dist/'+(eye?'framelark-eye':'framelark')+'/marketplace/'+(eye?'framelark-eye':'framelark'),pluginId:eye?'framelark-eye@framelark-eye':'framelark@framelark',version:eye?'0.1.0':'0.1.7'}));
 else console.log('{}');
 `);await chmod(join(root,'bin/codex'),0o755);
   const env={...process.env,PATH:join(root,'bin')+delimiter+process.env.PATH};
   const result=spawnSync(process.execPath,[join(root,'scripts/install-framelark-plugin.mjs'),'--photography-eye'],{cwd:root,env,encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);
-  const output=JSON.parse(result.stdout);assert.deepEqual(output.skills,['photography-eye']);assert.equal(output.retouchDependencies,'not-required');assert.equal(output.gettingStarted.tasks.length,1);
+  const output=JSON.parse(result.stdout);assert.deepEqual(output.skills,['photography-eye']);assert.equal(output.installed,true);assert.equal(output.enabled,true);assert.equal(output.retouchDependencies,'not-required');assert.equal(output.gettingStarted.tasks.length,1);
   await assert.rejects(access(join(root,'retouch-setup-ran')));
   const full=spawnSync(process.execPath,[join(root,'scripts/install-framelark-plugin.mjs')],{cwd:root,env,encoding:'utf8'});assert.equal(full.status,0,full.stderr);await access(join(root,'retouch-setup-ran'));
 });
