@@ -1,18 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
   <defs>
     <linearGradient id="light" x1="9" y1="7" x2="15" y2="21" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#ECDCB2"/>
-      <stop offset=".46" stop-color="#CB9A66"/>
-      <stop offset="1" stop-color="#9B5840"/>
+      <stop stop-color="#C6CCBC"/><stop offset=".46" stop-color="#83927A"/><stop offset="1" stop-color="#3A493D"/>
     </linearGradient>
     <linearGradient id="fold" x1="13" y1="7" x2="16" y2="18" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#F7E9C4"/>
-      <stop offset=".53" stop-color="#DEB77D"/>
-      <stop offset="1" stop-color="#B17B50"/>
+      <stop stop-color="#E2E6D5"/><stop offset=".53" stop-color="#B5C0A4"/><stop offset="1" stop-color="#74816B"/>
     </linearGradient>
   </defs>
   <path d="M8.5 4H4v4.5M15.5 4H20v4.5M4 15.5V20h4.5M20 15.5V20h-4.5" stroke="#363D33" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="m8.65 13.3 6.7-6.75v9.35l-6.7 4.1z" fill="url(#light)" stroke="#986346" stroke-opacity=".4" stroke-width=".25" stroke-linejoin="round"/>
+  <path d="m8.65 13.3 6.7-6.75v9.35l-6.7 4.1z" fill="url(#light)" stroke="#52604D" stroke-opacity=".4" stroke-width=".25" stroke-linejoin="round"/>
   <path d="m12.35 9.57 3-3.02v9.35l-3 1.84z" fill="url(#fold)"/>
-  <path d="M12.35 9.57v8.17" stroke="#FFF4D7" stroke-opacity=".48" stroke-width=".3"/>
+  <path d="M12.35 9.57v8.17" stroke="#F6F8E8" stroke-opacity=".48" stroke-width=".3"/>
 </svg>
