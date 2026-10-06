@@ -1,0 +1,31 @@
+name: Publish FrameLark version packages
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: npm run plugin:check
+      - run: npm run plugin:check:photography-eye
+      - run: node --test test/web/release-install.test.js
+      - run: node scripts/build-release.mjs --tag "$RELEASE_TAG"
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+      - name: Publish verified archives and bootstrap
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/release/*.zip dist/release/install-framelark.mjs dist/release/framelark-release.json dist/release/SHA256SUMS --verify-tag --title "FrameLark $RELEASE_TAG" --notes "Versioned plugin packages. The unified installer prepares native photo dependencies and includes every visual example. No repository checkout or Git history is downloaded."
+    permissions:
+      contents: write
