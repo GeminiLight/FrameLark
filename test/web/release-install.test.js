@@ -38,7 +38,7 @@ async function fixture(t){
   if(args[1]==='list')return {installed:active?[{pluginId:calls.findLast(a=>a[1]==='add')[2],installed:true,enabled}]:[]};
   throw Error('Unexpected operation');
  };
- const fetchImpl=async url=>{fetches.push(url);if(/\/releases\/(latest|tags\/)/.test(url))return Response.json({tag_name:built.tag,draft:false,prerelease:false});if(url.endsWith('/framelark-release.json'))return Response.json(manifest);const name=url.split('/').at(-1);return archives[name]?new Response(archives[name]):new Response('',{status:404});};
+ const fetchImpl=async url=>{fetches.push(url);if(url.endsWith('/framelark-release.json'))return Response.json(manifest);const name=url.split('/').at(-1);return archives[name]?new Response(archives[name]):new Response('',{status:404});};
  const prepareRuntime=async folder=>{prepared.push(folder);await mkdir(join(folder,'skills/photo-retouch/node_modules'),{recursive:true});await writeFile(join(folder,'skills/photo-retouch/node_modules/ready'),'native runtime');};
  return {root,source,built,manifest,archives,calls,fetches,prepared,installRoot,marketplaceRoot,codex,fetchImpl,prepareRuntime,setExisting:value=>existing=value,setEnabled:value=>enabled=value};
 }
@@ -47,7 +47,7 @@ test('release artifacts contain all examples and no checkout, and full setup is 
  assert.equal(result.source,'github-release');assert.equal(result.retouchDependencies,'ready');assert.equal(f.prepared.length,2);assert.ok(f.prepared[0].includes('.install-'));assert.equal(f.prepared[1],result.installedPath);
  assert.equal(await readFile(join(result.installedPath,'skills/photo-retouch/assets/visual-cases/example.png'),'utf8'),'full example');
  await stat(join(result.installedPath,'skills/photo-retouch/node_modules/ready'));assert.ok(!await stat(join(f.marketplaceRoot,'releases',f.built.tag,'framelark/skills/photo-retouch/node_modules')).catch(()=>null),'Source cache never keeps a duplicate native runtime');
- assert.ok(f.fetches.every(url=>!url.includes('raw.githubusercontent.com')&&!url.endsWith('.git')));assert.ok(!f.calls.some(args=>args.includes('GeminiLight/FrameLark')));
+ assert.ok(f.fetches.every(url=>!url.includes('api.github.com')&&!url.includes('raw.githubusercontent.com')&&!url.endsWith('.git')));assert.ok(!f.calls.some(args=>args.includes('GeminiLight/FrameLark')));
  assert.deepEqual(f.calls.find(args=>args[1]==='marketplace'&&args[2]==='add'),['plugin','marketplace','add',f.marketplaceRoot]);
 });
 test('photography-eye installs only its release archive and repeat registration preserves the other entry',async t=>{
@@ -91,7 +91,7 @@ else if(args[1]==='marketplace')console.log('{}');
 else if(args[1]==='add'){const name=args[2].split('@')[0],target=path.join(base,name),catalog=JSON.parse(fs.readFileSync(path.join(market,'.agents/plugins/marketplace.json'))),entry=catalog.plugins.find(p=>p.name===name);fs.cpSync(path.join(market,entry.source.path),target,{recursive:true});console.log(JSON.stringify({pluginId:args[2],installedPath:target}));}
 else if(args[1]==='list')console.log('{"installed":[{"pluginId":"framelark@framelark","installed":true,"enabled":true},{"pluginId":"framelark-eye@framelark","installed":true,"enabled":true}]}');else process.exit(1);
 `);await chmod(join(bin,'codex'),0o755);
- const archive=f.manifest.plugins[0],prelude=`globalThis.fetch=async url=>url.includes('/releases/latest')?Response.json({tag_name:${JSON.stringify(f.built.tag)},draft:false}):url.endsWith('framelark-release.json')?Response.json(${JSON.stringify(f.manifest)}):new Response(Buffer.from((${JSON.stringify(Object.fromEntries(Object.entries(f.archives).map(([name,bytes])=>[name,bytes.toString('base64')])))} )[url.split('/').at(-1)],'base64'));\n`;
+ const archive=f.manifest.plugins[0],prelude=`globalThis.fetch=async url=>url.endsWith('framelark-release.json')?Response.json(${JSON.stringify(f.manifest)}):new Response(Buffer.from((${JSON.stringify(Object.fromEntries(Object.entries(f.archives).map(([name,bytes])=>[name,bytes.toString('base64')])))} )[url.split('/').at(-1)],'base64'));\n`;
  const code=await readFile(join(repositoryRoot,'scripts/install-framelark-release.mjs'),'utf8'),result=spawnSync(process.execPath,['--input-type=module'],{cwd:f.root,input:prelude+code,encoding:'utf8',env:{...process.env,FRAMELARK_INSTALL_ROOT:f.installRoot,PATH:bin+delimiter+process.env.PATH}});
  assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).retouchDependencies,'ready');assert.match(result.stderr,/runtime ready/);
  const inline=prelude+'await import('+JSON.stringify('data:text/javascript;base64,'+Buffer.from(code).toString('base64'))+');';const eye=spawnSync(process.execPath,['--input-type=module','-e',inline,'--','--photography-eye'],{cwd:f.root,encoding:'utf8',env:{...process.env,FRAMELARK_INSTALL_ROOT:f.installRoot,PATH:bin+delimiter+process.env.PATH}});assert.equal(eye.status,0,eye.stderr);assert.equal(JSON.parse(eye.stdout).pluginId,'framelark-eye@framelark');assert.equal(JSON.parse(eye.stdout).retouchDependencies,'not-required');

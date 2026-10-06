@@ -9,7 +9,7 @@ import {pathToFileURL} from 'node:url';
 import {inflateRawSync} from 'node:zlib';
 
 export const releaseRepository='GeminiLight/FrameLark';
-const github='https://github.com/'+releaseRepository,api='https://api.github.com/repos/'+releaseRepository;
+const github='https://github.com/'+releaseRepository;
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const limits={archive:16*1024*1024,expanded:32*1024*1024,files:1000};
 const fail=message=>{throw Error(message);};
@@ -99,9 +99,11 @@ export async function installFrameLarkRelease({photographyEye=false,tag,root=pro
   if(current&&!current.root)fail('当前 framelark 市场没有可用的本地来源，已保留配置。');
   const priorOrigin=current&&resolve(current.root)!==marketplaceRoot?canonicalOrigin(current.root):null;
   if(current&&resolve(current.root)!==marketplaceRoot&&!priorOrigin)fail('framelark 市场指向其他来源或本地构建，已保留原配置。请明确选择版本包安装来源后再继续。');
-  const release=JSON.parse((await download(api+'/releases/'+(tag?'tags/'+tag:'latest'),256*1024,fetchImpl)).toString('utf8'));
-  const releaseTag=release.tag_name;if(tag&&releaseTag!==tag||!/^v\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(releaseTag)||release.draft||release.prerelease&&!tag)fail('未找到可用的正式版本。');
-  const manifest=validateReleaseManifest(JSON.parse((await download(github+'/releases/download/'+releaseTag+'/framelark-release.json',512*1024,fetchImpl)).toString('utf8')),releaseTag);
+  // Release assets are public downloads and do not consume the anonymous REST
+  // API quota (often shared by proxies). The manifest pins the selected tag.
+  const manifestURL=github+'/releases/'+(tag?'download/'+tag:'latest/download')+'/framelark-release.json';
+  const value=JSON.parse((await download(manifestURL,512*1024,fetchImpl)).toString('utf8'));
+  const manifest=validateReleaseManifest(value,tag||value.tag),releaseTag=manifest.tag;
   const name=photographyEye?'framelark-eye':'framelark',pkg=manifest.plugins.find(p=>p.name===name),skills=photographyEye?['photography-eye']:['photo-retouch','photography-eye'];
   const files=releaseArchiveFiles(await download(github+'/releases/download/'+releaseTag+'/'+pkg.asset,limits.archive,fetchImpl),pkg);
   await mkdir(root,{recursive:true});const temporary=await mkdtemp(join(root,'.install-')),stage=join(temporary,name),target=join(marketplaceRoot,'releases',releaseTag,name),catalogPath=join(marketplaceRoot,'.agents/plugins/marketplace.json');
