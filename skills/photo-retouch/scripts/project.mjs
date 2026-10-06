@@ -1,3 +1,6 @@
+import {rawExtensions,rawLimits} from './raw/contract.mjs';
+import {createRawAssets} from './raw/source.mjs';
+import {createDocument} from './engine/edit-stack/document.js';
 import {cleanToolRuns,versionToolRuns} from './engine/photo-tools/history.js';
 import {readFile,writeFile,mkdir,rename,rm,stat,open} from 'node:fs/promises';
 import path from 'node:path';
@@ -41,7 +44,7 @@ export async function loadProject(folder) {
   const file=path.join(path.resolve(folder),'project.json');let p;
   try{const info=await stat(file);if(info.size>4*1024*1024)fail('PROJECT_TOO_LARGE','项目记录过大，无法安全读取。');p=JSON.parse(await readFile(file,'utf8'));}
   catch(error){if(error instanceof PhotoError)throw error;fail('PROJECT_UNAVAILABLE','项目无法读取。请使用含 project.json 的工作目录；已有源图与记录未改动。');}
-  if(![1,2,3].includes(p.schema) || !Number.isInteger(p.revision)||!Array.isArray(p.versions)||!p.versions.length || !Array.isArray(p.notes)||!Array.isArray(p.candidates)||!currentVersion(p)||!Number.isInteger(p.source?.width)||!Number.isInteger(p.source?.height)||p.source.width<1||p.source.height<1||p.source.width*p.source.height>50_000_000)fail('INVALID_PROJECT','项目记录不完整。请保留目录，使用备份恢复。');
+  if(![1,2,3].includes(p.schema) || !Number.isInteger(p.revision)||!Array.isArray(p.versions)||!p.versions.length || !Array.isArray(p.notes)||!Array.isArray(p.candidates)||!currentVersion(p)||!Number.isInteger(p.source?.width)||!Number.isInteger(p.source?.height)||p.source.width<1||p.source.height<1||p.source.width*p.source.height>(p.source.raw?rawLimits.pixels:50_000_000))fail('INVALID_PROJECT','项目记录不完整。请保留目录，使用备份恢复。');
   if(p.schema===1) migrateLegacy(p);
   if(!Array.isArray(p.exports)||p.exports.some(e=>!e||typeof e.path!=='string'||!Number.isSafeInteger(e.width)||!Number.isSafeInteger(e.height)||e.width<1||e.height<1))fail('INVALID_PROJECT','导出尺寸记录无效。请保留项目目录，使用备份恢复记录。');
   if(new Set([...p.versions,...p.candidates].map(v=>v.id)).size!==p.versions.length+p.candidates.length)fail('INVALID_PROJECT','版本编号重复。');
@@ -105,7 +108,12 @@ const expect=(p,revision)=>{if(revision!==undefined && revision!==p.revision)fai
 export async function mutateProject(folder,revision,fn) {
   return locked(folder,async root=>{const p=await loadProject(root);expect(p,revision);const result=await fn(p,root);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,...result};});
 }
-export async function initProject(image,folder,{intent=''}={}) {
+export async function initProject(image,folder,{intent='',signal,rawBackend='auto'}={}) {
+  if(rawExtensions.test(image)){
+    folder=path.resolve(folder);const cleanIntent=text(intent);signal?.throwIfAborted();const source=await createRawAssets(path.resolve(image),folder,{signal,backend:rawBackend});try{const state={settings:neutralSettings(),style:null,crop:null,locals:[],textOverlays:[],guards:emptyGuards()},projectId=id(),original={id:id(),name:'原片',parentId:null,createdAt:now(),state};
+    original.recipe=createDocument({documentId:'doc-'+projectId,source:{assetId:projectId,contentHash:source.checksum,normalizedHash:source.normalizedChecksum,width:source.width,height:source.height},base:state});
+    const project={schema:3,id:projectId,revision:1,createdAt:now(),updatedAt:now(),source,intent:cleanIntent,notes:[],versions:[original],currentId:original.id,acceptedId:null,candidates:[],reviews:[],exports:[],choices:[]};signal?.throwIfAborted();await atomicWrite(folder,project);return {folder,project};}catch(error){await rm(folder,{recursive:true,force:true});throw error;}
+  }
   folder=path.resolve(folder);const bytes=await readFile(path.resolve(image));
   if(bytes.length>30*1024*1024 || !bytes.length)fail('IMAGE_SIZE','照片为空或超过 30 MB，请转换成较小的 JPEG/PNG 后重新加入。');
   let metadata,normalized,info;

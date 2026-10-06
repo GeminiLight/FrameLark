@@ -7,6 +7,7 @@ import {parametersFor,pixelTool} from './tools.js';
 import {validateMasks,validateMaskRef} from './masks.js';
 import {contentHash,documentHash,renderHash} from './identity.js';
 export const stackPipeline='edit-stack-linear-v2';
+export const documentSourceLimit=96_000_000;
 export const legacyPipeline='photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1';
 const clone=value=>structuredClone(value);
 export function validateGeometry(geometry){object(geometry,['crop']);if(geometry.crop!==null){object(geometry.crop,['x','y','width','height','angle'],['x','y','width','height']);if(!validCrop(geometry.crop)||!Number.isFinite(geometry.crop.angle??0)||Math.abs(geometry.crop.angle??0)>15)fail('INVALID_DOCUMENT','构图范围或角度无效。');}return geometry;}
@@ -23,7 +24,7 @@ export function validateDocument(document){
   object(document,['schema','documentId','revision','source','pipeline','geometry','base','steps','masks','groups','receipts']);
   if(document.schema!==3)fail('DOCUMENT_SCHEMA_UNSUPPORTED','这个编辑文档版本不受支持。');identifier(document.documentId);
   if(!Number.isSafeInteger(document.revision)||document.revision<0)fail('INVALID_DOCUMENT','编辑文档 revision 无效。');
-  object(document.source,['assetId','contentHash','normalizedHash','width','height'],['assetId','contentHash','width','height']);identifier(document.source.assetId);hashValue(document.source.contentHash);if(document.source.normalizedHash!==undefined)hashValue(document.source.normalizedHash);for(const key of ['width','height']){number(document.source[key],1,16384);if(!Number.isInteger(document.source[key]))fail('INVALID_DOCUMENT','源尺寸须为整数。');}if(document.source.width*document.source.height>50_000_000)fail('RENDER_BUDGET_EXCEEDED','源图像素超过项目上限。');
+  object(document.source,['assetId','contentHash','normalizedHash','width','height'],['assetId','contentHash','width','height']);identifier(document.source.assetId);hashValue(document.source.contentHash);if(document.source.normalizedHash!==undefined)hashValue(document.source.normalizedHash);for(const key of ['width','height']){number(document.source[key],1,16384);if(!Number.isInteger(document.source[key]))fail('INVALID_DOCUMENT','源尺寸须为整数。');}if(document.source.width*document.source.height>documentSourceLimit)fail('RENDER_BUDGET_EXCEEDED','源图像素超过项目上限。');
   object(document.pipeline,['id','colorSpace','kernelVersion']);if(document.pipeline.id!==stackPipeline||document.pipeline.colorSpace!=='linear-srgb'||document.pipeline.kernelVersion!==1)fail('TOOL_VERSION_UNSUPPORTED','编辑栈管线版本不受支持。');validateGeometry(document.geometry);
   object(document.base,['kind','pipeline','state','stateHash','presetHash']);if(document.base.kind!=='legacy-v1'||document.base.pipeline!==legacyPipeline)fail('TOOL_VERSION_UNSUPPORTED','兼容基础的渲染版本不受支持。');
   object(document.base.state,['settings','style','crop','locals']);validateToolState(document.base.state);hashValue(document.base.stateHash);if(contentHash(document.base.state)!==document.base.stateHash)fail('LEGACY_BASE_CHANGED','兼容基础身份不一致。');

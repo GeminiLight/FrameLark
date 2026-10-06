@@ -1,4 +1,5 @@
 import {Worker} from 'node:worker_threads';
+import {createCoalescedJobs} from './coalesced-jobs.mjs';
 
 const failure=(code,message)=>Object.assign(new Error(message),{code});
 
@@ -7,7 +8,7 @@ const failure=(code,message)=>Object.assign(new Error(message),{code});
 export function createProjectRenderPool({concurrency=2,maxQueued=8,timeoutMs=120000,
   createWorker=()=>new Worker(new URL('./worker.mjs',import.meta.url))}={}){
   if(!Number.isInteger(concurrency)||concurrency<1||!Number.isInteger(maxQueued)||maxQueued<0||!Number.isFinite(timeoutMs)||timeoutMs<=0)throw new TypeError('Invalid project render limits');
-  const queue=[],active=new Set(),workers=new Set();let closed=false,closing;
+  const share=createCoalescedJobs(),queue=[],active=new Set(),workers=new Set();let closed=false,closing;
 
   function finish(task,error,result){
     if(task.done)return;
@@ -36,12 +37,13 @@ export function createProjectRenderPool({concurrency=2,maxQueued=8,timeoutMs=120
       }catch(error){finish(task,error);}
     }
   }
-  return {
+  const pool={
     workers,
     get status(){return {active:active.size,queued:queue.length,closed,concurrency,maxQueued};},
-    run(message,{signal}={}){
+    run(message,{signal,sharedRun=false}={}){
       if(closed)return Promise.reject(failure('RENDER_UNAVAILABLE','图片处理已停止，请重新打开工作台。'));
       if(signal?.aborted)return Promise.reject(failure('CANCELLED','操作已取消。'));
+      if(!sharedRun&&['frame','preview'].includes(message.action)&&message.options?.revision!==undefined){const {id,...identity}=message;return share(JSON.stringify(identity),sharedSignal=>pool.run(message,{signal:sharedSignal,sharedRun:true}),signal);}
       if(active.size>=concurrency&&queue.length>=maxQueued)return Promise.reject(failure('RENDER_BUSY','图片处理队列已满，请等候已开始的任务，或取消部分预览后重试。'));
       const task={message,signal,done:false};
       task.promise=new Promise((resolve,reject)=>{
@@ -59,5 +61,5 @@ export function createProjectRenderPool({concurrency=2,maxQueued=8,timeoutMs=120
       for(const task of tasks)finish(task,failure('RENDER_UNAVAILABLE','图片处理已停止，已有编辑仍已保存。'));
       return closing;
     }
-  };
+  };return pool;
 }

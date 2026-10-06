@@ -74,3 +74,11 @@ test('an unconfirmed worker stop rejects waiting jobs and disables new admission
   await assert.rejects(first,{code:'RENDER_UNAVAILABLE'});await assert.rejects(waiting,{code:'RENDER_UNAVAILABLE'});
   await assert.rejects(run(3),{code:'RENDER_UNAVAILABLE'});assert.equal(created.length,1);assert.equal(pool.status.closed,true);
 });
+
+
+test('identical revision-bound previews share one worker while subscriber cancellation stays independent',async t=>{
+ const {pool,created}=fixture(t),aController=new AbortController(),message={id:1,action:'frame',folder:'/same-project',key:'current',options:{revision:3,maxSide:1400}};
+ const a=pool.run(message,{signal:aController.signal}),b=pool.run({...message,id:2});await Promise.resolve();assert.equal(created.length,1);
+ aController.abort();await assert.rejects(a,{code:'CANCELLED'});assert.equal(created[0].stops,0);created[0].complete('shared pixels');assert.equal(await b,'shared pixels');assert.equal(created[0].stops,1);
+ const controller=new AbortController(),next=pool.run({...message,options:{...message.options,revision:4}},{signal:controller.signal});await Promise.resolve();assert.equal(created.length,2);controller.abort();await assert.rejects(next,{code:'CANCELLED'});await Promise.resolve();assert.equal(created[1].stops,1);
+});
