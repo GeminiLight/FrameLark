@@ -990,7 +990,7 @@ function refreshActions() {
   if(!visibility.comparison)hideComparisonPopover();
   $('.photo-history').hidden=!visibility.history;
   $('#photo-reset').hidden=!edited;
-  $('#versions-open').hidden=!state.image;
+  $('#versions-open').hidden=!state.image||Boolean(photo?.projectId);
   $('#mark-photo').hidden=!state.image;
   $('#heading-counter').hidden=!state.image;
   $('#open-tasks').hidden=!analysisQueue.tasks.length && !exportQueue.tasks.length;
@@ -3383,10 +3383,10 @@ $('#version-items').addEventListener('click',event=>{
 });
 
 function renderDraftStatus() {
-  if(currentPhoto()?.projectId){$('#draft-status').textContent='浏览器草稿';$('#draft-status').title='当前照片保存在文件项目中；这里可查看其他浏览器草稿。';$('#draft-status').classList.remove('save-failed');return;}
+  if(currentPhoto()?.projectId){$('#draft-status').textContent='其他草稿';$('#draft-status').title='查看保存在此浏览器中的其他照片草稿。';$('#draft-status').classList.remove('save-failed');return;}
   const own=Boolean(currentPhoto() && !currentPhoto().isDemo);
   const {savedAt:draftSavedAt,dirty:draftDirty,saving:draftSaving}=draftAutosave.status,draftFailed=draftAutosave.status.failed||draftListFailed;
-  $('#draft-status').textContent=draftFailed ? '保存失败 · 重试':draftSaving || draftDirty ? '保存中…':draftSavedAt && own ? '草稿已保存':own ? '等待保存':'草稿';
+  $('#draft-status').textContent=draftFailed ? '保存失败 · 重试':draftSaving || draftDirty ? '正在保存草稿…':draftSavedAt && own ? '草稿已保存在此浏览器':own ? '草稿等待保存':'草稿';
   $('#draft-status').classList.toggle('save-failed',draftFailed);
   $('#draft-status').title=draftFailed ? '本次修改尚未保存；点击可重试或导出照片':draftSavedAt ? `上次保存 ${new Date(draftSavedAt).toLocaleString('zh-CN')}`:'查看、继续编辑或清理草稿';
 }

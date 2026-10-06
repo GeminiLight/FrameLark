@@ -10,9 +10,9 @@ export async function projectRequest(url,{method='GET',value,body,headers={},sig
   const result=onEvent?await readVisionStream(response,onEvent,{maxBytes:8*1024*1024}):await response.json();if(!response.ok)throw Object.assign(new Error(result.error?.message || '项目操作未完成。'),{code:result.error?.code,status:response.status});return result;
 }
 export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=()=>[],onLoad,onUpdate,onVersions=()=>{},onState=()=>{},notify}) {
-  document.querySelector('.heading-actions').insertAdjacentHTML('afterbegin','<button type="button" class="draft-status" id="project-open" hidden>文件项目</button>');
+  document.querySelector('.heading-actions').insertAdjacentHTML('afterbegin','<button type="button" class="draft-status" id="project-open" hidden>项目</button>');
   document.querySelector('.page-heading').insertAdjacentHTML('afterend','<div class="project-sync-status" id="project-sync-status" hidden role="status"></div>');
-  document.body.insertAdjacentHTML('beforeend',`<dialog id="project-dialog" class="project-dialog"><header><h2>文件项目</h2><button type="button" id="project-close" aria-label="关闭文件项目">×</button></header><p>照片、批注和版本保存在本机，网页与 Codex Skill 共用同一个项目。</p><button type="button" id="project-create">将当前照片保存为文件项目</button><form id="project-register"><label for="project-path">已有项目的文件夹路径</label><div><input id="project-path" placeholder="包含 project.json 的文件夹" /><button type="submit">打开</button></div></form><p id="project-notice" role="status"></p><section id="project-details"></section><h3>最近项目</h3><div id="project-recent"></div></dialog>
+  document.body.insertAdjacentHTML('beforeend',`<dialog id="project-dialog" class="project-dialog"><header><h2>项目</h2><button type="button" id="project-close" aria-label="关闭项目">×</button></header><p>照片、批注、版本和导出记录保存在本机。网页与外部编辑工具共用同一个项目。</p><button type="button" id="project-create">将当前照片保存为文件项目</button><form id="project-register"><label for="project-path">已有项目的文件夹路径</label><div><input id="project-path" placeholder="包含 project.json 的文件夹" /><button type="submit">打开</button></div></form><p id="project-notice" role="status"></p><section id="project-details"></section><h3>最近项目</h3><div id="project-recent"></div></dialog>
   <dialog id="project-preview" class="project-preview"><header><h2 id="project-preview-title">比较方案</h2><button type="button" id="project-preview-close" aria-label="关闭项目预览">×</button></header><div class="project-preview-images"><figure><figcaption>当前版本</figcaption><img id="project-before" alt="项目当前版本" /></figure><figure><figcaption>候选方案</figcaption><img id="project-after" alt="项目候选预览" /></figure></div><p id="project-preview-note"></p><button type="button" id="project-accept" disabled>应用这个方案</button></dialog>`);
   const $=id=>document.getElementById(id),links=new Map(),updatingPhotos=new WeakMap();let selected=null,previewToken=null,available=false;
   async function updatePhoto(photo,action){
@@ -21,7 +21,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     try{return await action();}
     finally{const count=updatingPhotos.get(photo)-1;if(count)updatingPhotos.set(photo,count);else updatingPhotos.delete(photo);}
   }
-  const collaboration=createProjectCollaboration({getPhoto,onOpen:()=>open(),onPreview:previewCandidate,onRequest:requestContinue,
+  const collaboration=createProjectCollaboration({getPhoto,onPreview:previewCandidate,onRequest:requestContinue,
     onSwitchEditor:photo=>flush(photo),
     onCancel:async id=>{const photo=getPhoto();await flush(photo);return mutate(photo,'handoff',{action:'cancel',id,revision:photo.projectRevision});},
     onPending:pending=>{const photo=getPhoto();if(!photo)return;photo.projectNativePending=pending;status(photo);if(!pending)drainRemote(photo).catch(error=>notify(error.message));},notify});
@@ -35,7 +35,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     if(photo===getPhoto())collaboration.show(photo,link?.data);
     if(!photo?.projectId)return;
     node.title=photo.projectPath;
-    node.textContent=(photo.projectNativePending?'协作精修有未保存输入':link?.conflict?'项目有更新 · 当前修改尚未同步':link?.error?'项目保存失败':link?.busy||link?.dirty?'正在保存到项目…':link?.remote>photo.projectRevision?'正在读取项目更新…':'已保存到文件项目')+' · 本机共享项目';
+    node.textContent=photo.projectNativePending?'协作精修中的修改尚未保存':link?.conflict?'项目有更新，当前修改尚未同步':link?.error?'修改尚未保存到项目':link?.busy||link?.dirty?'正在保存到项目…':link?.remote>photo.projectRevision?'正在读取项目更新…':'已保存到项目';
   }
   function render(data=selected) {
     selected=data;
