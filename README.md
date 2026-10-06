@@ -1,5 +1,7 @@
 # 帧好 · FrameLark
 
+**[访问官网](https://geminilight.github.io/FrameLark/) · [在线基础修片](https://geminilight.github.io/FrameLark/studio/)**
+
 ![帧好 · FrameLark：从看见，到成片。右侧是一只小帧](docs/images/framelark-banner.png)
 
 **你的 AI 摄影伙伴，让小帧陪你找画面、修照片、做组图。**
@@ -24,15 +26,11 @@ FrameLark 提供 Codex 插件、独立 Skill 和浏览器工作台，陪你从�
 
 ## 开始使用
 
-**一次安装统一插件，获得找画面、修照片和做组图三种能力。**
+**Codex 用户推荐安装统一插件，一次获得两套 Skill 和本地修图工具。**
 
-### 安装
+需要 **Node.js 20.9+（含 npm）、Git，以及支持插件的 Codex CLI**。先用 `codex plugin --help` 确认；找不到命令时，见[安装准备](docs/INSTALLATION.md#安装准备)。
 
-推荐让本地 Codex 代装，直接发送：
-
-> 帮我从 https://github.com/GeminiLight/FrameLark 安装 FrameLark 统一插件，检查环境、准备本地修图工具，完成后告诉我怎么开始使用。
-
-也可以手动安装。需要 **Node.js 20.9+（含 npm）、Git 和支持插件的 Codex CLI**，在终端运行：
+在终端运行：
 
 ```sh
 git clone https://github.com/GeminiLight/FrameLark.git
@@ -40,23 +38,13 @@ cd FrameLark
 npm run plugin:install
 ```
 
-### 安装后怎么用
+安装成功后，**开启新对话**，附上现场照，直接说「用 FrameLark 看这里咋拍？」。已有原片可以说「用 FrameLark 精修这张，先给试片」，照片目录可以说「用 FrameLark 先定主题，做朋友圈九宫格」。下一轮直接说编号或指出想调整的地方，见[使用示例](#使用示例)。
 
-**开启新对话**，附上照片或给出可访问的照片目录：
-
-| 输入 | 直接说 |
-| --- | --- |
-| 一张现场照 | 用 FrameLark 看这里咋拍？ |
-| 一张已拍原片 | 用 FrameLark 精修这张，准备发朋友圈，先给我试片。 |
-| 一批照片目录 | 用 FrameLark 做朋友圈九宫格，先定主题，保留原片。 |
-
-下一轮直接说「喜欢 P3，站哪里？」「把背景调柔一点」或「就这版，导出」。看图与可选生图使用当前 Agent 的能力，无需另填模型 Key；没有生图工具时先给文字拍法。
-
-当前通过仓库插件市场安装。[安装准备与更新](docs/INSTALLATION.md) · [完整用法](docs/USAGE.md) · [效果示例](#使用示例)
+插件使用当前 Agent 的看图与对话能力，无需另填模型 API Key。可选 AI 生图与图片编辑会先检查宿主是否支持，不可用时跳过。当前通过仓库插件市场安装，尚未上架 OpenAI 官方通用目录。
 
 ### 其他入口
 
-独立 Skill 或网页用户，先下载本仓库，再在仓库目录中运行：
+以下命令在上面的仓库目录中运行，选择适合自己的入口即可。
 
 | 入口 | 怎么开始 |
 | --- | --- |
@@ -124,3 +112,4 @@ npm run plugin:install
 ## 贡献者
 
 感谢 [Yijie Xu（@yeahjack）](https://github.com/yeahjack) 贡献逐项调整采纳、参数与局部层锁定、画面区域保护，以及渲染和预览响应优化：[#1](https://github.com/GeminiLight/FrameLark/pull/1)、[#2](https://github.com/GeminiLight/FrameLark/pull/2)。
+
