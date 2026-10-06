@@ -1,4 +1,5 @@
 import {normalizeToolPlan} from './photo-tools/registry.js';
+import {cleanProviderProposal} from './edit-stack/planner.js';
 import {assertTintCorrectionDirection} from './control-reference.js';
 import {remainingAdjustments} from './adjustment-layers.js';
 import { presetById } from './presets.js';
@@ -21,7 +22,8 @@ export function normalizeDesignReply(value) {
   const principle = concise(value?.principle, 240);
   const raw = value?.action || {};
   const action = emptyAction();
-  if(raw.kind==='tools'){
+  if(raw.kind==='document'){action.kind='document';action.proposal=cleanProviderProposal(raw.proposal);action.label=concise(raw.label,60)||'可编辑步骤建议';}
+  else if(raw.kind==='tools'){
     action.kind='tools';action.operations=normalizeToolPlan(raw.operations,{}, {resolveGeometry:false});action.label=concise(raw.label,60)||'工具编辑方案';
   } else if(raw.kind==='plan' && Array.isArray(raw.steps) && raw.steps.length<=8) {
     const steps=raw.steps.slice(0,8).map(step=>{

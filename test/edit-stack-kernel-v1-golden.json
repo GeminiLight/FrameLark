@@ -1,0 +1,627 @@
+{
+  "baselineCommit": "fb4a61242e62d972880eb56afd8f717f680f9b54",
+  "width": 32,
+  "height": 24,
+  "frame": {
+    "fullWidth": 96,
+    "fullHeight": 72,
+    "sourceRect": {
+      "x": 9,
+      "y": 8,
+      "width": 72,
+      "height": 48
+    },
+    "angle": 13
+  },
+  "results": [
+    {
+      "name": "tool-0",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s0",
+            "title": "exposure",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "parameters": {
+              "ev": 2.3
+            },
+            "opacity": 0.73
+          }
+        }
+      ],
+      "hash": "064a92bf2a926c92458454cd63a6a445c035e3a2756b4af4088b2557058bc9d5"
+    },
+    {
+      "name": "tool-1",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s1",
+            "title": "exposure",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "parameters": {
+              "ev": -1.7,
+              "headroomPolicy": "unbounded"
+            },
+            "opacity": 0.73
+          }
+        }
+      ],
+      "hash": "82241ee0e8d272f6bc8da9379df70b8d3d09e9159eb85d88226fd3ae30064227"
+    },
+    {
+      "name": "tool-2",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s2",
+            "title": "tone",
+            "tool": "tone",
+            "toolVersion": 2,
+            "parameters": {
+              "contrast": 33,
+              "highlights": -28,
+              "shadows": 18,
+              "fade": 19,
+              "curveMidtones": -17
+            },
+            "opacity": 0.73
+          }
+        }
+      ],
+      "hash": "be5f2c4b56a34fa220feca57adb3d7fdacdaa9f008780ca93282f956f413f3b3"
+    },
+    {
+      "name": "tool-3",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s3",
+            "title": "color",
+            "tool": "color",
+            "toolVersion": 2,
+            "parameters": {
+              "warmth": 21,
+              "tint": -13,
+              "vibrance": 27
+            },
+            "opacity": 0.73
+          }
+        }
+      ],
+      "hash": "4eee7989a477dd52b429acadbadeb58afd3d28b2d6f5d51ef3d3e1d02e81fa50"
+    },
+    {
+      "name": "tool-4",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s4",
+            "title": "color",
+            "tool": "color",
+            "toolVersion": 2,
+            "parameters": {
+              "saturation": -23,
+              "monochrome": 34,
+              "orangeSaturation": 31,
+              "greenSaturation": -28,
+              "blueSaturation": -17
+            },
+            "opacity": 0.73
+          }
+        }
+      ],
+      "hash": "8b06cecd2ac942151d1ba21c5c595ca36b60663a75e8c34107a49d072233d3a8"
+    },
+    {
+      "name": "tool-5",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s5",
+            "title": "detail",
+            "tool": "detail",
+            "toolVersion": 2,
+            "parameters": {
+              "clarity": 23,
+              "texture": -21,
+              "sharpen": 18,
+              "denoise": 32
+            },
+            "opacity": 0.73
+          }
+        }
+      ],
+      "hash": "d87de8297f88678474fc8289fac9aca7b9de271f08416c1515e9e6c954dc2319"
+    },
+    {
+      "name": "tool-6",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s6",
+            "title": "finish",
+            "tool": "finish",
+            "toolVersion": 2,
+            "parameters": {
+              "grain": 23,
+              "vignette": 28
+            },
+            "opacity": 0.73
+          }
+        }
+      ],
+      "hash": "d894d8936f83269c8e2b8b8003fa69ac5c5878d02455eddadf39504644740370"
+    },
+    {
+      "name": "mixed",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s0",
+            "title": "exposure",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "parameters": {
+              "ev": 2.3
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s1",
+            "title": "exposure",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "parameters": {
+              "ev": -1.7,
+              "headroomPolicy": "unbounded"
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s2",
+            "title": "tone",
+            "tool": "tone",
+            "toolVersion": 2,
+            "parameters": {
+              "contrast": 33,
+              "highlights": -28,
+              "shadows": 18,
+              "fade": 19,
+              "curveMidtones": -17
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s3",
+            "title": "color",
+            "tool": "color",
+            "toolVersion": 2,
+            "parameters": {
+              "warmth": 21,
+              "tint": -13,
+              "vibrance": 27
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s4",
+            "title": "color",
+            "tool": "color",
+            "toolVersion": 2,
+            "parameters": {
+              "saturation": -23,
+              "monochrome": 34,
+              "orangeSaturation": 31,
+              "greenSaturation": -28,
+              "blueSaturation": -17
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s5",
+            "title": "detail",
+            "tool": "detail",
+            "toolVersion": 2,
+            "parameters": {
+              "clarity": 23,
+              "texture": -21,
+              "sharpen": 18,
+              "denoise": 32
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s6",
+            "title": "finish",
+            "tool": "finish",
+            "toolVersion": 2,
+            "parameters": {
+              "grain": 23,
+              "vignette": 28
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "ReplaceStepMask",
+          "stepId": "s2",
+          "mask": {
+            "expression": {
+              "kind": "luminance",
+              "mode": "exclude-highlights",
+              "start": 0.23,
+              "end": 0.76
+            },
+            "reference": {
+              "kind": "live-input"
+            }
+          }
+        },
+        {
+          "type": "ReplaceStepMask",
+          "stepId": "s5",
+          "mask": {
+            "expression": {
+              "kind": "drawn",
+              "mask": {
+                "shape": "radial",
+                "rect": {
+                  "x": 0.1,
+                  "y": 0.2,
+                  "width": 0.6,
+                  "height": 0.5
+                },
+                "feather": 0.4,
+                "exclude": []
+              }
+            },
+            "reference": {
+              "kind": "frozen-source",
+              "sourceHash": "e824839f216875240ce1bd7e45762a7511c9971370df526ec886682446e2283c"
+            }
+          }
+        }
+      ],
+      "hash": "f3dd7c1c91b49e5709c94c938256722e3b26efc55fa898ccb93118d6fa42bec0"
+    },
+    {
+      "name": "bw",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s0",
+            "title": "exposure",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "parameters": {
+              "ev": 2.3
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s1",
+            "title": "exposure",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "parameters": {
+              "ev": -1.7,
+              "headroomPolicy": "unbounded"
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s2",
+            "title": "tone",
+            "tool": "tone",
+            "toolVersion": 2,
+            "parameters": {
+              "contrast": 33,
+              "highlights": -28,
+              "shadows": 18,
+              "fade": 19,
+              "curveMidtones": -17
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s3",
+            "title": "color",
+            "tool": "color",
+            "toolVersion": 2,
+            "parameters": {
+              "warmth": 21,
+              "tint": -13,
+              "vibrance": 27
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s4",
+            "title": "color",
+            "tool": "color",
+            "toolVersion": 2,
+            "parameters": {
+              "saturation": -23,
+              "monochrome": 34,
+              "orangeSaturation": 31,
+              "greenSaturation": -28,
+              "blueSaturation": -17
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s5",
+            "title": "detail",
+            "tool": "detail",
+            "toolVersion": 2,
+            "parameters": {
+              "clarity": 23,
+              "texture": -21,
+              "sharpen": 18,
+              "denoise": 32
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s6",
+            "title": "finish",
+            "tool": "finish",
+            "toolVersion": 2,
+            "parameters": {
+              "grain": 23,
+              "vignette": 28
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "ReplaceStepMask",
+          "stepId": "s2",
+          "mask": {
+            "expression": {
+              "kind": "luminance",
+              "mode": "exclude-highlights",
+              "start": 0.23,
+              "end": 0.76
+            },
+            "reference": {
+              "kind": "live-input"
+            }
+          }
+        },
+        {
+          "type": "ReplaceStepMask",
+          "stepId": "s5",
+          "mask": {
+            "expression": {
+              "kind": "drawn",
+              "mask": {
+                "shape": "radial",
+                "rect": {
+                  "x": 0.1,
+                  "y": 0.2,
+                  "width": 0.6,
+                  "height": 0.5
+                },
+                "feather": 0.4,
+                "exclude": []
+              }
+            },
+            "reference": {
+              "kind": "frozen-source",
+              "sourceHash": "e824839f216875240ce1bd7e45762a7511c9971370df526ec886682446e2283c"
+            }
+          }
+        }
+      ],
+      "maskView": {
+        "stepId": "s2",
+        "mode": "bw"
+      },
+      "hash": "b2b1b07cb839bd05b061efcdb2fd5e727bd0dee8f8dc3dc5585012bf7ad4d8b5"
+    },
+    {
+      "name": "overlay",
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s0",
+            "title": "exposure",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "parameters": {
+              "ev": 2.3
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s1",
+            "title": "exposure",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "parameters": {
+              "ev": -1.7,
+              "headroomPolicy": "unbounded"
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s2",
+            "title": "tone",
+            "tool": "tone",
+            "toolVersion": 2,
+            "parameters": {
+              "contrast": 33,
+              "highlights": -28,
+              "shadows": 18,
+              "fade": 19,
+              "curveMidtones": -17
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s3",
+            "title": "color",
+            "tool": "color",
+            "toolVersion": 2,
+            "parameters": {
+              "warmth": 21,
+              "tint": -13,
+              "vibrance": 27
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s4",
+            "title": "color",
+            "tool": "color",
+            "toolVersion": 2,
+            "parameters": {
+              "saturation": -23,
+              "monochrome": 34,
+              "orangeSaturation": 31,
+              "greenSaturation": -28,
+              "blueSaturation": -17
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s5",
+            "title": "detail",
+            "tool": "detail",
+            "toolVersion": 2,
+            "parameters": {
+              "clarity": 23,
+              "texture": -21,
+              "sharpen": 18,
+              "denoise": 32
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "s6",
+            "title": "finish",
+            "tool": "finish",
+            "toolVersion": 2,
+            "parameters": {
+              "grain": 23,
+              "vignette": 28
+            },
+            "opacity": 0.73
+          }
+        },
+        {
+          "type": "ReplaceStepMask",
+          "stepId": "s2",
+          "mask": {
+            "expression": {
+              "kind": "luminance",
+              "mode": "exclude-highlights",
+              "start": 0.23,
+              "end": 0.76
+            },
+            "reference": {
+              "kind": "live-input"
+            }
+          }
+        },
+        {
+          "type": "ReplaceStepMask",
+          "stepId": "s5",
+          "mask": {
+            "expression": {
+              "kind": "drawn",
+              "mask": {
+                "shape": "radial",
+                "rect": {
+                  "x": 0.1,
+                  "y": 0.2,
+                  "width": 0.6,
+                  "height": 0.5
+                },
+                "feather": 0.4,
+                "exclude": []
+              }
+            },
+            "reference": {
+              "kind": "frozen-source",
+              "sourceHash": "e824839f216875240ce1bd7e45762a7511c9971370df526ec886682446e2283c"
+            }
+          }
+        }
+      ],
+      "maskView": {
+        "stepId": "s5",
+        "mode": "overlay"
+      },
+      "hash": "2b7fc85fd9a94b646d078bf47358ff07c6f270435953a1ea5fc6a4f354cd33b8"
+    }
+  ]
+}

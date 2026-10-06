@@ -54,7 +54,7 @@ export function createPhotoExporter({exportVersion,getRetainedBytes=()=>0}){
         canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
         const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(image,0,0,canvas.width,canvas.height);
         const stats=inspectPixels(context.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height).stats;
-        return {blob,width:result.width,height:result.height,stats,projectPath:result.path};
+        return {blob,width:result.width,height:result.height,stats,projectPath:result.path,projectVersionId};
       }finally{URL.revokeObjectURL(url);if(canvas){canvas.width=0;canvas.height=0;}}
     }
     progress('准备输出尺寸');
@@ -64,7 +64,7 @@ export function createPhotoExporter({exportVersion,getRetainedBytes=()=>0}){
     const stop=()=>renderer.dispose();signal.addEventListener('abort',stop,{once:true});
     try{
       drawPhotoSource(context,photo.image,snapshot.crop,width,height,rect);progress('处理原片光色与细节');
-      const pixels=await renderer.render({pixels:context.getImageData(0,0,width,height).data,width,height,settings:snapshotSettings(snapshot),annotations:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers),crop:snapshot.crop,frame:{fullWidth:photo.image.naturalWidth,fullHeight:photo.image.naturalHeight,sourceRect:rect,angle:snapshot.crop?.angle||0}});
+      const pixels=await renderer.render({pixels:context.getImageData(0,0,width,height).data,width,height,settings:snapshotSettings(snapshot),annotations:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers),crop:snapshot.crop,document:snapshot.editDocument,frame:{fullWidth:photo.image.naturalWidth,fullHeight:photo.image.naturalHeight,sourceRect:rect,angle:snapshot.crop?.angle||0}});
       signal.throwIfAborted();context.putImageData(new ImageData(pixels,width,height),0,0);progress('编码成片与作品信息');
       const encoded=await new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('导出失败，请尝试使用分享尺寸')),options.format==='png'?'image/png':'image/jpeg',options.quality));
       signal.throwIfAborted();check(encoded.size);

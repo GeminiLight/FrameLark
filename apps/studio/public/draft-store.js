@@ -1,13 +1,15 @@
 import {adjustmentKeys,renderingVersion} from './editor-engine.js';
 import {cleanIntent} from './creative-intent.js';
 import {validCrop} from './crop-utils.js';
-export const draftVersion=1;
-const fields=['toolRuns','sourceOriginalBlob','originalFileName','imageName','creativeIntent','analysisIntent','subject','subjectSource','analysis','active','manual','advisorLayers','crop','compare','annotations','presetId','presetAmount','analysisSource','analysisStatus','analysisError','analysisProvenance','originalRecommendations','assessment','exported','lastExportSignature','history','conversation','versions','agentFallback','agentDraft','agentFocusId','acceptedSignature','acceptedRecordId'];
+import {validateDocument} from './edit-stack/document.js';
+export const draftVersion=2;
+export const supportedDraftVersions=[1,2];
+const fields=['editDocument','documentSource','toolRuns','sourceOriginalBlob','originalFileName','imageName','creativeIntent','analysisIntent','subject','subjectSource','analysis','active','manual','advisorLayers','crop','compare','annotations','presetId','presetAmount','analysisSource','analysisStatus','analysisError','analysisProvenance','originalRecommendations','assessment','exported','lastExportSignature','history','conversation','versions','agentFallback','agentDraft','agentFocusId','acceptedSignature','acceptedRecordId'];
 export function serializeDraftPhoto(photo) {
   // An unsynchronized file edit still needs a recoverable browser copy.
   if(photo.isDemo || photo.projectId&&!photo.projectPending || !(photo.originalBlob instanceof Blob)) return null;
   const result={id:photo.id,originalBlob:photo.originalBlob};
-  for(const key of fields) result[key]=structuredClone(key==='active' ? [...photo.active] : photo[key]);
+  for(const key of fields) result[key]=structuredClone(key==='active' ? [...photo.active] : photo.editGestureBefore&&key==='editDocument'?photo.editGestureBefore.editDocument:photo[key]);
   return result;
 }
 export function restoreDraftPhoto(saved) {
@@ -17,6 +19,8 @@ export function restoreDraftPhoto(saved) {
   const safeNote=item=>item && safeMask(item) && item.rect && ['x','y','width','height'].every(key=>Number.isFinite(item.rect[key])) && item.rect.x>=0 && item.rect.y>=0 && item.rect.width>0 && item.rect.height>0 && item.rect.x+item.rect.width<=1.0001 && item.rect.y+item.rect.height<=1.0001 && typeof item.note==='string';
   const safeSnapshot=item=>item && Array.isArray(item.active) && item.manual && typeof item.manual==='object' && Array.isArray(item.annotations) && item.annotations.every(safeNote) && (!item.advisorLayers || Array.isArray(item.advisorLayers)) && (!item.recommendations || Array.isArray(item.recommendations));
   if(!saved.annotations.every(safeNote) || saved.analysis && !Array.isArray(saved.analysis.recommendations) || !saved.manual || typeof saved.manual!=='object') throw new Error('草稿中的编辑记录不完整');
+  if(saved.editDocument)validateDocument(saved.editDocument);
+  for(const value of [...(saved.history?.past||[]),...(saved.history?.future||[]),...(saved.versions||[]).map(v=>v.snapshot)])if(value?.editDocument)validateDocument(value.editDocument);
   for(const list of [saved.history?.past,saved.history?.future]) if(Array.isArray(list) && list.some(item=>!safeSnapshot(item))) throw new Error('草稿中的历史记录不完整');
   if(Array.isArray(saved.versions) && saved.versions.some(item=>!safeSnapshot(item.snapshot))) throw new Error('草稿中的版本记录不完整');
   const photo={};
@@ -44,12 +48,12 @@ export function buildDraftWorkspace(id,photos,currentPhotoId,series=null) {
     photos:photos.map(serializeDraftPhoto).filter(Boolean),series:structuredClone(series),deletedAt:null};
 }
 export function createDraftStore() {
-  let opening;
+  let opening;const ownedRevisions=new Map();
   function open() {
     if(!opening) opening=new Promise((resolve,reject)=>{
       if(typeof indexedDB==='undefined') { reject(new Error('浏览器存储不可用'));return; }
-      const request=indexedDB.open('guangjian-photo-drafts',1);
-      request.onupgradeneeded=()=>request.result.createObjectStore('workspaces',{keyPath:'id'});
+      const request=indexedDB.open('guangjian-photo-drafts',2);
+      request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('workspaces'))request.result.createObjectStore('workspaces',{keyPath:'id'});};
       request.onsuccess=()=>{request.result.onversionchange=()=>{request.result.close();opening=null;};resolve(request.result);};
       request.onerror=()=>reject(request.error);
       request.onblocked=()=>reject(new Error('请关闭旧的工作台后重试保存'));
@@ -69,7 +73,14 @@ export function createDraftStore() {
     });
   }
   return {
-    save:workspace=>transaction('readwrite',store=>store.put(workspace)),
+    adopt(workspace){const revision=workspace.storageRevision||0;if(!Number.isSafeInteger(revision)||revision<0)throw new Error('草稿保存版本无效。');ownedRevisions.set(workspace.id,revision);},
+    async save(workspace,{expectedRevision=ownedRevisions.get(workspace.id)||0}={}){
+      const db=await open();if(!Number.isSafeInteger(expectedRevision)||expectedRevision<0)throw new Error('草稿保存版本无效。');
+      return new Promise((resolve,reject)=>{const tx=db.transaction('workspaces','readwrite'),store=tx.objectStore('workspaces'),request=store.get(workspace.id);let failure;
+        request.onsuccess=()=>{try{const actual=request.result?.storageRevision||0;if(actual!==expectedRevision){failure=Object.assign(new Error('草稿已在另一标签页更新。当前修改保留，请重新打开最新草稿后协调。'),{code:'STALE_DRAFT'});tx.abort();return;}store.put({...workspace,storageRevision:actual+1});}catch(error){failure=error;tx.abort();}};
+        tx.oncomplete=()=>{ownedRevisions.set(workspace.id,expectedRevision+1);resolve(workspace.id);};tx.onerror=()=>reject(failure||tx.error||new Error('草稿保存失败'));tx.onabort=()=>reject(failure||tx.error||new Error('草稿保存未完成'));
+      });
+    },
     list:()=>transaction('readonly',store=>store.getAll()),
     get:id=>transaction('readonly',store=>store.get(id)),
     async purge(id) {
@@ -85,7 +96,7 @@ export function createDraftStore() {
       const db=await open();
       return new Promise((resolve,reject)=>{
         const tx=db.transaction('workspaces','readwrite'),store=tx.objectStore('workspaces'),request=store.get(id);
-        request.onsuccess=()=>{if(request.result) store.put({...request.result,deletedAt:deleted ? new Date().toISOString():null});};
+        request.onsuccess=()=>{if(request.result) store.put({...request.result,storageRevision:(request.result.storageRevision||0)+1,deletedAt:deleted ? new Date().toISOString():null});};
         tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error);
       });
     }

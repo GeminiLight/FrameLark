@@ -38,3 +38,17 @@ test('taste signals reflect accepted choices, not trialed styles', () => {
   assert.equal(tasteAffinity({records:[],preset:presetById('misty-air'),inspection,subject:'landscape'}).boost,0);
   assert.equal(rememberedStyleAmount([accepted('soft',{presetAmount:58})],'misty-air','landscape'),58);
 });
+
+test('accepted recipes retain style and actual operations, including masked choices, through storage',async()=>{
+ const {createDocument}=await import('../../apps/studio/public/edit-stack/document.js');
+ const {applyCommands}=await import('../../apps/studio/public/edit-stack/commands.js');
+ const {presetCommands}=await import('../../apps/studio/public/edit-stack/styles.js');
+ let document=createDocument({documentId:'d',source:{assetId:'a',contentHash:'a'.repeat(64),width:8,height:8},base:{settings:{},locals:[]}});
+ document=applyCommands(document,presetCommands('daily-soft',75,{groupId:'soft'})).next;
+ document=applyCommands(document,[{type:'AddStep',step:{id:'local',title:'私密批注不进入档案',tool:'exposure',toolVersion:2,parameters:{ev:.4}}},{type:'ReplaceStepMask',stepId:'local',mask:{expression:{kind:'constant',value:.5},reference:{kind:'live-input'}}}]).next;
+ const record=accepted('recipe',{editDocument:document,presetId:null,adjustments:{}}),restored=sanitizeTasteRecords([record])[0];
+ assert.equal(restored.presetId,'daily-soft');assert.equal(restored.presetAmount,75);assert.equal(restored.recipe.styles[0].modified,false);assert.equal(restored.localCount,1);assert.equal(restored.recipe.operations.at(-1).parameters.ev,.4);
+ assert.equal(JSON.stringify(restored).includes('私密批注'),false);assert.equal(JSON.stringify(restored).includes('contentHash'),false);assert.equal(summarizeTaste([restored]).practices.light,1);assert.equal(rememberedStyleAmount([restored],'daily-soft','landscape'),75);
+ const changed=applyCommands(document,[{type:'SetStepOpacity',stepId:document.steps[0].id,opacity:.4}]).next;
+ const modified=accepted('modified',{editDocument:changed});assert.equal(modified.recipe.styles[0].modified,true);assert.equal(rememberedStyleAmount([modified],'daily-soft','landscape'),null);
+});

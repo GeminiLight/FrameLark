@@ -5,4 +5,6 @@ import {protectionVersion} from './protected-regions.js';
 export const pipelineVersion = `${renderingVersion}+lettering-v1+${protectionVersion}`;
 export const hash = value => createHash('sha256').update(typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(canonical(value))).digest('hex');
 export const legacyHash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
-export const selectionIdentity = (base, candidate) => hash({pipeline:pipelineVersion,baseVersion:base.id,baseState:base.state,items:candidate.items,selectedItemIds:candidate.selectedItemIds,state:candidate.state,guardOperation:candidate.guardOperation});
+export const versionPipeline=version=>version.recipe?`${pipelineVersion}+edit-stack-linear-v2-k1`:pipelineVersion;
+export const versionStateHash=version=>hash(version.recipe?{state:version.state,recipe:version.recipe}:version.state);
+export const selectionIdentity = (base, candidate) => hash({pipeline:versionPipeline(candidate),baseVersion:base.id,baseState:base.state,...(base.recipe?{baseRecipe:base.recipe}:{}),items:candidate.items,selectedItemIds:candidate.selectedItemIds,state:candidate.state,...(candidate.recipe?{recipe:candidate.recipe}:{}),guardOperation:candidate.guardOperation});

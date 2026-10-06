@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "staleWriterRejected": true,
+  "newestValue": "writer-a",
+  "unsavedInputPreserved": "writer-b",
+  "oldVersionBlocked": true,
+  "storageRevision": 2,
+  "method": "Two createDraftStore instances exercised through real browser IndexedDB; the temporary test page was removed afterward."
+}

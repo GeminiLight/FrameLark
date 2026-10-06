@@ -21,7 +21,7 @@ async function sourceImage(folder,p) {
   cached={key:p.source.normalizedChecksum,image};return image;
 }
 // Rendering identities include the complete pinned state and matching output grid.
-import {pipelineVersion} from './engine/edit-identity.js';
+import {pipelineVersion,versionPipeline,versionStateHash} from './engine/edit-identity.js';
 import {guardsOf} from './engine/edit-guards.js';
 import {equal} from './engine/edit-values.js';
 import {compositeProtectedRegions} from './engine/protected-regions.js';
@@ -43,7 +43,7 @@ export async function createRenderSession(folder, project) {
     const withoutText=Boolean(options.withoutText),image=await imagePromise;
     const owner=p.versions.indexOf(v);validateReferences(p,v.state,owner<0?p.versions.length:owner);
     if(stack.includes(v.id))fail('REFERENCE_CYCLE','保护参考形成循环，无法安全生成图片。');
-    const cacheKey=hash({state:v.state,geometry:g,crop:renderCrop,withoutText,original:options.original});
+    const cacheKey=hash({state:v.state,recipe:v.recipe,geometry:g,crop:renderCrop,withoutText,original:options.original,maskView:options.maskView});
     if(cache.has(cacheKey))return cache.get(cacheKey);
     const {rect,width,height}=g,canvas=createCanvas(width,height),context=canvas.getContext('2d');
     // Use the actual rounded source rectangle everywhere, including masks and grain.
@@ -51,7 +51,8 @@ export async function createRenderSession(folder, project) {
     drawPhotoSource(context,image,actualCrop,width,height,rect);
     const original=context.getImageData(0,0,width,height).data;
     const settings=options.original?neutralSettings():combineSettings({settings:v.state.settings},{settings:presetById(v.state.style?.id)?.adjustments,amount:(v.state.style?.amount||0)/100});
-    let pixels=renderPhotoPixels({pixels:original,width,height,settings,annotations:options.original?[]:v.state.locals,crop:actualCrop,frame:{fullWidth:W,fullHeight:H,sourceRect:rect,angle:renderCrop?.angle||0}});
+    let pixels=renderPhotoPixels({pixels:original,width,height,settings,annotations:options.original?[]:v.state.locals,crop:actualCrop,document:options.original?undefined:v.recipe,maskView:options.maskView,frame:{fullWidth:W,fullHeight:H,sourceRect:rect,angle:renderCrop?.angle||0}});
+    if(options.maskView){const result={pixels,textLayout:[]};cache.set(cacheKey,result);return result;}
     context.putImageData(new ImageData(pixels,width,height),0,0);
     const textLayout=drawTextOverlays(context,options.original||withoutText?[]:v.state.textOverlays,{width,height,compositionRect:outputGeometry(renderCrop,W,H,8192).rect,sourceRect:rect});
     if(textLayout.length)pixels=context.getImageData(0,0,width,height).data;
@@ -87,7 +88,7 @@ export async function createRenderSession(folder, project) {
   if(guardsOf(version.state).regions.length&&!equal(crop,version.state.crop))fail('PROTECTED_GEOMETRY','已保护版本不能换用另一裁剪网格对照。');
   const maxSide=Math.max(512,Math.min(8192,Number(options.maxSide)||1400));
   const geometry=outputGeometry(crop,W,H,maxSide);
-  const frameSpec={sourceRect:geometry.rect,width:geometry.width,height:geometry.height,angle:crop?.angle||0,pixelCenters:'half',pipeline:pipelineVersion};
+  const frameSpec={sourceRect:geometry.rect,width:geometry.width,height:geometry.height,angle:crop?.angle||0,pixelCenters:'half',pipeline:options.original?pipelineVersion:versionPipeline(version),...(options.maskView?{maskView:options.maskView}:{})};
   const withoutText=Boolean(options.withoutText);
   const rendered=await renderVersion(version,geometry,crop,options);
   let pixels=rendered.pixels,width=geometry.width,height=geometry.height,sourceRect=geometry.rect,regionPixels;
@@ -112,7 +113,7 @@ export async function createRenderSession(folder, project) {
     png=canvas.toBuffer('image/png');
   }
   const pixelHash=hash(Buffer.from(pixels));
-  return {png,pixels,width,height,sourceRect,limited:geometry.limited,versionId:version.id,revision:p.revision,selectionHash:version.selectionHash||null,stateHash:hash(version.state),frameSpec,frameSpecHash:hash(frameSpec),regionPixels,regionMode:options.region?'crop-final-frame':undefined,stats:photoMetering(pixels,width,height),textLayout:rendered.textLayout,withoutText,pipeline:pipelineVersion,pixelHash,renderPixelHash:pixelHash};
+  return {png,pixels,width,height,sourceRect,limited:geometry.limited,versionId:version.id,revision:p.revision,selectionHash:version.selectionHash||null,stateHash:versionStateHash(version),frameSpec,frameSpecHash:hash(frameSpec),regionPixels,regionMode:options.region?'crop-final-frame':undefined,stats:photoMetering(pixels,width,height),textLayout:rendered.textLayout,withoutText,pipeline:frameSpec.pipeline,pixelHash,renderPixelHash:pixelHash};
 }
   async function previewPhoto(key='current',options={}) {
   const frame=await renderFrame(key,options);const name=`${frame.versionId}-${hash({options,stateHash:frame.stateHash,selectionHash:frame.selectionHash,frameSpec:frame.frameSpec}).slice(0,20)}.png`,file=path.join(path.resolve(folder),'previews',name);

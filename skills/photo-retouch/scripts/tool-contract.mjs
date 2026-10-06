@@ -10,6 +10,8 @@ import {configureWorkflow,recordDiagnosis,prepareReview,editSources,rebuildEdits
 import {saveResultAudit} from './project.mjs';
 import {probeControl} from './probe.mjs';
 import {renderLookSheet} from './look-sheet.mjs';
+import {pixelCapabilities} from './engine/edit-stack/tools.js';
+import {documentPlanSchema} from './engine/edit-stack/schema.js';
 
 const id={type:'string',pattern:'^[-\\w]{1,80}$'},idList={type:'array',maxItems:32,uniqueItems:true,items:id};
 const number=(minimum,maximum)=>({type:'number',minimum,maximum});
@@ -43,11 +45,15 @@ const definitions=[
   {name:'frameyn_edit_sources',description:'Inspect actual manual values, style contributions, effective global values, local layers and guards.',parameters:record({versionId:id},[])},
   {name:'frameyn_probe_control',description:'Render a read-only parameter strip from the same frame and layers. Numeric measurements do not decide aesthetics.',parameters:record({revision:{type:'integer'},versionId:id,parameter:{enum:adjustmentKeys},values:{type:'array',minItems:2,maxItems:7,items:{type:'number'}},maxSide:number(512,1600)},['revision','versionId','parameter','values','maxSide'])},
   {name:'frameyn_rebuild_edits',description:'Rebuild explicitly selected manual/style/local layers from neutral targets into a reversible candidate. Retains crop, text, other layers and all guards.',parameters:record({revision:{type:'integer'},baseVersion:id,actorId:id,diagnosisId:id,handoffId:id,name:{type:'string'},goal:{type:'string'},tradeoff:{type:'string'},reset:record({manual:{type:'boolean'},style:{type:'boolean'},localIds:idList},['localIds']),settings,style:editPlanSchema.properties.items.items.properties.patch.properties.style,locals:editPlanSchema.properties.items.items.properties.patch.properties.locals},['revision','baseVersion','reset'])},
+  {name:'frameyn_document_tools',description:'Discover versioned ordered pixel tools, masks and budgets for persistent editable photo documents. Parameters belong to each node, opacity mixes the computed result, and geometry is a fixed stage.',parameters:record({})},
+  {name:'frameyn_propose_document',description:'Propose atomic commands against the inspected document revision/hash and project version. Update an existing step ID rather than adding inverse compensation. Preview and accept separately; old guards and audit rules remain enforced.',parameters:documentPlanSchema},
 ];
 export function hostToolContract(){return {kind:'provider-neutral-host-contract',schemaVersion:3,tools:[...definitions,...collectionTools].map(definition=>({type:'function',function:definition})),execution:'Pass {name, arguments} as JSON to: node cli.mjs tool --project <photo-or-collection-folder> --input <call.json|->. The host agent handles natural-language interpretation and model tool-calling; this runtime makes no model API calls.',boundaries:['Only listed operations and finite allowlisted parameters are accepted.','Tool definitions do not register tools with any model provider automatically.','Collection tools use the collection folder; photo edits use photos/<stable-ID> project folders returned by collection-inspect.','Inspect actual previews; accept is a separate CLI/UI operation with revision and selectionHash.']};}
 export async function dispatchHostTool(folder,call){
   object(call,['name','arguments'],'INVALID_TOOL_CALL');
   if(!call.arguments||typeof call.arguments!=='object'||Array.isArray(call.arguments))fail('INVALID_TOOL_CALL','工具参数必须为 JSON 对象。');
+  if(call.name==='frameyn_document_tools'){object(call.arguments,[],'INVALID_TOOL_CALL');return pixelCapabilities();}
+  if(call.name==='frameyn_propose_document'){if(!call.arguments.documentProposal)fail('INVALID_PROPOSAL','文档工具需要有限命令提案。');const result=await createCandidate(folder,call.arguments);return {...result,preview:await previewPhoto(folder,result.candidate.id,{revision:result.project.revision,selectionHash:result.candidate.selectionHash})};}
   if(call.name==='frameyn_photo_tools'){object(call.arguments,[],'INVALID_TOOL_CALL');return {tools:photoTools.describe(),execution:'subprocess',targetSemantics:'object targets carry geometric masks and declared provenance; names alone are unresolved'};}
   if(call.name==='frameyn_compose_tools'){const result=await createToolCandidate(folder,call.arguments);return {...result,preview:await previewPhoto(folder,result.candidate.id,{revision:result.project.revision,selectionHash:result.candidate.selectionHash})};}
   if(call.name==='frameyn_edit_sources'){object(call.arguments,['versionId'],'INVALID_TOOL_CALL');return editSources(folder,call.arguments?.versionId||'current');}

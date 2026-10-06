@@ -4,6 +4,9 @@ import { mkdtemp, rm, readFile, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {validateStructured, createVisionService, invalidStructuredPaths } from '../../apps/studio/server/ai/vision.mjs';
+test('integer schema revisions accept whole numbers and reject fractional or non-finite revisions',()=>{
+ const schema={type:'integer',minimum:0,maximum:64};assert.equal(validateStructured(8,schema),true);for(const value of [-1,8.5,65,NaN,Infinity,'8'])assert.equal(validateStructured(value,schema),false);assert.deepEqual(invalidStructuredPaths(8,schema),[]);
+});
 
 const schema = {type:'object',additionalProperties:false,properties:{finding:{type:'string',minLength:1}},required:['finding']};
 const payload = {input:[],text:{format:{schema}}};

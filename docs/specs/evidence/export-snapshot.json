@@ -1,0 +1,24 @@
+{
+  "exportedVersion": "6cf954d5-15bb-42d1-8df9-6ac8862db7b5",
+  "currentVersion": "c898a1f3-3ac8-422f-b2dc-e4d0a2eeaa09",
+  "exportedEV": 0.27,
+  "currentEV": 0.28,
+  "steps": [
+    {
+      "id": "qa-tone",
+      "title": "岩石层次",
+      "enabled": false
+    },
+    {
+      "id": "step-36e21423-bbc8-492d-886f-ba7553f5123f",
+      "title": "提亮暗处",
+      "enabled": true
+    }
+  ],
+  "width": 1448,
+  "height": 1086,
+  "pixelHash": "b5a185fb8b60ce79827fb787617eaaddd75ed0f1d62b222144797ee9d15f006d",
+  "frameSpecHash": "fb267f8dff49271b58e126297246b449f8b3e2f3feb66763a7f7dc2b766cbfc6",
+  "pixelEquality": true,
+  "sourceUnchanged": true
+}

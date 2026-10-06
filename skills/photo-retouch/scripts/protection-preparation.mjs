@@ -4,7 +4,7 @@ import {loadProject,currentVersion,hash,fail} from './project.mjs';
 import {guardsOf,geometryOf} from './engine/edit-guards.js';
 import {protectionMask,assertNonOverlappingReferences} from './engine/protected-regions.js';
 import {outputGeometry} from './engine/export-settings.js';
-import {pipelineVersion} from './engine/edit-identity.js';
+import {versionPipeline,versionStateHash} from './engine/edit-identity.js';
 import {assertReferenceComplexity,verifyReferences,writeReferenceSnapshot} from './reference-store.mjs';
 import {randomUUID} from 'node:crypto';
 
@@ -17,7 +17,7 @@ export async function prepareProtection(folder,value) {
   const state=structuredClone(base.state);state.guards=structuredClone(guardsOf(state));
   const sourceRect=outputGeometry(base.state.crop,p.source.width,p.source.height,1400).rect;
   const viewCrop={x:sourceRect.x/p.source.width,y:sourceRect.y/p.source.height,width:sourceRect.width/p.source.width,height:sourceRect.height/p.source.height,angle:base.state.crop?.angle||0};
-  const region={id:randomUUID(),name:String(value.name??'').trim().slice(0,60)||'保留画面',referenceVersionId:base.id,sourceChecksum:p.source.checksum,normalizedChecksum:p.source.normalizedChecksum,pipeline:pipelineVersion,geometry:geometryOf(base.state),referenceStateHash:hash(base.state),mask:protectionMask(value,viewCrop,p.source)};
+  const region={id:randomUUID(),name:String(value.name??'').trim().slice(0,60)||'保留画面',referenceVersionId:base.id,sourceChecksum:p.source.checksum,normalizedChecksum:p.source.normalizedChecksum,pipeline:versionPipeline(base),geometry:geometryOf(base.state),referenceStateHash:versionStateHash(base),mask:protectionMask(value,viewCrop,p.source)};
   assertNonOverlappingReferences([...state.guards.regions,region]);
   assertReferenceComplexity(p,{...state,guards:{...state.guards,regions:[...state.guards.regions,region]}});
   const createdSnapshots=[];

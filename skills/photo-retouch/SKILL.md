@@ -30,6 +30,7 @@ description: 摄影审片、选片与精修：单张诊断，或从一批照片�
 | 主次、留白、复杂场景、摄影练习 | [构图与拍摄](references/composition-craft.md) |
 | 曝光、白平衡、肤色、曲线、HSL | [光线与色彩](references/light-color.md) |
 | 复合请求、工具目录、区域或对象目标、可复用蒙版 | [工具组合](references/tool-composition.md) |
+| 已接受步骤继续修改、顺序、不透明度、版本化范围 | [可编辑操作栈](references/editable-stack.md) |
 | 锐化/降噪、羽化/渐变、裁剪/拉直、导出 | [细节与局部工艺](references/detail-local-crop.md) |
 | 大师参考、风格选择、强度与自适应 | [风格图谱](references/style-atlas.md) |
 | 照片加字、可爱短句、贴纸标题、图文封面 | [文字点缀](references/lettering.md) |

@@ -48,10 +48,18 @@ npm run plugin:check
 npm run plugin:build
 ```
 
-发布 ZIP 位于 `dist/framelark/framelark-0.1.4.zip`。包中只有两套 Skill、插件清单和小帧图标，不包含本机配置、密钥、照片项目、草稿、导出文件或原生 `node_modules`。图像依赖在用户的执行环境中准备，不把 macOS 的二进制依赖分发到其他系统。
+发布 ZIP 位于 `dist/framelark/framelark-0.1.5.zip`。包中只有两套 Skill、插件清单和小帧图标，不包含本机配置、密钥、照片项目、草稿、导出文件或原生 `node_modules`。图像依赖在用户的执行环境中准备，不把 macOS 的二进制依赖分发到其他系统。
 
 `skills/` 是唯一维护来源；构建只读取 Git 已跟踪的 Skill、图标和清单，校验发布副本与工作区源码。未跟踪的本地文件不会进入发布包；误跟踪的配置、照片项目或符号链接会在生成 ZIP 前报错，保留上一次有效包。新增发布资源需先加入 Git。根目录 `plugin.json` 提供 portable 格式，`.codex-plugin/plugin.json` 提供 Codex 兼容格式，`.agents/plugins/marketplace.json` 提供仓库安装入口。二者使用同一名称、版本与展示信息。
 
 当前发布路径是仓库插件市场和 ZIP，尚未上架 OpenAI 的通用插件目录。要让 ChatGPT 云端或管理后台从官方目录发现它，还需要使用开发者身份上传、验证并发布插件；安装本地插件本身不会部署云端修图服务。
 
 官方依据：[插件打包与安装](https://developers.openai.com/plugins/build/plugins)、[插件架构](https://developers.openai.com/plugins/concepts/plugins)、[上传与发布](https://developers.openai.com/plugins/deploy/submission)。
+
+## 0.1.5：可编辑配方的同步升级
+
+完整工作台、CLI 和两套 Skill 必须使用同一份新代码。新项目在首次写入可编辑配方时升级到 schema 3，升级前会保存逐字节的旧项目备份。旧客户端拒绝打开 schema 3，避免把新步骤丢掉后覆盖项目。
+
+更新仓库后重新运行 `npm run plugin:install`，并开启新对话；独立 Skill 使用原来的安装命令更新。正在运行的本地工作台也需要重启。只更新网页不会更新已经安装到 Agent 中的 Skill。
+
+色彩和细节的新步骤使用内核 2：色彩覆盖完整六段色相，细节范围按同一原片位置缩放。已经保存的内核 1 步骤保持原有重放方式；升级插件不会偷偷改变旧版本的画面。风格试片不会占用编辑步骤，超过容量时可预览但不能接受，整理步骤后再应用。

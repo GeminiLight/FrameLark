@@ -44,7 +44,7 @@ export function createPhotoViewer(dialog,{prefix="viewer",onState=()=>{}}={}) {
         const source=document.createElement('canvas');source.width=rw;source.height=rh;
         const ctx=source.getContext('2d',{willReadFrequently:true});ctx.imageSmoothingQuality='high';
         drawPhotoSource(ctx,sourceImage,version.crop,rw,rh,rect);
-        const output=await renderer.render({pixels:ctx.getImageData(0,0,rw,rh).data,width:rw,height:rh,settings:version.settings,annotations:version.annotations,
+        const output=await renderer.render({pixels:ctx.getImageData(0,0,rw,rh).data,width:rw,height:rh,settings:version.settings,annotations:version.annotations,document:version.document,maskView:version.maskView,
           crop:{x:rect.x/W,y:rect.y/H,width:rect.width/W,height:rect.height/H,angle:version.crop?.angle || 0},frame:{fullWidth:W,fullHeight:H,sourceRect:rect,angle:version.crop?.angle || 0}});
         if(token!==generation||!dialog.open)return;
         if(showMasks && version.annotations?.length){

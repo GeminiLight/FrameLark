@@ -1,7 +1,7 @@
 import {readFile, stat, mkdir, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
-import {hash, pipelineVersion} from './engine/edit-identity.js';
+import {hash, pipelineVersion,versionPipeline,versionStateHash} from './engine/edit-identity.js';
 import {guardsOf, geometryOf, validateGuards} from './engine/edit-guards.js';
 import {equal, fail} from './engine/edit-values.js';
 
@@ -28,8 +28,8 @@ export function validateReferences(project, state, ownerIndex = project.versions
     const index=project.versions.findIndex(v=>v.id===region.referenceVersionId),reference=project.versions[index];
     if (index<0 || index>=ownerIndex) fail('REFERENCE_NOT_FOUND','保护必须引用更早的已保存版本，不能引用候选或形成循环。');
     if (region.sourceChecksum!==project.source.checksum || region.normalizedChecksum!==project.source.normalizedChecksum) fail('REFERENCE_SOURCE_CHANGED','保护参考与原片身份不一致。');
-    if (checkPipeline&&region.pipeline!==pipelineVersion) fail('REFERENCE_PIPELINE_CHANGED','渲染管线已改变。请使用保存的无损参考重新确认保护；本次不会重新解释旧效果。');
-    if (region.referenceStateHash!==hash(reference.state)) fail('REFERENCE_STATE_CHANGED','保护参考版本记录已改变，请从备份恢复。');
+    if (checkPipeline&&region.pipeline!==versionPipeline(reference)) fail('REFERENCE_PIPELINE_CHANGED','渲染管线已改变。请使用保存的无损参考重新确认保护；本次不会重新解释旧效果。');
+    if (region.referenceStateHash!==versionStateHash(reference)) fail('REFERENCE_STATE_CHANGED','保护参考版本记录已改变，请从备份恢复。');
     if (!equal(region.geometry,geometryOf(state)) || !equal(region.geometry,geometryOf(reference.state))) fail('PROTECTED_GEOMETRY','保护参考与当前构图不一致。请先解除区域保护。');
   }
 }

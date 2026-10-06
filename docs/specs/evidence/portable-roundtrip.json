@@ -1,0 +1,18 @@
+{
+  "installedSkill": "standalone copy with its own runtime dependencies",
+  "exchangeSchema": "framelark-photo-exchange/2",
+  "steps": [
+    {
+      "id": "qa-tone",
+      "enabled": false
+    },
+    {
+      "id": "step-36e21423-bbc8-492d-886f-ba7553f5123f",
+      "enabled": true,
+      "ev": 0.28
+    }
+  ],
+  "pixelHash": "9ed60b64ddaf4f7e1aa33c3c6cdb691a1b9f60cc0b5b199cf49cc773992f75ee",
+  "frameSpecHash": "70db17b3622e264179a474e972996f4f2f66b4004215a0c32eccbc74a4746e11",
+  "equality": true
+}

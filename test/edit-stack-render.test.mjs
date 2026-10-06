@@ -1,0 +1,125 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {neutralSettings} from '../apps/studio/public/editor-engine.js';
+import {srgbToLinear,linearToSrgb} from '../apps/studio/public/tone-processing.js';
+import {renderPhotoPixels} from '../apps/studio/public/photo-rendering.js';
+import {createDocument} from '../apps/studio/public/edit-stack/document.js';
+import {applyCommands} from '../apps/studio/public/edit-stack/commands.js';
+import {sha256} from '../apps/studio/public/edit-stack/identity.js';
+import {renderStackPixels,displayMask,createStackRenderCache} from '../apps/studio/public/edit-stack/render.js';
+import {presetCommands} from '../apps/studio/public/edit-stack/styles.js';
+import {kernelFor} from '../apps/studio/public/edit-stack/kernels.js';
+const document=(width=8,height=6,base={settings:neutralSettings(),locals:[]})=>createDocument({documentId:'photo',source:{assetId:'source',contentHash:sha256('source'),width,height},base});
+const step=(id,tool,parameters)=>({id,title:id,tool,toolVersion:2,parameters});
+const add=(d,id,tool,parameters)=>applyCommands(d,[{type:'AddStep',step:step(id,tool,parameters)}]).next;
+const image=(width=8,height=6,color=[64,64,64,255])=>{const pixels=new Uint8ClampedArray(width*height*4);for(let i=0;i<pixels.length;i+=4)pixels.set(color,i);return pixels;};
+const render=(d,pixels,extra={})=>renderStackPixels({pixels,width:d.source.width,height:d.source.height,document:d,...extra}).pixels;
+test('optimized kernels preserve the pre-optimization RGBA across tools, masks and rotated frames',()=>{
+ const golden=JSON.parse(readFileSync(new URL('./edit-stack-kernel-v1-golden.json',import.meta.url)));
+ const {width,height,frame}=golden,pixels=new Uint8ClampedArray(width*height*4);
+ for(let i=0;i<pixels.length;i+=4){const p=i/4;pixels[i]=p*37%256;pixels[i+1]=p*61%256;pixels[i+2]=p*101%256;pixels[i+3]=p%11===0?0:p*29%256;}
+ const base=createDocument({documentId:'golden',source:{assetId:'fixture',contentHash:sha256(pixels),width:96,height:72},base:{settings:{},locals:[]}});
+ for(const sample of golden.results){const document=applyCommands(base,sample.commands.map(command=>command.type==='AddStep'?{...command,step:{...command.step,kernelVersion:1}}:command)).next;assert.equal(sha256(renderStackPixels({pixels,width,height,document,frame,maskView:sample.maskView}).pixels),sample.hash,sample.name);}
+});
+test('bounded prefix reuse matches cold pixels after changing the last or middle step',()=>{
+ const pixels=image(),cache=createStackRenderCache({byteBudget:100000});let d=add(add(add(document(),'a','exposure',{ev:.3}),'b','tone',{contrast:20}),'c','color',{warmth:12});render(d,pixels,{cache});
+ const last=applyCommands(d,[{type:'UpdateStepParameters',stepId:'c',parameters:{warmth:-8}}]).next,hot=renderStackPixels({pixels,width:8,height:6,document:last,cache});assert.equal(hot.cachedPrefix,2);assert.deepEqual(hot.pixels,render(last,pixels));
+ const middle=applyCommands(last,[{type:'UpdateStepParameters',stepId:'b',parameters:{contrast:-10}}]).next;assert.deepEqual(render(middle,pixels,{cache}),render(middle,pixels));assert.ok(cache.bytes<=100000);
+ const repeated=renderStackPixels({pixels,width:8,height:6,document:middle,cache});assert.equal(repeated.cached,true);repeated.pixels[0]=255;assert.deepEqual(render(middle,pixels,{cache}),render(middle,pixels));
+});
+test('cache binds sampled bytes and the frame, even under the same source/document identity',()=>{
+ const cache=createStackRenderCache(),d=add(document(),'grain','finish',{grain:40}),pixels=image();render(d,pixels,{cache});
+ const different=image(8,6,[100,80,60,255]);assert.deepEqual(render(d,different,{cache}),render(d,different));
+ const frame={fullWidth:8,fullHeight:6,sourceRect:{x:1,y:1,width:6,height:4},angle:0};assert.deepEqual(render(d,pixels,{cache,frame}),render(d,pixels,{frame}));
+});
+test('two bounded checkpoints reuse both middle and last edits without changing pixels',()=>{
+ const pixels=image(),byteBudget=pixels.length*4*2+pixels.length/4*2+pixels.length;
+ const d=applyCommands(document(),Array.from({length:8},(_,i)=>({type:'AddStep',step:step('s'+i,'exposure',{ev:.08})}))).next;
+ for(const index of [4,7]){
+   const cache=createStackRenderCache({byteBudget});render(d,pixels,{cache});
+   const changed=applyCommands(d,[{type:'UpdateStepParameters',stepId:'s'+index,parameters:{ev:.12}}]).next;
+   const hot=renderStackPixels({pixels,width:8,height:6,document:changed,cache});
+   assert.equal(hot.cachedPrefix,index);assert.deepEqual(hot.pixels,render(changed,pixels));assert.ok(cache.bytes<=byteBudget);
+ }
+});
+test('color hue adjustments cover all six sectors including red wrap and blue-purple',()=>{
+ // Independent HSL channel interpolation checks the two previously missing or
+ // misplaced sectors; no output from the optimized kernel defines this oracle.
+ const rgbFor=(h,s,l)=>{const a=s*Math.min(l,1-l);return [0,8,4].map(n=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1));});};
+ const samples=[[0,30,52,'orangeHue',-40],[70,30,52,'orangeHue',30],[125,125,67,'greenHue',-30],[180,220,68,'blueHue',-30],[250,220,68,'blueHue',30],[345,30,52,'orangeHue',-30]];
+ for(const [h,center,span,key,value] of samples){
+   const rgb=rgbFor(h,.6,.5),input=new Float32Array([...rgb.map(srgbToLinear),255]),p=applyCommands(document(1,1),[{type:'AddStep',step:step('color','color',{[key]:value})}]).next.steps[0];
+   const actual=kernelFor(p,input,{width:1,height:1})(0,0,0),weight=Math.max(0,1-Math.abs(((h-center+540)%360)-180)/span),shifted=((h+weight*value*.5)%360+360)%360,expected=rgbFor(shifted,.6,.5).map(srgbToLinear);
+   actual.forEach((channel,i)=>assert.ok(Math.abs(channel-expected[i])<1e-6,`hue ${h}, channel ${i}`));
+ }
+});
+test('disabled, zero opacity, neutral and zero masks strictly bypass all RGBA including hidden RGB',()=>{
+ const pixels=image();pixels.set([123,45,67,0],0);let d=add(document(),'light','exposure',{ev:1});
+ for(const command of [{type:'SetStepEnabled',stepId:'light',enabled:false},{type:'SetStepOpacity',stepId:'light',opacity:0},{type:'UpdateStepParameters',stepId:'light',parameters:{ev:0}},{type:'ReplaceStepMask',stepId:'light',mask:{expression:{kind:'constant',value:0},reference:{kind:'live-input'}}}])assert.deepEqual(render(applyCommands(d,[command]).next,pixels),pixels);
+});
+test('Float32 exposure does not quantize or clip intermediate stages',()=>{
+ const pixels=image(8,6,[120,80,60,96]);let d=add(document(),'up','exposure',{ev:3,headroomPolicy:'unbounded'});d=add(d,'down','exposure',{ev:-3,headroomPolicy:'unbounded'});assert.deepEqual(render(d,pixels),pixels);
+});
+test('opacity mixes a computed result and is distinct from scaling the EV parameter',()=>{
+ const pixels=image(),full=add(document(),'light','exposure',{ev:1,headroomPolicy:'unbounded'}),half=applyCommands(full,[{type:'SetStepOpacity',stepId:'light',opacity:.5}]).next,halfEv=applyCommands(full,[{type:'UpdateStepParameters',stepId:'light',parameters:{ev:.5}}]).next;
+ const value=render(half,pixels)[0],expected=Math.round(linearToSrgb(srgbToLinear(64/255)*1.5)*255);assert.equal(value,expected);assert.notEqual(value,render(halfEv,pixels)[0]);
+});
+test('input luminance protection keeps bright pixels byte-identical while lifting dark pixels',()=>{
+ const pixels=image();pixels.set([240,240,240,122],0);let d=add(document(),'light','exposure',{ev:.6});d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'light',mask:{expression:{kind:'luminance',mode:'exclude-highlights',start:.55,end:.8},reference:{kind:'live-input'}}}]).next;
+ const output=render(d,pixels);assert.deepEqual(output.slice(0,4),pixels.slice(0,4));assert.ok(output[4]>pixels[4]);for(let i=3;i<output.length;i+=4)assert.equal(output[i],pixels[i]);
+});
+test('positive headroom limits avoid a saturated channel overshoot without losing alpha',()=>{
+ const pixels=image(8,6,[250,15,25,96]),d=add(document(),'light','exposure',{ev:2}),output=render(d,pixels);assert.ok(output[0]<=255);assert.ok(output[0]>=250);assert.equal(output[3],96);assert.ok(output[1]<100);
+});
+test('nonlinear tone and exposure have real order-sensitive pixel output',()=>{
+ let d=add(document(),'exposure','exposure',{ev:.8,headroomPolicy:'unbounded'});d=add(d,'tone','tone',{contrast:40,highlights:-30});const reversed=applyCommands(d,[{type:'MoveStep',stepId:'tone',index:0}]).next,pixels=image(8,6,[170,120,90,255]);assert.notDeepEqual(render(d,pixels),render(reversed,pixels));
+});
+test('a frozen original reference differs from live-input selection after an upstream change',()=>{
+ const pixels=image(8,6,[160,160,160,255]);let d=add(document(),'first','exposure',{ev:1,headroomPolicy:'unbounded'});d=add(d,'second','exposure',{ev:1,headroomPolicy:'unbounded'});
+ const expression={kind:'luminance',mode:'exclude-highlights',start:.4,end:.6},live=applyCommands(d,[{type:'ReplaceStepMask',stepId:'second',mask:{expression,reference:{kind:'live-input'}}}]).next,frozen=applyCommands(d,[{type:'ReplaceStepMask',stepId:'second',mask:{expression,reference:{kind:'frozen-source',sourceHash:d.source.contentHash}}}]).next;
+ assert.ok(render(frozen,pixels)[0]>render(live,pixels)[0]);
+});
+test('drawn masks retain exact affine geometry and exclusions instead of an expanded bounding box',()=>{
+ const pixels=image(8,8);let d=add(document(8,8),'light','exposure',{ev:1});d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'light',mask:{expression:{kind:'drawn',mask:{shape:'rectangle',rect:{x:0,y:0,width:1,height:1},feather:0,exclude:[]},basis:{origin:{x:.5,y:0},xAxis:{x:.5,y:.5},yAxis:{x:-.5,y:.5}}},reference:{kind:'live-input'}}}]).next;
+ const output=render(d,pixels);assert.equal(output[0],pixels[0]);assert.ok(output[(3*8+4)*4]>pixels[(3*8+4)*4]);
+ const shown=displayMask({pixels,width:8,height:8,document:d,maskRef:d.steps[0].maskRef,mode:'bw'});assert.equal(shown[0],0);assert.equal(shown[(3*8+4)*4],255);
+});
+test('color, detail and finish kernels preserve alpha and ignore hidden transparent neighbor colors',()=>{
+ let d=add(document(),'color','color',{warmth:10,saturation:8});d=add(d,'detail','detail',{denoise:30,sharpen:5});d=add(d,'finish','finish',{vignette:8,grain:5});const pixels=image(8,6,[90,100,120,128]),other=new Uint8ClampedArray(pixels);pixels.set([0,255,0,0],0);other.set([255,0,255,0],0);
+ const a=render(d,pixels),b=render(d,other);assert.deepEqual(a.slice(4),b.slice(4));assert.deepEqual(a.slice(0,4),pixels.slice(0,4));for(let i=3;i<a.length;i+=4)assert.equal(a[i],pixels[i]);
+});
+test('memory budgets and cancelled jobs fail before presenting an authoritative result',()=>{
+ const pixels=image(),d=add(document(),'detail','detail',{denoise:20});assert.throws(()=>render(d,pixels,{memoryBudgetBytes:1}),{code:'RENDER_BUDGET_EXCEEDED'});
+ const controller=new AbortController();controller.abort();assert.throws(()=>render(d,pixels,{signal:controller.signal}),{code:'RENDER_CANCELLED'});
+});
+test('legacy rendering stays byte-identical and new documents do not read shadow aggregate settings',()=>{
+ const pixels=image(),settings={...neutralSettings(),warmth:12,shadows:8},base={settings,locals:[]},d=document(8,6,base),legacy=renderPhotoPixels({pixels,width:8,height:6,settings,annotations:[]}),withDocument=renderPhotoPixels({pixels,width:8,height:6,settings:{...neutralSettings(),exposure:3},annotations:[],document:d});assert.deepEqual(withDocument,legacy);
+});
+test('style recipes expand into independently editable nodes with pinned preset provenance',()=>{
+ const d=applyCommands(document(),presetCommands('daily-soft',70,{groupId:'look'})).next;assert.ok(d.steps.length>1);assert.equal(d.groups[0].provenance.presetVersion,1);
+ const id=d.steps[0].id,edited=applyCommands(d,[{type:'SetStepOpacity',stepId:id,opacity:.2}]).next;assert.equal(edited.steps[0].opacity,.2);assert.deepEqual(edited.steps.slice(1),d.steps.slice(1));assert.ok(render(d,image()).some((value,index)=>value!==image()[index]));
+});
+test('mask display samples the actual upstream Float32 input even while its effect is paused',()=>{
+ const pixels=image(8,6,[160,160,160,255]);let d=add(document(),'first','exposure',{ev:1,headroomPolicy:'unbounded'});d=add(d,'second','exposure',{ev:1});d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'second',mask:{expression:{kind:'luminance',mode:'exclude-highlights',start:.4,end:.6},reference:{kind:'live-input'}}},{type:'SetStepEnabled',stepId:'second',enabled:false}]).next;
+ const output=renderStackPixels({pixels,width:8,height:6,document:d,maskView:{stepId:'second',mode:'bw'}});assert.equal(output.pixels[0],0);assert.equal(output.displayOnly,true);assert.ok(render(d,pixels)[0]>pixels[0]);
+});
+
+test('detail neighborhoods stay on the same original area across preview and full-size export',()=>{
+ const W=2800,H=50,d=add(document(W,H),'detail','detail',{clarity:75});
+ const field=x=>110+30*Math.sin(x/22)+25*Math.tanh((x-800)/5);
+ const grid=(w,h,scale)=>Uint8ClampedArray.from({length:w*h*4},(_,i)=>i%4===3?255:field((Math.floor(i/4)%w+.5)*scale));
+ const high=renderStackPixels({pixels:grid(W,H,1),width:W,height:H,document:d}).pixels;
+ const low=renderStackPixels({pixels:grid(W/2,H/2,2),width:W/2,height:H/2,document:d}).pixels;
+ let max=0;for(let x=3;x<W/2-3;x++)max=Math.max(max,Math.abs(low[(12*W/2+x)*4]-(high[(24*W+x*2)*4]+high[(24*W+x*2+1)*4])/2));
+ assert.ok(max<=2,`maximum same-area difference ${max}`);
+});
+
+test('new color steps use the corrected kernel while pinned legacy color remains explicit',()=>{
+ const d=add(document(1,1),'color','color',{blueHue:30}),pixels=Uint8ClampedArray.of(85,51,204,255);
+ assert.equal(d.steps[0].kernelVersion,2);
+ const old=structuredClone(d);old.steps[0].kernelVersion=1;
+ assert.notDeepEqual(render(d,pixels),render(old,pixels));
+ const unknown=structuredClone(d);unknown.steps[0].kernelVersion=99;
+ assert.throws(()=>render(unknown,pixels),{code:'TOOL_VERSION_UNSUPPORTED'});
+});

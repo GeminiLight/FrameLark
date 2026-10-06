@@ -1,0 +1,357 @@
+{
+  "baselineCommit": "fb4a61242e62d972880eb56afd8f717f680f9b54",
+  "before": {
+    "node": "v22.22.2",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M3",
+    "protocol": "synthetic gradient, fixed exposure/tone/color/detail/finish sequence; one cold sample, three identical warm samples, one independently prewarmed baseline and edited sample for each position; not a visual-quality score or a peak-memory measurement",
+    "rows": [
+      {
+        "width": 560,
+        "height": 420,
+        "count": 1,
+        "coldMs": 125.6,
+        "warmMs": [
+          15.6,
+          16.1,
+          15.1
+        ],
+        "edits": {
+          "first": {
+            "ms": 133.7,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 131.3,
+            "cachedPrefix": 0
+          },
+          "last": {
+            "ms": 117.2,
+            "cachedPrefix": 0
+          }
+        },
+        "estimatedWorkBytes": 9643200,
+        "retainedCacheBytes": 4939200,
+        "rssAfterBytes": 134004736
+      },
+      {
+        "width": 560,
+        "height": 420,
+        "count": 8,
+        "coldMs": 500.9,
+        "warmMs": [
+          15.7,
+          16.7,
+          16.4
+        ],
+        "edits": {
+          "first": {
+            "ms": 466.5,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 247.1,
+            "cachedPrefix": 4
+          },
+          "last": {
+            "ms": 149.9,
+            "cachedPrefix": 7
+          }
+        },
+        "estimatedWorkBytes": 17169600,
+        "retainedCacheBytes": 32928000,
+        "rssAfterBytes": 212598784
+      },
+      {
+        "width": 560,
+        "height": 420,
+        "count": 24,
+        "coldMs": 1032.8,
+        "warmMs": [
+          16.8,
+          16.1,
+          16
+        ],
+        "edits": {
+          "first": {
+            "ms": 1038.8,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 555.9,
+            "cachedPrefix": 12
+          },
+          "last": {
+            "ms": 83,
+            "cachedPrefix": 23
+          }
+        },
+        "estimatedWorkBytes": 17169600,
+        "retainedCacheBytes": 64915200,
+        "rssAfterBytes": 296435712
+      },
+      {
+        "width": 1400,
+        "height": 1050,
+        "count": 1,
+        "coldMs": 703.7,
+        "warmMs": [
+          97.5,
+          95.5,
+          94.1
+        ],
+        "edits": {
+          "first": {
+            "ms": 699.3,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 706.4,
+            "cachedPrefix": 0
+          },
+          "last": {
+            "ms": 706.1,
+            "cachedPrefix": 0
+          }
+        },
+        "estimatedWorkBytes": 60270000,
+        "retainedCacheBytes": 30870000,
+        "rssAfterBytes": 307101696
+      },
+      {
+        "width": 1400,
+        "height": 1050,
+        "count": 8,
+        "coldMs": 2743.4,
+        "warmMs": [
+          96.6,
+          94.5,
+          94.6
+        ],
+        "edits": {
+          "first": {
+            "ms": 2776.8,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 2747,
+            "cachedPrefix": 0
+          },
+          "last": {
+            "ms": 944,
+            "cachedPrefix": 7
+          }
+        },
+        "estimatedWorkBytes": 107310000,
+        "retainedCacheBytes": 55860000,
+        "rssAfterBytes": 284901376
+      },
+      {
+        "width": 1400,
+        "height": 1050,
+        "count": 24,
+        "coldMs": 6733.7,
+        "warmMs": [
+          103.6,
+          101.6,
+          407.7
+        ],
+        "edits": {
+          "first": {
+            "ms": 6365.3,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 6420.4,
+            "cachedPrefix": 0
+          },
+          "last": {
+            "ms": 461.3,
+            "cachedPrefix": 23
+          }
+        },
+        "estimatedWorkBytes": 107310000,
+        "retainedCacheBytes": 55860000,
+        "rssAfterBytes": 355368960
+      }
+    ]
+  },
+  "after": {
+    "node": "v22.22.2",
+    "platform": "darwin",
+    "arch": "arm64",
+    "cpu": "Apple M3",
+    "protocol": "synthetic gradient, fixed exposure/tone/color/detail/finish sequence; one cold sample, three identical warm samples, one independently prewarmed baseline and edited sample for each position; not a visual-quality score or a peak-memory measurement",
+    "rows": [
+      {
+        "width": 560,
+        "height": 420,
+        "count": 1,
+        "coldMs": 59.9,
+        "warmMs": [
+          15.2,
+          14.7,
+          15
+        ],
+        "edits": {
+          "first": {
+            "ms": 58.3,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 45.7,
+            "cachedPrefix": 0
+          },
+          "last": {
+            "ms": 43.7,
+            "cachedPrefix": 0
+          }
+        },
+        "estimatedWorkBytes": 9643200,
+        "retainedCacheBytes": 4939200,
+        "rssAfterBytes": 133791744
+      },
+      {
+        "width": 560,
+        "height": 420,
+        "count": 8,
+        "coldMs": 302.9,
+        "warmMs": [
+          15.9,
+          16.5,
+          15.3
+        ],
+        "edits": {
+          "first": {
+            "ms": 323.6,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 174.8,
+            "cachedPrefix": 4
+          },
+          "last": {
+            "ms": 98.1,
+            "cachedPrefix": 7
+          }
+        },
+        "estimatedWorkBytes": 17169600,
+        "retainedCacheBytes": 32928000,
+        "rssAfterBytes": 234782720
+      },
+      {
+        "width": 560,
+        "height": 420,
+        "count": 24,
+        "coldMs": 735,
+        "warmMs": [
+          16.7,
+          16.1,
+          15.9
+        ],
+        "edits": {
+          "first": {
+            "ms": 717.2,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 401,
+            "cachedPrefix": 12
+          },
+          "last": {
+            "ms": 55.4,
+            "cachedPrefix": 23
+          }
+        },
+        "estimatedWorkBytes": 17169600,
+        "retainedCacheBytes": 64915200,
+        "rssAfterBytes": 283508736
+      },
+      {
+        "width": 1400,
+        "height": 1050,
+        "count": 1,
+        "coldMs": 282.6,
+        "warmMs": [
+          94.3,
+          94,
+          94.1
+        ],
+        "edits": {
+          "first": {
+            "ms": 283.5,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 279.4,
+            "cachedPrefix": 0
+          },
+          "last": {
+            "ms": 280.7,
+            "cachedPrefix": 0
+          }
+        },
+        "estimatedWorkBytes": 60270000,
+        "retainedCacheBytes": 30870000,
+        "rssAfterBytes": 451395584
+      },
+      {
+        "width": 1400,
+        "height": 1050,
+        "count": 8,
+        "coldMs": 1784.3,
+        "warmMs": [
+          94.1,
+          93.8,
+          93.9
+        ],
+        "edits": {
+          "first": {
+            "ms": 1827.5,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 1079.3,
+            "cachedPrefix": 4
+          },
+          "last": {
+            "ms": 634.7,
+            "cachedPrefix": 7
+          }
+        },
+        "estimatedWorkBytes": 107310000,
+        "retainedCacheBytes": 55860000,
+        "rssAfterBytes": 286752768
+      },
+      {
+        "width": 1400,
+        "height": 1050,
+        "count": 24,
+        "coldMs": 4755.8,
+        "warmMs": [
+          95.3,
+          95.3,
+          102.8
+        ],
+        "edits": {
+          "first": {
+            "ms": 4761.1,
+            "cachedPrefix": 0
+          },
+          "middle": {
+            "ms": 2455,
+            "cachedPrefix": 12
+          },
+          "last": {
+            "ms": 320.2,
+            "cachedPrefix": 23
+          }
+        },
+        "estimatedWorkBytes": 107310000,
+        "retainedCacheBytes": 55860000,
+        "rssAfterBytes": 328663040
+      }
+    ]
+  }
+}

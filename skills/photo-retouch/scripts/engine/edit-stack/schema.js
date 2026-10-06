@@ -1,0 +1,21 @@
+import {pixelTool,pixelCapabilities} from './tools.js';
+import {maskSchema} from '../photo-tools/targets.js';
+const id={type:'string',pattern:'^[-a-zA-Z0-9_]{1,80}$'},hash={type:'string',pattern:'^[a-f0-9]{64}$'},number=(minimum,maximum)=>({type:'number',minimum,maximum});
+const record=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
+const ref=record({id,version:{type:'integer',minimum:1}}),point=record({x:number(-2,2),y:number(-2,2)}),rect=record({x:number(0,1),y:number(0,1),width:number(.05,1),height:number(.05,1),angle:number(-15,15)},['x','y','width','height']);
+const expression={$ref:'#/$defs/maskExpression'};
+export const maskDefinitions={maskExpression:{anyOf:[record({kind:{enum:['constant']},value:number(0,1)}),record({kind:{enum:['luminance']},mode:{enum:['include-highlights','exclude-highlights','range']},start:number(0,1),end:number(0,1)}),record({kind:{enum:['drawn']},mask:maskSchema,basis:record({origin:point,xAxis:point,yAxis:point})},['kind','mask']),record({kind:{enum:['reference']},id,version:{type:'integer',minimum:1}}),record({kind:{enum:['invert']},input:expression}),...['union','intersect','subtract'].map(kind=>record({kind:{enum:[kind]},a:expression,b:expression}))]}};
+const mask=record({expression,reference:{anyOf:[record({kind:{enum:['live-input']}}),record({kind:{enum:['frozen-source']},sourceHash:hash})]}});
+const step={anyOf:pixelCapabilities().tools.map(tool=>record({id,title:{type:'string',minLength:1,maxLength:120},tool:{enum:[tool.id]},toolVersion:{enum:[tool.version]},kernelVersion:{enum:[tool.kernelVersion,...(pixelTool(tool.id,tool.version).previousKernelVersions||[])]},parameters:tool.parameters,enabled:{type:'boolean'},opacity:number(0,1),maskRef:{anyOf:[{type:'null'},ref]},dependsOn:{type:'array',maxItems:24,items:id},groupId:{type:['string','null']}},['id','title','tool','toolVersion','parameters']))};
+export const documentCommandSchema={anyOf:[
+ record({type:{enum:['AddStep']},step,index:{type:'integer',minimum:0,maximum:64}},['type','step']),
+ record({type:{enum:['UpdateStepParameters']},stepId:id,parameters:{anyOf:pixelCapabilities().tools.map(tool=>({...tool.parameters,required:[]}))}}),
+ record({type:{enum:['SetStepEnabled']},stepId:id,enabled:{type:'boolean'}}),record({type:{enum:['SetStepOpacity']},stepId:id,opacity:number(0,1)}),
+ record({type:{enum:['RenameStep']},stepId:id,title:{type:'string',maxLength:120}}),record({type:{enum:['MoveStep']},stepId:id,index:{type:'integer',minimum:0,maximum:63}}),
+ record({type:{enum:['RemoveStep']},stepId:id,cascade:{type:'boolean'}},['type','stepId']),
+ record({type:{enum:['ReplaceStepMask']},stepId:id,mask,shared:{type:'boolean'}},['type','stepId','mask']),record({type:{enum:['ReplaceStepMask']},stepId:id,maskRef:{anyOf:[{type:'null'},ref]},shared:{type:'boolean'}},['type','stepId','maskRef']),
+ record({type:{enum:['UpdateGeometry']},geometry:record({crop:{anyOf:[{type:'null'},rect]}})}),
+ record({type:{enum:['ToggleGroup']},groupId:id,enabled:{type:'boolean'}}),record({type:{enum:['AddGroup']},group:record({id,title:{type:'string',maxLength:120}})}),record({type:{enum:['RenameGroup']},groupId:id,title:{type:'string',maxLength:120}})
+]};
+export const documentProposalSchema=record({baseRevision:{type:'integer',minimum:0},baseHash:hash,requestId:id,name:{type:'string',maxLength:120},goal:{type:'string',maxLength:600},tradeoff:{type:'string',maxLength:600},items:{type:'array',minItems:1,maxItems:24,items:record({id,title:{type:'string',maxLength:120},commands:{type:'array',minItems:1,maxItems:24,items:documentCommandSchema},dependsOn:{type:'array',maxItems:24,items:id}},['id','title','commands'])}},['baseRevision','baseHash','items']);
+export const documentPlanSchema={...record({revision:{type:'integer',minimum:1},baseVersion:id,requestId:id,name:{type:'string',maxLength:40},goal:{type:'string',maxLength:600},tradeoff:{type:'string',maxLength:600},actorId:id,diagnosisId:id,handoffId:id,documentProposal:documentProposalSchema,selectedItemIds:{type:'array',maxItems:24,items:id}},['revision','baseVersion','documentProposal']),$defs:maskDefinitions};

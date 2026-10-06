@@ -42,6 +42,8 @@ const help={name:'FrameLark · 帧好 · 本地修片',usage:'node cli.mjs <comm
   handoff:'--input <JSON|->；request/claim/progress/complete/fail/cancel，接续需最新 revision；Agent 接手声明 actorId',
   watch:'[--after-revision <n>] [--timeout 60]；等待接续请求或项目变化，返回后由宿主 Agent 处理；最多等待 600 秒',
   'photo-tools':'工具目录、版本、目标类型与参数 Schema；不调用模型',
+  'document-tools':'顺序像素工具目录、参数、版本与资源上限；不调用模型',
+  'document':'读取当前可编辑文档或固定兼容基础；--input <plan.json|-> 以文档命令生成候选',
   'compose':'--input <tool-plan.json|->；独立子进程执行工具组合，产生逐项候选与实际中间预览',
   controls:'实际参数范围、灰卡响应与风格目录',
   preview:'[--version <id|current|original>] [--max-side 1400] [--region <JSON 原片范围>] [--without-text true]',
@@ -74,6 +76,7 @@ export async function runCLI(values=process.argv.slice(2)) {
   const o=args(rest),folder=o.project&&path.resolve(o.project),revision=o.revision===undefined?undefined:Number(o.revision);
   if(command==='controls')return {parameters:publicProject({candidates:[],source:{},versions:[]}).parameters,styles:publicProject({candidates:[],source:{},versions:[]}).styles,grayCardReference:editorControlReference(),directions:{warmth:'正值更暖，负值更冷',tint:'正值减绿／向洋红，负值减洋红／向绿'},semantics:'曝光为 EV；其余数值是本编辑器相对控制，不是 Lightroom 开尔文或通用单位。settings 设为目标值；style 独立叠加。'};
   if(command==='photo-tools'){const {photoTools}=await import('./engine/photo-tools/registry.js');return {tools:photoTools.describe(),execution:'subprocess'};}
+  if(command==='document-tools'){const {pixelCapabilities}=await import('./engine/edit-stack/tools.js');return pixelCapabilities();}
   if(command==='lettering'&&!o.input)return letteringCapabilities();
   if(command==='tool-schema'){const {hostToolContract}=await import('./tool-contract.mjs');return hostToolContract();}
   if(command==='examples')return visualExamples({id:o.id,query:o.query});
@@ -100,6 +103,7 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'preview':return previewPhoto(folder,o.version||'current',{maxSide:o['max-side']?Number(o['max-side']):1400,region:o.region?JSON.parse(o.region):undefined,withoutText:o['without-text']==='true'});
     case 'lettering':{const plan=await input(o.input);if(plan.mode!=='lettering'||!Array.isArray(plan.textOverlays)||['settings','style','crop','locals'].some(k=>plan[k]!==undefined))fail('LETTERING_PLAN','文字模式需 mode: lettering 和 textOverlays；光色、局部和裁剪请在修片候选中调整。');const result=await createCandidate(folder,plan);return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'compose':{const {createToolCandidate}=await import('./tool-candidates.mjs');return createToolCandidate(folder,await input(o.input,2*1024*1024));}
+    case 'document':{if(!o.input){const p=await loadProject(folder),{projectDocument}=await import('./document-state.mjs');return {revision:p.revision,baseVersion:p.currentId,document:projectDocument(p),active:Boolean(currentVersion(p).recipe)};}const result=await createCandidate(folder,await input(o.input,2*1024*1024));return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'candidate':{const result=await createCandidate(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'select':{const result=await selectCandidateItems(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id,{selectionHash:result.candidate.selectionHash,revision:result.project.revision})};}
     case 'guards':{const result=await changeGuards(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate?.id||result.version.id)};}
