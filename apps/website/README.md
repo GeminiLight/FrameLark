@@ -14,8 +14,12 @@ The Pages workspace supports browser photo import, styles, light and color contr
 
 Run the complete workspace for visual AI and Agent file-project collaboration; see the [deployment guide](../../docs/DEPLOYMENT.md). Keep the generated portrait's AI attribution and the photographic source credits when updating the website.
 
-The homepage places case studies inside the three feature chapters. Photography Eye switches between the arcade and cafe scene inputs with their shooting-reference boards, using tabs, arrow buttons, keyboard navigation and touch swipes. Retouching keeps the existing parameter comparisons and a real saved-version example; the collection chapter shows the two-photo example with selectable theme, ordering and editing steps. Scroll entrances, short transitions and the comparison demonstration honor reduced-motion preferences. Complete source credits remain available in the case detail page.
+The homepage places case studies inside the three feature chapters. Photography Eye defaults to the lakeside scene and switches among lakeside, arcade and cafe inputs with their shooting-reference boards, using tabs, arrow buttons, keyboard navigation and touch swipes. Retouching keeps the existing parameter comparisons and a real saved-version example; the collection chapter shows the two-photo example with selectable theme, ordering and editing steps. Short opacity transitions honor reduced-motion preferences. Scrolling preserves photo geometry and the comparison divider is controlled manually. Complete source credits remain available in the case detail page.
 
 ## Verification
 
 Run `node --test test/web/website-cases.test.js` for domain-root and project-path builds, the four case links, and unchanged full-resolution source resources. Run `npm run test:website` with agent-browser installed for case switching, visible failure/retry, late-image cancellation, dialogs, keyboard comparison, 390/320px navigation, reduced motion and legacy links. Pages runs both checks before publishing.
+
+The homepage uses self-hosted font assets: CJK subsets derived from Noto Sans SC at 400 and 600 weights, plus Manrope for Latin text and numerals. Original copyrights and SIL Open Font Licenses are shipped at `public/assets/website/fonts/licenses.txt`. Verify CJK glyph coverage and update the subsets when adding new copy. The runtime does not request fonts from Google.
+
+The lakeside case is the first default Photography Eye scene. Chapter shortcuts and explicit workspace/plugin entry labels make the starting paths distinct. Navigation loading, image decoding, retry feedback, keyboard control and mobile menu background/focus handling are part of the homepage interaction contract. Motion must preserve component position and photo geometry.

@@ -13,7 +13,7 @@ if(!['http:','https:'].includes(siteURL.protocol))throw new Error('A web site UR
 if(siteURL.protocol==='http:'&&!['localhost','127.0.0.1','::1'].includes(siteURL.hostname))siteURL.protocol='https:';
 if(!siteURL.pathname.endsWith('/'))siteURL.pathname+='/';
 const basePath=siteURL.pathname.replace(/\/$/,'');
-const extensions=new Set(['html','js','css','svg','png','jpg','jpeg','webp','ico','json','txt']);
+const extensions=new Set(['html','js','css','svg','png','jpg','jpeg','webp','ico','json','txt','woff2']);
 
 async function filesIn(directory){
   const files=[];

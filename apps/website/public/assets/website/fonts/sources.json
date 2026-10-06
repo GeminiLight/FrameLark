@@ -1,0 +1,22 @@
+{
+  "cjk": {
+    "family": "FrameLark UI CN",
+    "sourceFamily": "Noto Sans SC",
+    "source": "https://github.com/google/fonts/tree/main/ofl/notosanssc",
+    "weights": [
+      400,
+      600
+    ],
+    "subset": "Characters required by homepage and interactive text; regenerate on copy changes"
+  },
+  "latin": {
+    "family": "FrameLark UI Latin",
+    "sourceFamily": "Manrope",
+    "source": "https://github.com/google/fonts/tree/main/ofl/manrope",
+    "weightsDeclared": [
+      400,
+      650
+    ]
+  },
+  "license": "SIL Open Font License 1.1; copyrights preserved in licenses.txt"
+}
