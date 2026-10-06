@@ -2,6 +2,7 @@ import {execFileSync,spawn} from 'node:child_process';
 import {readFile} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {buildPlugin} from './build-framelark-plugin.mjs';
+import {installationGuide} from './installation-guide.mjs';
 
 function codex(args){
   try{return JSON.parse(execFileSync('codex',[...args,'--json'],{encoding:'utf8',maxBuffer:2_000_000,stdio:['ignore','pipe','inherit']}));}
@@ -21,5 +22,11 @@ const manifest=JSON.parse(await readFile(join(installed.installedPath,'.codex-pl
 if(manifest.name!=='framelark'||manifest.version!==built.version)throw Error('Installed plugin identity differs from the package.');
 const setup=join(installed.installedPath,'skills/photo-retouch/scripts/setup.mjs');
 const code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[setup],{stdio:'inherit'});child.once('error',reject);child.once('exit',resolve);});
-if(code!==0)throw Error('The plugin is installed, but retouch dependencies are not ready. Run the installed photo-retouch/scripts/setup.mjs again.');
-console.log(JSON.stringify({ok:true,pluginId:installed.pluginId,version:installed.version,installedPath:installed.installedPath,skills:['photography-eye','photo-retouch'],retouchDependencies:'ready',next:'Open a new Codex chat to load the installed plugin.'},null,2));
+const names=['photography-eye','photo-retouch'];
+const guide=installationGuide({names,retouchReady:code===0,version:manifest.version});
+if(code!==0){
+  console.error(guide.message);
+  throw Error('插件已安装，但本地修图依赖未就绪。请检查 Node.js 与网络后重新运行 npm run plugin:install，或请当前 Agent 准备照片精修依赖。');
+}
+console.log(JSON.stringify({ok:true,pluginId:installed.pluginId,version:installed.version,installedPath:installed.installedPath,skills:names,retouchDependencies:'ready',next:'Open a new Codex chat to load the installed plugin.',gettingStarted:guide},null,2));
+console.error(guide.message);

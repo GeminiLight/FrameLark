@@ -36,7 +36,7 @@ cd FrameLark
 npm run plugin:install
 ```
 
-安装器会构建插件、注册 FrameLark 市场、安装 `framelark@framelark`，再准备本地修图依赖。首次准备依赖需要联网。成功时输出 `ok: true`、两套 Skill 名称和 `retouchDependencies: ready`。
+安装器会构建插件、注册 FrameLark 市场、安装 `framelark@framelark`，再准备本地修图依赖。首次准备依赖需要联网。成功时输出 `ok: true`、两套 Skill 名称和 `retouchDependencies: ready`。 成功后还会给出三种任务的起手句和继续追问的例子；只装一套 Skill 时只展示相应入口。看图和可选生图仍需在当前会话确认，不因安装成功就称生图已就绪。
 
 **开启一个新对话**，确认插件已启用，附上照片开始：
 

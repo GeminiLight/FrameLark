@@ -6,11 +6,13 @@ Choose a workflow for the photograph you want to make. Photography Eye uses `pho
 
 ## Find scenes · Photography Eye
 
+After installation, start a new conversation. Mention FrameLark in the first request; follow up with an option number or a specific adjustment. The user does not need to learn internal skill names. Actual retouching requires the original file and local execution tools.
+
 Attach a scene photo and ask “How should I shoot here?” Add equipment or movement constraints when known:
 
 > How should I shoot here?
 
-Photography Eye first gives an immediate shooting recommendation. When the host provides usable image generation, it directly creates a board with one recommendation and four alternatives, with viewpoint, focus, and finishing advice. No second request to generate an image is needed. Text-only requests and hosts without generation receive shooting and framing guidance. Choose a direction, take another photograph, and compare composition and light.
+Photography Eye first gives an immediate shooting recommendation. When the host provides usable image generation, it directly creates a board with one recommendation and four alternatives, with short actionable viewpoint, focus, and finishing cards. No second request to generate an image is needed. Detailed instructions follow the selected option, or can be requested in full. Text-only requests and hosts without generation receive shooting and framing guidance. Choose a direction, take another photograph, and compare composition and light.
 
 The default uses the warm paper editorial design, with scene-specific Xiaozhen tips at the lower right. A design prompt supplies the layout; a separate sample board is optional, and the bundled mascot supplies character identity. Generated type and spacing can vary. Ask for another palette or layout if preferred; see [board design](../skills/photography-eye/references/board-design.md).
 
@@ -20,7 +22,7 @@ Scene-scouting guidance is currently available through the skill, rather than th
 
 Attach the original and explain its purpose, the feeling you want to keep, and anything that must be preserved:
 
-> Use $photo-retouch to refine this photo for sharing. Keep real skin tones and natural light. You may adjust the crop, background brightness, and color. Review it first, then show candidates I can compare.
+> Use FrameLark to refine this photo for sharing. Keep real skin tones and natural light. You may adjust the crop, background brightness, and color. Review it first, then show candidates I can compare.
 
 A retouching session usually follows this order:
 
@@ -28,6 +30,8 @@ A retouching session usually follows this order:
 2. Establish a finishing direction and preview crop, tone, color, and local adjustments.
 3. Compare the original and candidates, inspect individual-image details, and refine from annotations.
 4. Accept a candidate, save a version, and export for the intended use.
+
+Keep delivery states clear: a reference expresses a shooting or finishing goal; a trial is a real comparable candidate; a saved version has been accepted; a finished file has actually been exported and checked. Provide an openable file and location, and describe any partial completion.
 
 Adjust preset strength or customize parameters. Select individual proposal items, preview their combined result, and accept one version. Parameters and local layers can be locked. Region protection preserves an accepted pixel core; crop and straightening are locked while protection is active, and unlocking is previewed. See [controlled editing](CONTROLLED_EDITS.md).
 
@@ -37,7 +41,7 @@ The browser studio also supports manual editing. For agent collaboration, mark r
 
 Explain the purpose, number of images, theme preferences, and required photographs:
 
-> Use $photo-retouch to make a nine-image grid from this folder. Define a theme, select nine varied images that belong together, and refine each one. Keep the second group portrait. Preserve the originals, save selected copies and finished photos separately, and show a preview of the set.
+> Use FrameLark to make a nine-image grid from this folder. Define a theme, select nine varied images that belong together, and refine each one. Keep the second group portrait. Preserve the originals, save selected copies and finished photos separately, and show a preview of the set.
 
 Define the theme, shortlist from contact sheets, inspect individual candidates, refine each photograph, and then review the sequence. People, wider scenes, and details can work together. Consider variation, light and color relationships, and repetition.
 

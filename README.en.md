@@ -36,7 +36,7 @@ cd FrameLark
 npm run plugin:install
 ```
 
-After installation, **open a new chat** and confirm FrameLark is enabled. Attach a photograph or provide a photo-folder path, then try the [examples below](#usage-examples).
+After installation, **open a new chat** and attach a scene photo: “Use FrameLark to show me how to shoot here.” For an existing photo, ask for retouching trials; for a directory, ask for a theme-led series. Follow up with an option number or a specific adjustment. See the [examples](#usage-examples).
 
 The plugin uses your current agent for vision and conversation, with no additional model API key. It checks whether the host supports optional image generation or editing and skips those steps when unavailable. Installation uses the repository marketplace; FrameLark is not yet listed in OpenAI’s universal directory.
 

@@ -36,7 +36,7 @@ Run the remaining commands in this repository directory.
 npm run plugin:install
 ```
 
-The installer builds the plugin, registers the FrameLark marketplace, installs `framelark@framelark`, and prepares local retouching dependencies. The first dependency setup needs an internet connection. Success reports `ok: true`, both skill names, and `retouchDependencies: ready`.
+The installer builds the plugin, registers the FrameLark marketplace, installs `framelark@framelark`, and prepares local retouching dependencies. The first dependency setup needs an internet connection. Success reports `ok: true`, both skill names, and `retouchDependencies: ready`, followed by starting requests and follow-up examples for the installed workflows. Vision and optional image generation still need to be checked in the current session; installation does not enable a model service.
 
 **Open a new chat**, confirm the plugin is enabled, and attach a photograph:
 

@@ -4,6 +4,7 @@ import os from 'node:os';
 import {spawn} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
+import {installationGuide} from './installation-guide.mjs';
 
 const catalog={
   'photo-retouch':{label:'照片精修',setup:true,legacy:'guangjian-retouch'},
@@ -73,6 +74,7 @@ async function install({names,all,update,destination}){
   }
   for(const entry of entries)console.log(`${catalog[entry.name].label} Skill 已${entry.prior?'更新':'安装'}：${entry.target}\n在 Agent 中使用 $${entry.name}。${entry.backup?'\n旧版备份：'+entry.backup:''}`);
   console.log('重新加载 Skill 列表或开启新对话后使用。');
+  console.error(installationGuide({names,retouchReady:names.includes('photo-retouch')}).message);
 }
 try{
   const args=process.argv.slice(2);
