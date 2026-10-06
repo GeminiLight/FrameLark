@@ -19,6 +19,13 @@ test('opening the project dialog retries an unavailable initial runtime capabili
  let probes=0;const env=fixture(t,{fetchImpl:async url=>url==='/api/local-capabilities'?response({local:true,projects:++probes>1}):response({projects:[]})});
  assert.equal((await env.workspace.capabilities()).projects,false);await env.workspace.open();assert.equal(probes,2);assert.equal(env.node('project-create').disabled,false);assert.equal(env.node('project-notice').textContent,'');
 });
+test('project creation waits for the dialog initial data to finish loading',async t=>{
+  let finish;const env=fixture(t,{fetchImpl:async url=>url==='/api/local-capabilities'?response({local:true,projects:true}):new Promise(resolve=>{finish=()=>resolve(response({projects:[]}));})});
+  await env.workspace.capabilities();const opening=env.workspace.open();await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(env.node('project-dialog').open,true);assert.equal(env.node('project-dialog').ariaBusy,'true');assert.equal(env.node('project-create').disabled,true);
+  finish();await opening;
+  assert.equal(env.node('project-dialog').ariaBusy,'false');assert.equal(env.node('project-create').disabled,false);assert.ok(env.node('project-recent').innerHTML.includes('尚未保存文件项目'));
+});
 test('export-only events advance the file revision without turning owned edits into a conflict',async t=>{
  let saved;const photo={id:'photo'},patch={settings:{exposure:0}},remote={...data(2),exports:[{versionId:'current',path:'test.png'}]};
  const env=fixture(t,{photo,patch,fetchImpl:async(_url,options)=>{if(options?.method==='POST'){saved=JSON.parse(options.body);return response({...remote,revision:3});}return response(remote);}});
