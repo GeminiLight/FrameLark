@@ -1,6 +1,6 @@
 # 帧好 · FrameLark
 
-**[访问官网](https://geminilight.github.io/FrameLark/) · [在线基础修片](https://geminilight.github.io/FrameLark/studio/)**
+**[访问官网](https://tianfuwang.tech/FrameLark/) · [在线基础修片](https://tianfuwang.tech/FrameLark/studio/)**
 
 ![帧好 · FrameLark：从看见，到成片。右侧是一只小帧](docs/images/framelark-banner.png)
 

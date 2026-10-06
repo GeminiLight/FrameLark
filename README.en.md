@@ -1,6 +1,6 @@
 # FrameLark · 帧好
 
-**[Website](https://geminilight.github.io/FrameLark/) · [Browser photo editor](https://geminilight.github.io/FrameLark/studio/)**
+**[Website](https://tianfuwang.tech/FrameLark/) · [Browser photo editor](https://tianfuwang.tech/FrameLark/studio/)**
 
 ![FrameLark: From first look to finished image. With Xiaozhen, our photography companion](docs/images/framelark-banner.png)
 

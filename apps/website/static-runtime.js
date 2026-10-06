@@ -1,5 +1,6 @@
 /* GitHub Pages has no AI or file-project server. Keep browser editing available. */
 (() => {
+  if(location.protocol==='http:'&&!['localhost','127.0.0.1','::1'].includes(location.hostname)){location.replace(location.href.replace(/^http:/,'https:'));return;}
   const basePath=__FRAME_LARK_BASE_PATH__;
   const originalFetch=window.fetch.bind(window);
   const response=(data,status=200)=>Promise.resolve(new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'}}));
