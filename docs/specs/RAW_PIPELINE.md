@@ -1,6 +1,6 @@
 # RAW pipeline v1
 
-Baseline: rebase of the RAW branch onto main `e05a57c`, including #24/#25. The existing JPEG/PNG editing pipeline and saved recipes must remain reproducible.
+Baseline: specification started on main `e05a57c`, including #24/#25; final branch rebased onto main `7b4a397` with the subsequent website and Photography Eye plugin updates. The existing JPEG/PNG editing pipeline and saved recipes must remain reproducible.
 
 ## User outcome
 
