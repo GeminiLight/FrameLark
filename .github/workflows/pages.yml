@@ -8,6 +8,8 @@ on:
       - 'apps/studio/public/examples.html'
       - 'apps/studio/public/examples.css'
       - 'apps/studio/public/assets/cases/**'
+      - 'test/web/website-cases.test.js'
+      - 'scripts/check-website.mjs'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -32,6 +34,14 @@ jobs:
       - name: Configure Pages
         id: pages
         uses: actions/configure-pages@v5
+      - name: Check case routes and original resources
+        run: node --test test/web/website-cases.test.js
+      - name: Prepare browser verification
+        run: |
+          npm install --global agent-browser@0.38.1
+          agent-browser install --with-deps
+      - name: Verify website interactions before publishing
+        run: node scripts/check-website.mjs
       - name: Build public website
         run: node apps/website/build.mjs --site-url "$SITE_URL"
         env:

@@ -15,3 +15,7 @@ The Pages workspace supports browser photo import, styles, light and color contr
 Run the complete workspace for visual AI and Agent file-project collaboration; see the [deployment guide](../../docs/DEPLOYMENT.md). Keep the generated portrait's AI attribution and the photographic source credits when updating the website.
 
 The homepage places case studies inside the three feature chapters. Photography Eye switches between the arcade and cafe scene inputs with their shooting-reference boards, using tabs, arrow buttons, keyboard navigation and touch swipes. Retouching keeps the existing parameter comparisons and a real saved-version example; the collection chapter shows the two-photo example with selectable theme, ordering and editing steps. Scroll entrances, short transitions and the comparison demonstration honor reduced-motion preferences. Complete source credits remain available in the case detail page.
+
+## Verification
+
+Run `node --test test/web/website-cases.test.js` for domain-root and project-path builds, the four case links, and unchanged full-resolution source resources. Run `npm run test:website` with agent-browser installed for case switching, visible failure/retry, late-image cancellation, dialogs, keyboard comparison, 390/320px navigation, reduced motion and legacy links. Pages runs both checks before publishing.

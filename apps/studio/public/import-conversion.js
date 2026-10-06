@@ -1,7 +1,8 @@
-import {PhotoImportError,importLimits} from './photo-import.js';
+import {PhotoImportError,importLimits,rawImportLimits,isRawPhotoName} from './photo-import.js';
 export async function preparePhotoFile(file,{signal,fetchImpl=fetch}={}) {
-  if(/\.(dng|crw|cr2|cr3|nef|nrw|arw|srf|sr2|raf|orf|rw2|pef|ptx|srw|x3f|3fr|fff|iiq|mos|mrw|kdc|dcr|erf|rwl|raw)$/i.test(file.name)){
-    if(file.size>512*1024*1024)throw new PhotoImportError('SIZE','RAW 文件超过 512 MiB。');
+  if(signal?.aborted)throw new PhotoImportError('CANCELLED');
+  if(isRawPhotoName(file.name)){
+    if(file.size>rawImportLimits.bytes)throw new PhotoImportError('RAW_SIZE');
     const response=await fetchImpl('/api/projects/create',{method:'POST',signal,headers:{'Content-Type':'application/octet-stream','X-Photo-Name':encodeURIComponent(file.name)},body:file});
     if(!response.ok){const problem=await response.json().catch(()=>null);throw new PhotoImportError('RAW',problem?.error?.message||'本机 RAW 后端未就绪或机型不支持。');}
     const project=await response.json(),source=await fetchImpl(`/api/projects/${project.id}/source`,{signal});if(!source.ok)throw new PhotoImportError('RAW','RAW 已保存，但代理预览未能读取，请从项目重新打开。');
