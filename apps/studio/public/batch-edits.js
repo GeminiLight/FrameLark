@@ -1,3 +1,4 @@
+import {derivedTitle} from './edit-stack/values.js';
 import {adjustmentKeys,limits} from './editor-engine.js';
 import {globalAdjustments,effectiveAnnotations} from './adjustment-layers.js';
 import {presetById} from './presets.js';
@@ -61,7 +62,7 @@ function planDocumentSync(source,target,{keys,matchExposure,sourceHistogram,targ
     const tool=pixelTool(step.tool,step.toolVersion),parameters={...tool.defaults};
     for(const key of tool.writes)if(chosen.has(key))parameters[key==='exposure'?'ev':key]=step.parameters?.[key==='exposure'?'ev':key]??tool.defaults[key==='exposure'?'ev':key];
     if(step.tool==='exposure'){parameters.headroomPolicy=step.parameters?.headroomPolicy||tool.defaults.headroomPolicy;parameters.ev=Math.max(-3,Math.min(3,parameters.ev+(exposure?.ev||0)));}
-    const copy={...structuredClone(step),id:copies.get(step.id),title:'同步 · '+step.title,parameters,dependsOn:(step.dependsOn||[]).map(id=>copies.get(id)),maskRef:null};delete copy.groupId;
+    const copy={...structuredClone(step),id:copies.get(step.id),title:derivedTitle(step.title,{prefix:'同步 · '}),parameters,dependsOn:(step.dependsOn||[]).map(id=>copies.get(id)),maskRef:null};delete copy.groupId;
     commands.push({type:'AddStep',step:copy});
     if(step.maskRef){const mask=source.editDocument.masks.find(mask=>mask.id===step.maskRef.id&&mask.version===step.maskRef.version);commands.push({type:'ReplaceStepMask',stepId:copy.id,mask:{expression:expand(mask.expression,mask.reference),reference:mask.reference.kind==='frozen-source'?{kind:'frozen-source',sourceHash:target.editDocument.source.contentHash}:{kind:'live-input'}}});}
   }

@@ -377,6 +377,7 @@
                                 },
                                 "kernelVersion": {
                                   "enum": [
+                                    2,
                                     1
                                   ]
                                 },
@@ -553,6 +554,7 @@
                                 },
                                 "kernelVersion": {
                                   "enum": [
+                                    2,
                                     1
                                   ]
                                 },

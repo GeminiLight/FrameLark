@@ -3,7 +3,7 @@
 const labels={ev:'曝光 EV',contrast:'对比度',highlights:'高光',shadows:'阴影',whites:'白色',blacks:'黑色',warmth:'色温',tint:'色偏',saturation:'饱和度',vibrance:'鲜艳度',monochrome:'黑白',texture:'纹理',clarity:'清晰度',sharpen:'锐化',denoise:'降噪',vignette:'暗角',grain:'颗粒',fade:'褪色',dehaze:'去雾',curveShadows:'曲线暗部',curveMidtones:'曲线中间调',curveHighlights:'曲线高光',orangeHue:'橙色色相',greenHue:'绿色色相',blueHue:'蓝色色相',orangeSaturation:'橙色饱和度',greenSaturation:'绿色饱和度',blueSaturation:'蓝色饱和度',orangeLuminance:'橙色明度',greenLuminance:'绿色明度',blueLuminance:'蓝色明度',headroomPolicy:'高光策略'};
 const element=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;};
 const button=(text,action)=>{const node=element('button',text);node.type='button';node.dataset.action=action;return node;};
-export function createEditStackView(root,{catalog,onSelect,onCommand,onPreview,onCommit,onCancel,onView,onDraw,onDiscuss,onLegacy,onRetry,onFoldGroup}={}){
+export function createEditStackView(root,{catalog,onSelect,onDuplicate,onCommand,onPreview,onCommit,onCancel,onView,onDraw,onDiscuss,onLegacy,onRetry,onFoldGroup}={}){
   let current=null,selectedId=null,structure='',maskMode='photo';
   root.classList.add('edit-stack');root.setAttribute('aria-label','可编辑步骤');
   const head=element('div',undefined,'edit-stack-head'),heading=element('h3','编辑步骤'),select=element('select');select.setAttribute('aria-label','添加的调整工具');for(const tool of catalog.tools){const option=element('option',tool.title);option.value=tool.id;select.append(option);}head.append(heading,select,button('添加','add'));root.append(head);
@@ -38,7 +38,7 @@ export function createEditStackView(root,{catalog,onSelect,onCommand,onPreview,o
     if(action==='retry'){onRetry?.();return;}if(action==='legacy'){onLegacy?.();return;}if(!step)return;
     if(action==='up'||action==='down'){const index=current.steps.indexOf(step)+(action==='up'?-1:1);onCommand?.([{type:'MoveStep',stepId:step.id,index}]);}
     else if(action==='delete')onCommand?.([{type:'RemoveStep',stepId:step.id}]);
-    else if(action==='duplicate'){const copy=structuredClone(step);copy.id='step-'+crypto.randomUUID();copy.title+=' · 副本';onCommand?.([{type:'AddStep',step:copy,index:current.steps.indexOf(step)+1}]);}
+    else if(action==='duplicate'){onDuplicate?.(step.id);}
     else if(action==='rename'){const input=root.querySelector('[data-step-title]');if(input?.value.trim())onCommand?.([{type:'RenameStep',stepId:step.id,title:input.value.trim()}]);}
     else if(action==='reset-effect')onCommand?.([{type:'UpdateStepParameters',stepId:step.id,parameters:catalog.tools.find(tool=>tool.id===step.tool).defaults}]);
     else if(action==='discuss')onDiscuss?.(step.id);

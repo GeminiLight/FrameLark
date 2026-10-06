@@ -1,3 +1,4 @@
+import {createStyleThumbnails,renderPresetTrial} from './style-thumbnails.js';
 import {toolStateFromSnapshot,toolRunCandidate,requestToolRun} from './photo-tool-client.js';
 import {photoTools} from './photo-tools/registry.js';
 import {exchangeSchema,exchangeFormatFor,validateExchange,restoreWebExchange} from './project-exchange.js';
@@ -13,7 +14,7 @@ import {compileDocumentProposal} from './edit-stack/proposals.js';
 import {validatePlannerAction,legacyIntentProposal} from './edit-stack/planner.js';
 import {createEditStackView} from './edit-stack-view.js';
 import {pixelCapabilities} from './edit-stack/tools.js';
-import {presetCommands} from './edit-stack/styles.js';
+import {presetCommands,presetTrial} from './edit-stack/styles.js';
 import {workspacePatch,snapshotFromProject,editionsFromProject,workspaceEditions,rememberExportVersion} from './project-snapshot.js';
 import {readVisionStream,partialReply} from './vision-stream.js';
 import {defaultModelTiers,tierNames,modelEffortChoices} from './model-routing.js';
@@ -115,7 +116,7 @@ const stackStyles=document.createElement('link');stackStyles.rel='stylesheet';st
 const photoRenderer = createPhotoRenderer();
 let renderRevision = 0,renderedFrameKey=null,renderedEffectKey=null;
 let editStack=null,stackDrawing=null;
-let cachedCropPreview=null,thumbnailSignature=null;
+let cachedCropPreview=null;
 const draftStore=createDraftStore();
 const draftAutosave=createDraftAutosave({capture:captureDraftSnapshot,save:snapshot=>draftStore.save(snapshot),onState:renderDraftStatus});
 const photoViewer=createPhotoViewer($('#viewer-dialog'));
@@ -127,6 +128,16 @@ let exportAfterPreview=null;
 let pendingAdvisorPreview=null,collectionPresetId=null,collectionGeneration=0,collectionHolding=false,collectionHoverId=null;
 const collectionAmounts=new Map(),collectionRenderer=createPhotoRenderer();
 let collectionPixels=Promise.resolve();
+const thumbnailRenderer=createPhotoRenderer();
+const styleThumbnails=createStyleThumbnails({
+  renderer:thumbnailRenderer,
+  encode:(pixels,width,height)=>{const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;canvas.getContext('2d').putImageData(new ImageData(pixels,width,height),0,0);const result=canvas.toDataURL('image/jpeg',.9);canvas.width=canvas.height=0;return result;},
+  isCurrent:request=>request.photoId===currentPhotoId&&request.image===state.image&&request.signature===presetThumbnailSignature(),
+  onThumbnail:(src,id)=>{for(const image of document.querySelectorAll(`[data-preset="${id}"] img`)){image.src=src;image.closest('[data-preset]').querySelector('.style-audition-toggle em')?.replaceChildren('预览');}},
+  onReady:(results,request)=>{const photo=currentPhoto();if(photo?.id!==request.photoId)return;photo.presetThumbs=results;for(const image of document.querySelectorAll('[data-preset] img')){const id=image.closest('[data-preset]').dataset.preset;if(results[id])image.src=results[id];}},
+  onError:()=>{$('#style-audition-help').textContent='部分风格缩略图未能更新，重新打开风格库即可重试。';}
+});
+window.addEventListener('pagehide',()=>styleThumbnails.dispose(),{once:true});
 const auditionRenderer=createPhotoRenderer();
 let auditionTimer=null,keyboardInteraction=false,agentThreadPhoto=null;
 const agentReading=new Map();
@@ -134,9 +145,9 @@ const styleAudition=createStyleAudition({
   context:()=>state.image && !state.loading ? {photoId:currentPhotoId,signature:currentEffectSignature(),snapshot:editSnapshot(),image:state.image,source:currentPreviewPixels()}:null,
   render:async(snapshot,captured)=>{
     const version=viewerVersion(snapshot,'audition','预览'),source=captured.source,image=captured.image;
-    const pixels=await auditionRenderer.render({pixels:source.data,width:source.width,height:source.height,settings:version.settings,annotations:version.annotations,crop:snapshot.crop,document:version.document,
-      frame:{fullWidth:image.naturalWidth,fullHeight:image.naturalHeight,sourceRect:cropPixelRect(snapshot.crop,image.naturalWidth,image.naturalHeight),angle:snapshot.crop?.angle || 0}});
-    return {pixels,width:source.width,height:source.height};
+    const pixels=await renderPresetTrial(auditionRenderer,{pixels:source.data,width:source.width,height:source.height,settings:version.settings,annotations:version.annotations,crop:snapshot.crop,document:version.document,
+      frame:{fullWidth:image.naturalWidth,fullHeight:image.naturalHeight,sourceRect:cropPixelRect(snapshot.crop,image.naturalWidth,image.naturalHeight),angle:snapshot.crop?.angle || 0}},snapshot.styleTrial);
+    return {pixels,width:source.width,height:source.height,canApply:snapshot.styleTrial?.canApply!==false};
   },
   onState:({phase,styleId,amount,output})=>{
     const active=phase!=='idle',ready=phase==='ready',canvas=$('#style-audition-canvas');
@@ -144,7 +155,7 @@ const styleAudition=createStyleAudition({
     $('#photo-stage').classList.toggle('auditioning',active);
     $('#photo-stage').classList.toggle('audition-ready',ready);
     $('#style-audition-label').textContent=active ? `${presetById(styleId)?.name} · ${amount}%${phase==='loading' ? ' · 正在预览…':phase==='failed' ? ' · 未能预览，请重试':''}`:'';
-    $('#style-audition-note').textContent=phase==='failed' ? '当前版本仍然保留':innerWidth<=600 ? '当前版本未变':'正在预览 · 尚未应用';
+    $('#style-audition-note').textContent=output?.canApply===false ? '步骤已达上限 · 整理步骤后可应用':phase==='failed' ? '当前版本仍然保留':innerWidth<=600 ? '当前版本未变':'正在预览 · 尚未应用';
     $('#style-audition-open').textContent=innerWidth<=600 ? '调节强度 ↗':'调整与应用 ↗';
     if(ready){canvas.width=output.width;canvas.height=output.height;canvas.getContext('2d').putImageData(new ImageData(output.pixels,output.width,output.height),0,0);}
     document.querySelectorAll('.style-audition-toggle').forEach(button=>button.setAttribute('aria-pressed',String(active && button.closest('[data-preset]').dataset.preset===styleId)));
@@ -595,7 +606,7 @@ async function acceptCurrentVersion() {
   const finalStats = inspectPixels(renderCurrentPixels(source.data,source.width,source.height),source.width,source.height).stats;
   const record = createAcceptedRecord({
     id:photo.acceptedRecordId || crypto.randomUUID(),acceptedAt:new Date().toISOString(),subject:photo.subject,
-    originalStats:state.originalInspection.stats,finalStats,presetId:state.presetId,presetAmount:state.presetAmount,
+    originalStats:state.originalInspection.stats,finalStats,editDocument:state.editDocument,presetId:state.presetId,presetAmount:state.presetAmount,
     adjustments:getAdjustments(),crop:state.crop,localCount:renderedAnnotations().filter(item => item.localEnabled!==false && Object.values(item.localSettings || {}).some(Boolean) && (item.localAmount ?? 100) > 0).length,
     recommendationCount:state.active.size
   });
@@ -923,8 +934,8 @@ function updateSliderTotals() {
   }
 }
 function renderAdjustmentLayers() {
-  editStack?.render();const active=Boolean(state.editDocument);$('#edit-stack-start').closest('.edit-stack-entry').hidden=active;$('#manual-sliders').hidden=active&&!currentPhoto()?.editLegacy;$('.manual-adjustment-head').hidden=active&&!currentPhoto()?.editLegacy;$('.local-control-group').hidden=active;$('#clear-manual').hidden=active&&!currentPhoto()?.editLegacy;
-  const legacyBlocked=active&&Boolean(currentPhoto()?.editSaving||currentPhoto()?.editRetry);for(const input of $('#manual-sliders').querySelectorAll('input'))input.disabled=legacyBlocked;$('#clear-manual').disabled=legacyBlocked;
+  editStack?.render();$('#edit-stack-start').disabled=editingBlocked();const active=Boolean(state.editDocument);$('#edit-stack-start').closest('.edit-stack-entry').hidden=active;$('#manual-sliders').hidden=active&&!currentPhoto()?.editLegacy;$('.manual-adjustment-head').hidden=active&&!currentPhoto()?.editLegacy;$('.local-control-group').hidden=active;$('#clear-manual').hidden=active&&!currentPhoto()?.editLegacy;
+  const legacyBlocked=editingBlocked();for(const input of $('#manual-sliders').querySelectorAll('input'))input.disabled=legacyBlocked;$('#clear-manual').disabled=legacyBlocked;
   if(active){$('#adjustment-layers').hidden=true;return;}
   const rows=[];
   for (const item of state.analysis?.recommendations || []) if(state.active.has(item.id)) rows.push({id:`suggestion:${item.id}`,label:item.title,source:`审片建议${item.previewAmount ? ' · 强度 '+item.previewAmount+'%':''}`,settings:item.adjustments});
@@ -963,8 +974,9 @@ function hasEdits() {
   return Boolean(state.editDocument?.steps.length) || state.advisorLayers.some(item=>!item.annotationId) || state.active.size > 0 || Boolean(state.crop) || Boolean(state.presetId && state.presetAmount > 0) || adjustmentKeys.some(key => Math.abs(state.manual[key] || 0) > .001) || hasLocalEffects(state.annotations,state.advisorLayers);
 }
 
+function editingBlocked(photo=currentPhoto()){return Boolean(editStack?.busy(photo));}
 function refreshActions() {
-  $('#photo-export-shortcut').disabled=Boolean(currentPhoto()?.editSaving)||!state.image||state.loading||state.renderPending||state.renderFailed;
+  $('#photo-export-shortcut').disabled=editingBlocked()||!state.image||state.loading||state.renderPending||state.renderFailed;
   $('#run-photo-review').disabled=!state.image||state.loading||state.analyzing;
   $('#run-photo-review').textContent=state.aiAvailable?'完整审片':'连接模型以审片';
   renderPhotoProposal();
@@ -988,7 +1000,7 @@ function refreshActions() {
   $('#compare-value').textContent = edited ? `${Math.round(state.compare)}%` : '原片';
   const review = reviewPresentation(state.analysis);
   const allApplied = review.fresh.every(item => state.active.has(item.id)) && (!state.analysis?.cropRecommendation || Boolean(state.crop));
-  const busy = state.loading || state.analyzing || Boolean(photo?.editSaving);
+  const busy = state.loading || state.analyzing || editingBlocked(photo);
   const hasSuggestions = review.count > 0;
   const showApply=studioTab==='diagnosis' && hasSuggestions && !allApplied;
   $('#apply-all').hidden = !showApply;
@@ -996,7 +1008,7 @@ function refreshActions() {
   $('#export-button-label').textContent = edited ? '导出成片' : '导出照片';
   $('#apply-all').disabled = busy || !state.analysis || !hasSuggestions || allApplied;
   $('#apply-all').classList.toggle('featured',!edited && hasSuggestions);
-  $('#export-button').disabled = state.loading || Boolean(photo?.editSaving) || !state.image || state.renderPending || state.renderFailed;
+  $('#export-button').disabled = state.loading || editingBlocked(photo) || !state.image || state.renderPending || state.renderFailed;
   $('#export-button').title=state.renderFailed?'先重试预览，确认效果后再导出':state.renderPending?'效果更新后即可导出':'';
   $('#export-button').classList.toggle('featured',edited || Boolean(state.analysis && !hasSuggestions));
   document.querySelectorAll('[data-editor-action="upload"]').forEach(button => { button.disabled = state.loading || importingFiles || photoSessions.length >= 12; });
@@ -1162,11 +1174,13 @@ function scheduleRender() {
   });
 }
 
-function buildPresetThumbs(image) {
-  if(!image) return;
-  const signature=JSON.stringify({photo:currentPhotoId,recipe:state.editDocument?renderHash(state.editDocument):null,manual:state.manual,active:[...state.active],recommendations:state.analysis?.recommendations,advisors:state.advisorLayers,notes:state.annotations,crop:state.crop,amount:state.presetAmount});
-  if(thumbnailSignature===signature && Object.keys(state.presetThumbs).length) return;
-  thumbnailSignature=signature;
+function presetThumbnailSignature(){
+  return JSON.stringify({photo:currentPhotoId,recipe:state.editDocument?renderHash(state.editDocument):null,manual:state.manual,active:[...state.active],recommendations:state.analysis?.recommendations,advisors:state.advisorLayers,notes:state.annotations,crop:state.crop,amount:state.presetAmount,taste:tasteRecords.map(item=>[item.id,item.presetId,item.presetAmount,item.recipe?.styles])});
+}
+function buildPresetThumbs(image){
+  if(!image)return;
+  const signature=presetThumbnailSignature();
+  if(styleThumbnails.completedSignature===signature&&Object.keys(state.presetThumbs).length)return;
   const width = 320, height = 240;
   const canvas = document.createElement('canvas');
   canvas.width = width; canvas.height = height;
@@ -1180,12 +1194,13 @@ function buildPresetThumbs(image) {
   const original = context.getImageData(0, 0, width, height).data;
   const sourceRect={x:source.x+(source.width-cropWidth)/2,y:source.y+(source.height-cropHeight)/2,width:cropWidth,height:cropHeight};
   const thumbCrop={x:sourceRect.x/image.naturalWidth,y:sourceRect.y/image.naturalHeight,width:cropWidth/image.naturalWidth,height:cropHeight/image.naturalHeight};
-  state.presetThumbs = Object.fromEntries(presets.map(preset => {
-    const settings=globalAdjustments({manual:state.manual,recommendations:state.analysis?.recommendations,active:state.active,preset,amount:state.presetAmount,advisorLayers:state.advisorLayers}),document=state.editDocument?applyCommands(state.editDocument,presetCommands(preset.id,state.presetAmount,{groupId:'thumb-'+preset.id+'-'+crypto.randomUUID().slice(0,8)})).next:undefined;
-    context.putImageData(new ImageData(renderPhotoPixels({pixels:original,width,height,settings,document,annotations:renderedAnnotations(),crop:{...thumbCrop,angle:state.crop?.angle || 0},
-      frame:{fullWidth:image.naturalWidth,fullHeight:image.naturalHeight,sourceRect,angle:state.crop?.angle || 0}}),width,height),0,0);
-    return [preset.id,canvas.toDataURL('image/jpeg',.9)];
-  }));
+  const snapshot=photoSnapshot(currentPhoto()),annotations=renderedAnnotations(),frame={fullWidth:image.naturalWidth,fullHeight:image.naturalHeight,sourceRect,angle:state.crop?.angle||0};
+  const items=presets.map(preset=>{
+    const amount=snapshot.presetId===preset.id?snapshot.presetAmount:rememberedStyleAmount(tasteRecords,preset.id,currentPhoto()?.subject)??75;
+    const trial=snapshot.editDocument?presetTrial(snapshot.editDocument,preset.id,amount,{groupId:'thumb-'+preset.id+'-'+crypto.randomUUID().slice(0,8)}):null;
+    return {id:preset.id,trial,job:{pixels:original,width,height,settings:globalAdjustments({...snapshot,preset,amount}),document:trial?.document,annotations,crop:{...thumbCrop,angle:state.crop?.angle||0},frame}};
+  });
+  return styleThumbnails.build({signature,photoId:currentPhotoId,image,items});
 }
 
 function renderPresets() {
@@ -1196,7 +1211,7 @@ function renderPresets() {
   $('#style-categories').innerHTML = styleCategories.map(item => `<button class="style-chip ${state.styleCategory === item.id ? 'active' : ''}" type="button" data-category="${item.id}" aria-pressed="${state.styleCategory === item.id}">${escapeHtml(item.label)}</button>`).join('');
   $('#recommendation-source').textContent = cleanIntent(state.creativeIntent) ? '优先按这张照片的调整目标推荐。点击风格可查看完整效果。' : reviewPresentation(state.analysis).kind === 'keep' ? '建议保留原片。也可以尝试以下风格，按照片光色和你的偏好排序。' : state.analysisSource === 'ai' && state.analysis?.styleMatches?.length ? '结合画面视觉分析、原片光色与历史定稿偏好排序' : tasteRecords.length ? `结合原片光色与 ${tasteRecords.length} 张定稿作品的倾向初筛；未识别新照片内容` : state.isDemo ? '根据示例照片已知的晨光场景、原片光色与个人偏好排序' : '依据原片亮度、色彩与个人偏好初筛；未识别画面内容';
   const picks=styleSelections(ranked,[...state.favoritePresets]);
-  const pickCard=({preset,reason,source},favorite=false)=>`<article class="curated-style-card" data-preset="${escapeHtml(preset.id)}"><button type="button" class="style-audition-toggle" aria-label="预览：${escapeHtml(preset.name)}；再次点击恢复当前版本" aria-pressed="false" aria-describedby="style-audition-help"><img src="${state.presetThumbs[preset.id] || ''}" alt="" /><span>${state.presetId===preset.id ? '当前风格':favorite ? '已收藏':source==='intent' ? '符合调整目标':source==='ai' ? '视觉推荐':source==='demo' ? '示例场景':'光色适配'}</span><em>预览</em></button><div><strong>${escapeHtml(preset.name)}</strong><small>${escapeHtml(preset.category)}</small><p>${escapeHtml(favorite ? preset.mood:reason)}</p><button type="button" class="style-preview-open">调整与应用 ↗</button></div></article>`;
+  const pickCard=({preset,reason,source},favorite=false)=>`<article class="curated-style-card" data-preset="${escapeHtml(preset.id)}"><button type="button" class="style-audition-toggle" aria-label="预览：${escapeHtml(preset.name)}；再次点击恢复当前版本" aria-pressed="false" aria-describedby="style-audition-help"><img src="${state.presetThumbs[preset.id] || state.image?.src || ''}" alt="" /><span>${state.presetId===preset.id ? '当前风格':favorite ? '已收藏':source==='intent' ? '符合调整目标':source==='ai' ? '视觉推荐':source==='demo' ? '示例场景':'光色适配'}</span><em>${state.presetThumbs[preset.id] ? '预览':'准备预览'}</em></button><div><strong>${escapeHtml(preset.name)}</strong><small>${escapeHtml(preset.category)}</small><p>${escapeHtml(favorite ? preset.mood:reason)}</p><button type="button" class="style-preview-open">调整与应用 ↗</button></div></article>`;
   $('#style-recommendations').innerHTML=picks.recommended.map(item=>pickCard(item)).join('');
   $('.style-favorites').hidden=!picks.favorite.length && state.favoritePresets.size>0;
   $('.style-favorites .style-block-heading').hidden=!picks.favorite.length;
@@ -2480,7 +2495,7 @@ function registerExport(task) {
   rememberExportVersion(photo,snapshot,signature,{projectVersionId:task.result.projectVersionId});
   photo.lastExportSignature=signature;photo.exported=snapshotAcceptanceSignature(photoSnapshot(photo))===signature;
   if(task.remember && !photo.isDemo && photo.originalInspection) {
-    const record=createAcceptedRecord({id:photo.acceptedRecordId || crypto.randomUUID(),acceptedAt:new Date().toISOString(),subject:photo.subject,originalStats:photo.originalInspection.stats,finalStats:task.result.stats,presetId:snapshot.presetId,presetAmount:snapshot.presetAmount,adjustments:snapshotSettings(snapshot),crop:snapshot.crop,localCount:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers).filter(item=>item.localEnabled!==false && Object.values(item.localSettings || {}).some(Boolean)).length,recommendationCount:snapshot.active.length});
+    const record=createAcceptedRecord({id:photo.acceptedRecordId || crypto.randomUUID(),acceptedAt:new Date().toISOString(),subject:photo.subject,originalStats:photo.originalInspection.stats,finalStats:task.result.stats,editDocument:snapshot.editDocument,presetId:snapshot.presetId,presetAmount:snapshot.presetAmount,adjustments:snapshotSettings(snapshot),crop:snapshot.crop,localCount:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers).filter(item=>item.localEnabled!==false && Object.values(item.localSettings || {}).some(Boolean)).length,recommendationCount:snapshot.active.length});
     tasteRecords=[...tasteRecords.filter(item=>item.id!==record.id),record].slice(-60);persistTasteRecords();photo.acceptedRecordId=record.id;photo.acceptedSignature=signature;
   }
   task.downloaded=true;
@@ -3636,7 +3651,7 @@ function renderStyleCollection(ranked) {
   if(filtered.length && !filtered.some(item=>item.preset.id===collectionPresetId))collectionPresetId=filtered[0].preset.id;
   $('.style-detail').hidden=!filtered.length;
   $('#library-count').textContent=`${filtered.length} 款`;
-  $('#preset-list').innerHTML=filtered.map(({preset})=>`<article class="preset-card collection-card ${collectionPresetId===preset.id ? 'selected':''}" data-preset="${escapeHtml(preset.id)}"><button type="button" class="collection-select" tabindex="${collectionPresetId===preset.id ? 0:-1}" aria-label="预览${escapeHtml(preset.name)}" aria-pressed="${collectionPresetId===preset.id}"><img class="preset-photo" src="${state.presetThumbs[preset.id] || ''}" alt="${escapeHtml(preset.name)}在当前照片上的预览" /><span class="collection-card-copy"><small>${escapeHtml(preset.category)}</small><strong>${escapeHtml(preset.name)}</strong><span>${escapeHtml(preset.mood)}</span></span></button><button tabindex="${collectionPresetId===preset.id ? 0:-1}" class="favorite-button ${state.favoritePresets.has(preset.id) ? 'saved':''}" type="button" aria-label="${state.favoritePresets.has(preset.id) ? '取消收藏':'收藏'}${escapeHtml(preset.name)}" aria-pressed="${state.favoritePresets.has(preset.id)}"><span data-icon="heart"></span></button></article>`).join('') || '<p class="style-empty">没有匹配的风格。试试其他关键词或分类。</p>';
+  $('#preset-list').innerHTML=filtered.map(({preset})=>`<article class="preset-card collection-card ${collectionPresetId===preset.id ? 'selected':''}" data-preset="${escapeHtml(preset.id)}"><button type="button" class="collection-select" tabindex="${collectionPresetId===preset.id ? 0:-1}" aria-label="预览${escapeHtml(preset.name)}" aria-pressed="${collectionPresetId===preset.id}"><img class="preset-photo" src="${state.presetThumbs[preset.id] || state.image?.src || ''}" alt="${escapeHtml(preset.name)}在当前照片上的预览" /><span class="collection-card-copy"><small>${escapeHtml(preset.category)}</small><strong>${escapeHtml(preset.name)}</strong><span>${escapeHtml(preset.mood)}</span></span></button><button tabindex="${collectionPresetId===preset.id ? 0:-1}" class="favorite-button ${state.favoritePresets.has(preset.id) ? 'saved':''}" type="button" aria-label="${state.favoritePresets.has(preset.id) ? '取消收藏':'收藏'}${escapeHtml(preset.name)}" aria-pressed="${state.favoritePresets.has(preset.id)}"><span data-icon="heart"></span></button></article>`).join('') || '<p class="style-empty">没有匹配的风格。试试其他关键词或分类。</p>';
   hydrateIcons($('#preset-list'));
   if(focusedId)$('#preset-list').querySelector(`[data-preset="${focusedId}"] ${focusedFavorite ? '.favorite-button':'.collection-select'}`)?.focus({preventScroll:true});
   if($('#style-collection-dialog').open && filtered.length)renderCollectionDetail(ranked);
@@ -3680,21 +3695,22 @@ async function renderCollectionPreview() {
   if(!preset)return;
   let snapshot=editSnapshot();const baseDocument=snapshot.editDocument,amount=Number($('#style-detail-amount').value);
   const commands=!collectionHolding&&baseDocument?presetCommands(preset.id,amount,{groupId:'look-'+crypto.randomUUID()}):null;collectionDocumentTrial=null;
-  if(commands)snapshot={...snapshot,editDocument:applyCommands(baseDocument,commands).next};else if(!collectionHolding)snapshot=planStyle(snapshot,preset.id,amount);
+  const trial=commands?presetTrial(baseDocument,preset.id,amount,{groupId:commands[0].group.id}):null;
+  if(trial)snapshot={...snapshot,editDocument:trial.document};else if(!collectionHolding)snapshot=planStyle(snapshot,preset.id,amount);
   const version=viewerVersion(snapshot,'style','风格预览'),rect=cropPixelRect(snapshot.crop,image.naturalWidth,image.naturalHeight),scale=Math.min(1,960/Math.max(rect.width,rect.height));
   const width=Math.max(1,Math.round(rect.width*scale)),height=Math.max(1,Math.round(rect.height*scale)),source=document.createElement('canvas');source.width=width;source.height=height;
   const ctx=source.getContext('2d',{willReadFrequently:true});drawPhotoSource(ctx,image,snapshot.crop,width,height);
   $('#style-detail-apply').disabled=true;
   $('#style-detail-status').textContent=collectionHolding ? '当前版本':'正在预览…';
   try {
-    const task=collectionPixels.then(()=>token===collectionGeneration && $('#style-collection-dialog').open ? collectionRenderer.render({pixels:ctx.getImageData(0,0,width,height).data,width,height,settings:version.settings,annotations:version.annotations,crop:snapshot.crop,document:version.document,frame:{fullWidth:image.naturalWidth,fullHeight:image.naturalHeight,sourceRect:rect,angle:snapshot.crop?.angle || 0}}):null);
+    const task=collectionPixels.then(()=>token===collectionGeneration && $('#style-collection-dialog').open ? renderPresetTrial(collectionRenderer,{pixels:ctx.getImageData(0,0,width,height).data,width,height,settings:version.settings,annotations:version.annotations,crop:snapshot.crop,document:version.document,frame:{fullWidth:image.naturalWidth,fullHeight:image.naturalHeight,sourceRect:rect,angle:snapshot.crop?.angle || 0}},trial):null);
     collectionPixels=task.catch(()=>{});
     const output=await task;
     if(token!==collectionGeneration || !$('#style-collection-dialog').open)return;
     canvas.width=width;canvas.height=height;canvas.getContext('2d').putImageData(new ImageData(output,width,height),0,0);
-    $('#style-detail-status').textContent=collectionHolding ? '当前版本':`${collectionHoverId ? '临时预览 · ':''}${preset.name} · ${amount}% · 当前编辑未变`;
-    if(commands)collectionDocumentTrial={photoId:currentPhotoId,baseHash:documentHash(baseDocument),presetId:preset.id,amount,commands};
-    $('#style-detail-apply').disabled=collectionHolding || Boolean(collectionHoverId);
+    $('#style-detail-status').textContent=trial?.canApply===false ? '步骤或分组已达上限 · 仍可试片，整理步骤后再应用':collectionHolding ? '当前版本':`${collectionHoverId ? '临时预览 · ':''}${preset.name} · ${amount}% · 当前编辑未变`;
+    if(commands&&trial.canApply)collectionDocumentTrial={photoId:currentPhotoId,baseHash:documentHash(baseDocument),presetId:preset.id,amount,commands};
+    $('#style-detail-apply').disabled=trial?.canApply===false || collectionHolding || Boolean(collectionHoverId);
   } catch {if(token===collectionGeneration)$('#style-detail-status').textContent='预览未完成，请重新选择风格重试。';}
 }
 function toggleStyleFavorite(id) {

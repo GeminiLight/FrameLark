@@ -62,3 +62,9 @@ test('duplicate nodes share immutable ranges until explicitly modified and have 
  const d=add(document()),next=applyCommands(d,duplicateCommands(d,'light','light-copy')).next;
  assert.deepEqual(next.steps.map(s=>s.id),['light','light-copy']);assert.equal(next.steps[1].parameters.ev,.5);
 });
+
+test('duplicating a maximum-length name reserves the suffix without changing the source',()=>{
+ const d=applyCommands(document(),[{type:'AddStep',step:{...step('long'),title:'A'.repeat(120)}}]).next;
+ const copy=applyCommands(d,duplicateCommands(d,'long','copy')).next.steps[1];
+ assert.ok(copy.title.length<=120);assert.ok(copy.title.endsWith(' · 副本'));assert.equal(d.steps[0].title.length,120);assert.deepEqual(copy.parameters,d.steps[0].parameters);
+});

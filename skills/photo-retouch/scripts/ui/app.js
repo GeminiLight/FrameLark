@@ -1,5 +1,5 @@
 import {createEditStackView} from './edit-stack-view.js';
-import {applyCommands} from '../engine/edit-stack/commands.js';
+import {applyCommands,duplicateCommands} from '../engine/edit-stack/commands.js';
 import {documentHash} from '../engine/edit-stack/identity.js';
 import {pixelCapabilities} from '../engine/edit-stack/tools.js';
 import {createLetteringEditor} from './lettering.js';
@@ -204,7 +204,7 @@ async function commitNativeStack(commands){
 }
 nativeStackView=createEditStackView($('#native-edit-stack'),{catalog:pixelCapabilities(),
   onFoldGroup:id=>{nativeCollapsedGroups.has(id)?nativeCollapsedGroups.delete(id):nativeCollapsedGroups.add(id);renderNativeStack();},
-  onSelect:id=>{nativeStackGesture=null;nativeStackSelected=id;renderNativeStack();},onCommand:commitNativeStack,
+  onSelect:id=>{nativeStackGesture=null;nativeStackSelected=id;renderNativeStack();},onDuplicate:id=>commitNativeStack(duplicateCommands(stackDocument(),id,'step-'+crypto.randomUUID())),onCommand:commitNativeStack,
   onPreview:commands=>{if(busy)return;try{nativeStackGesture||={base:structuredClone(stackDocument())};nativeStackGesture.next=applyCommands(nativeStackGesture.base,commands).next;renderNativeStack();}catch(error){nativeStackView.setMessage(error.message);}},
   onCommit:commitNativeStack,onCancel:()=>{nativeStackGesture=null;renderNativeStack();},
   onLegacy:()=>notice('兼容基础保留已有调整；新修改通过独立步骤试片。'),onDiscuss:()=>copyContext(),

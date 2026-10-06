@@ -7,3 +7,6 @@ export function title(value,max=120){if(typeof value!=='string'||!value.trim()||
 export function hashValue(value){if(typeof value!=='string'||! /^[a-f0-9]{64}$/.test(value))fail('INVALID_DOCUMENT','图像或文档身份无效。');return value;}
 export function ids(values,max=64){if(!Array.isArray(values)||values.length>max||new Set(values).size!==values.length)fail('INVALID_DOCUMENT','编辑编号重复或数量超出限制。');values.forEach(identifier);return values;}
 export function bool(value){if(typeof value!=='boolean')fail('INVALID_DOCUMENT','编辑开关必须为布尔值。');return value;}
+
+// Derived display names reserve affixes within the same validated title limit.
+export function derivedTitle(value,{prefix="",suffix=""}={}){title(value);const room=120-prefix.length-suffix.length;if(room<1)fail("INVALID_DOCUMENT","编辑名称的前后缀过长。");return title(prefix+value.slice(0,room).replace(/[\uD800-\uDBFF]$/,"")+suffix);}

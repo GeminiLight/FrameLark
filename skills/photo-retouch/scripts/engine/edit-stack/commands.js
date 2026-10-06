@@ -1,3 +1,4 @@
+import {derivedTitle} from './values.js';
 import {createDocument,validateDocument,canonicalStep,validateGeometry,captureLegacyBase} from './document.js';
 import {parametersFor} from './tools.js';
 import {object,identifier,number,title,bool,fail} from './values.js';
@@ -51,5 +52,5 @@ export function restoreTransaction(document,transaction,direction,{expectedRevis
   validateDocument(transaction.before);validateDocument(transaction.after);if(documentHash(transaction.before)!==transaction.beforeHash||documentHash(transaction.after)!==transaction.afterHash||contentHash(transaction.before.source)!==contentHash(document.source)||contentHash(transaction.after.source)!==contentHash(document.source))fail('STALE_REVISION','撤销记录的来源或内容身份不一致。');
   const expected=direction==='undo'?transaction.afterHash:transaction.beforeHash;if(documentHash(document)!==expected)fail('STALE_REVISION','已有其他修改，请先读取当前编辑。');const next=clone(direction==='undo'?transaction.before:transaction.after);next.revision=document.revision+1;next.receipts=[];validateDocument(next);return next;
 }
-export function duplicateCommands(document,id,newId){const step=clone(stepAt(document,id));step.id=identifier(newId);step.title=step.title+' · 副本';return [{type:'AddStep',step,index:document.steps.findIndex(value=>value.id===id)+1}];}
+export function duplicateCommands(document,id,newId){const step=clone(stepAt(document,id));step.id=identifier(newId);step.title=derivedTitle(step.title,{suffix:' · 副本'});return [{type:'AddStep',step,index:document.steps.findIndex(value=>value.id===id)+1}];}
 export {createDocument};

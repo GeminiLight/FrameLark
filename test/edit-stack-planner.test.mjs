@@ -26,3 +26,10 @@ test('strict provider records declare every property, while nullable optional fi
 test('legacy intent adapters generate declared independent nodes rather than changing final aggregate state',()=>{
  const d=base(),proposal=legacyIntentProposal(d,{kind:'adjustment',label:'稍亮稍暖',changes:[{key:'exposure',value:.1},{key:'warmth',value:3}]},{id:'new-intent'}),next=compileDocumentProposal(d,proposal).document;assert.equal(next.steps[0].id,'light');assert.equal(next.steps[0].parameters.ev,.3);assert.equal(next.steps.length,3);assert.equal(next.base.state.settings.exposure,0);
 });
+
+test('the portable static plan schema matches runtime tool versions and supported kernels',async()=>{
+ const {readFile}=await import('node:fs/promises');
+ const {documentPlanSchema}=await import('../apps/studio/public/edit-stack/schema.js');
+ const stored=JSON.parse(await readFile(new URL('../skills/photo-retouch/schemas/document-plan.schema.json',import.meta.url),'utf8'));
+ assert.deepEqual(stored,documentPlanSchema);
+});

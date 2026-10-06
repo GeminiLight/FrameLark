@@ -1,4 +1,4 @@
-import {pixelCapabilities} from './tools.js';
+import {pixelTool,pixelCapabilities} from './tools.js';
 import {maskSchema} from '../photo-tools/targets.js';
 const id={type:'string',pattern:'^[-a-zA-Z0-9_]{1,80}$'},hash={type:'string',pattern:'^[a-f0-9]{64}$'},number=(minimum,maximum)=>({type:'number',minimum,maximum});
 const record=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
@@ -6,7 +6,7 @@ const ref=record({id,version:{type:'integer',minimum:1}}),point=record({x:number
 const expression={$ref:'#/$defs/maskExpression'};
 export const maskDefinitions={maskExpression:{anyOf:[record({kind:{enum:['constant']},value:number(0,1)}),record({kind:{enum:['luminance']},mode:{enum:['include-highlights','exclude-highlights','range']},start:number(0,1),end:number(0,1)}),record({kind:{enum:['drawn']},mask:maskSchema,basis:record({origin:point,xAxis:point,yAxis:point})},['kind','mask']),record({kind:{enum:['reference']},id,version:{type:'integer',minimum:1}}),record({kind:{enum:['invert']},input:expression}),...['union','intersect','subtract'].map(kind=>record({kind:{enum:[kind]},a:expression,b:expression}))]}};
 const mask=record({expression,reference:{anyOf:[record({kind:{enum:['live-input']}}),record({kind:{enum:['frozen-source']},sourceHash:hash})]}});
-const step={anyOf:pixelCapabilities().tools.map(tool=>record({id,title:{type:'string',minLength:1,maxLength:120},tool:{enum:[tool.id]},toolVersion:{enum:[tool.version]},kernelVersion:{enum:[tool.kernelVersion]},parameters:tool.parameters,enabled:{type:'boolean'},opacity:number(0,1),maskRef:{anyOf:[{type:'null'},ref]},dependsOn:{type:'array',maxItems:24,items:id},groupId:{type:['string','null']}},['id','title','tool','toolVersion','parameters']))};
+const step={anyOf:pixelCapabilities().tools.map(tool=>record({id,title:{type:'string',minLength:1,maxLength:120},tool:{enum:[tool.id]},toolVersion:{enum:[tool.version]},kernelVersion:{enum:[tool.kernelVersion,...(pixelTool(tool.id,tool.version).previousKernelVersions||[])]},parameters:tool.parameters,enabled:{type:'boolean'},opacity:number(0,1),maskRef:{anyOf:[{type:'null'},ref]},dependsOn:{type:'array',maxItems:24,items:id},groupId:{type:['string','null']}},['id','title','tool','toolVersion','parameters']))};
 export const documentCommandSchema={anyOf:[
  record({type:{enum:['AddStep']},step,index:{type:'integer',minimum:0,maximum:64}},['type','step']),
  record({type:{enum:['UpdateStepParameters']},stepId:id,parameters:{anyOf:pixelCapabilities().tools.map(tool=>({...tool.parameters,required:[]}))}}),

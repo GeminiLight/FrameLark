@@ -38,3 +38,21 @@ test('failed persistence blocks further drag edits while keeping retry available
  assert.deepEqual(h.a.editDocument,failed);assert.equal(h.a.editGestureBefore,undefined);assert.equal(h.history.length,0);
  await h.controller.retry();assert.deepEqual(h.a.editDocument,failed);assert.equal(h.views.at(-1).busy,false);assert.equal(h.history.length,1);
 });
+
+test('overlapping first commands share preparation and preserve both steps and undo baselines',async()=>{
+ let release,preparations=0;const gate=new Promise(resolve=>release=resolve),photo={id:'initial',editDocument:null},history=[];
+ const controller=createEditStackController({root:{},getPhoto:()=>photo,prepareDocument:async()=>{preparations++;await gate;return recipe('initial');},getSnapshot:p=>({editDocument:structuredClone(p.editDocument)}),setSnapshot:(p,s)=>Object.assign(p,s),onHistory:(_p,s)=>history.push(s),createView:()=>({render(){},setMessage(){}})});
+ const first=controller.command(add('a')),second=controller.command(add('b'));release();await Promise.all([first,second]);
+ assert.deepEqual(photo.editDocument.steps.map(s=>s.id),['a','b']);assert.equal(preparations,1);assert.equal(history.length,2);assert.equal(history[0].editDocument,null);assert.deepEqual(history[1].editDocument.steps.map(s=>s.id),['a']);
+});
+test('preparing a document blocks gestures and cannot revive a removed photo',async()=>{
+ let release;const gate=new Promise(resolve=>release=resolve),photo={id:'initial',editDocument:null};
+ const controller=createEditStackController({root:{},getPhoto:()=>photo,prepareDocument:async()=>{await gate;return recipe('initial');},getSnapshot:p=>structuredClone(p),setSnapshot:(p,s)=>Object.assign(p,s),createView:()=>({render(){},setMessage(){}})});
+ const job=controller.command(add('a'));await new Promise(resolve=>setImmediate(resolve));assert.equal(photo.editPreparing,true);controller.release(photo);release();await job;assert.equal(photo.editDocument,null);assert.equal(photo.editPreparing,false);
+});
+
+test('queued commands preserve their submitted values while preparation is pending',async()=>{
+ let release;const gate=new Promise(resolve=>release=resolve),photo={id:'initial',editDocument:null};
+ const controller=createEditStackController({root:{},getPhoto:()=>photo,prepareDocument:async()=>{await gate;return recipe('initial');},getSnapshot:p=>({editDocument:structuredClone(p.editDocument)}),setSnapshot:(p,s)=>Object.assign(p,s),createView:()=>({render(){},setMessage(){}})});
+ const commands=add('a'),job=controller.command(commands);assert.equal(controller.busy(photo),true);commands[0].step.parameters.ev=2;release();await job;assert.equal(photo.editDocument.steps[0].parameters.ev,.3);assert.equal(controller.busy(photo),false);
+});

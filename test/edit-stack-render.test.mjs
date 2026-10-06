@@ -20,7 +20,7 @@ test('optimized kernels preserve the pre-optimization RGBA across tools, masks a
  const {width,height,frame}=golden,pixels=new Uint8ClampedArray(width*height*4);
  for(let i=0;i<pixels.length;i+=4){const p=i/4;pixels[i]=p*37%256;pixels[i+1]=p*61%256;pixels[i+2]=p*101%256;pixels[i+3]=p%11===0?0:p*29%256;}
  const base=createDocument({documentId:'golden',source:{assetId:'fixture',contentHash:sha256(pixels),width:96,height:72},base:{settings:{},locals:[]}});
- for(const sample of golden.results){const document=applyCommands(base,sample.commands).next;assert.equal(sha256(renderStackPixels({pixels,width,height,document,frame,maskView:sample.maskView}).pixels),sample.hash,sample.name);}
+ for(const sample of golden.results){const document=applyCommands(base,sample.commands.map(command=>command.type==='AddStep'?{...command,step:{...command.step,kernelVersion:1}}:command)).next;assert.equal(sha256(renderStackPixels({pixels,width,height,document,frame,maskView:sample.maskView}).pixels),sample.hash,sample.name);}
 });
 test('bounded prefix reuse matches cold pixels after changing the last or middle step',()=>{
  const pixels=image(),cache=createStackRenderCache({byteBudget:100000});let d=add(add(add(document(),'a','exposure',{ev:.3}),'b','tone',{contrast:20}),'c','color',{warmth:12});render(d,pixels,{cache});
@@ -103,4 +103,23 @@ test('style recipes expand into independently editable nodes with pinned preset 
 test('mask display samples the actual upstream Float32 input even while its effect is paused',()=>{
  const pixels=image(8,6,[160,160,160,255]);let d=add(document(),'first','exposure',{ev:1,headroomPolicy:'unbounded'});d=add(d,'second','exposure',{ev:1});d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'second',mask:{expression:{kind:'luminance',mode:'exclude-highlights',start:.4,end:.6},reference:{kind:'live-input'}}},{type:'SetStepEnabled',stepId:'second',enabled:false}]).next;
  const output=renderStackPixels({pixels,width:8,height:6,document:d,maskView:{stepId:'second',mode:'bw'}});assert.equal(output.pixels[0],0);assert.equal(output.displayOnly,true);assert.ok(render(d,pixels)[0]>pixels[0]);
+});
+
+test('detail neighborhoods stay on the same original area across preview and full-size export',()=>{
+ const W=2800,H=50,d=add(document(W,H),'detail','detail',{clarity:75});
+ const field=x=>110+30*Math.sin(x/22)+25*Math.tanh((x-800)/5);
+ const grid=(w,h,scale)=>Uint8ClampedArray.from({length:w*h*4},(_,i)=>i%4===3?255:field((Math.floor(i/4)%w+.5)*scale));
+ const high=renderStackPixels({pixels:grid(W,H,1),width:W,height:H,document:d}).pixels;
+ const low=renderStackPixels({pixels:grid(W/2,H/2,2),width:W/2,height:H/2,document:d}).pixels;
+ let max=0;for(let x=3;x<W/2-3;x++)max=Math.max(max,Math.abs(low[(12*W/2+x)*4]-(high[(24*W+x*2)*4]+high[(24*W+x*2+1)*4])/2));
+ assert.ok(max<=2,`maximum same-area difference ${max}`);
+});
+
+test('new color steps use the corrected kernel while pinned legacy color remains explicit',()=>{
+ const d=add(document(1,1),'color','color',{blueHue:30}),pixels=Uint8ClampedArray.of(85,51,204,255);
+ assert.equal(d.steps[0].kernelVersion,2);
+ const old=structuredClone(d);old.steps[0].kernelVersion=1;
+ assert.notDeepEqual(render(d,pixels),render(old,pixels));
+ const unknown=structuredClone(d);unknown.steps[0].kernelVersion=99;
+ assert.throws(()=>render(unknown,pixels),{code:'TOOL_VERSION_UNSUPPORTED'});
 });
