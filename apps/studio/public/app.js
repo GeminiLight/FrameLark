@@ -924,6 +924,7 @@ function updateSliderTotals() {
 }
 function renderAdjustmentLayers() {
   editStack?.render();const active=Boolean(state.editDocument);$('#edit-stack-start').closest('.edit-stack-entry').hidden=active;$('#manual-sliders').hidden=active&&!currentPhoto()?.editLegacy;$('.manual-adjustment-head').hidden=active&&!currentPhoto()?.editLegacy;$('.local-control-group').hidden=active;$('#clear-manual').hidden=active&&!currentPhoto()?.editLegacy;
+  const legacyBlocked=active&&Boolean(currentPhoto()?.editSaving||currentPhoto()?.editRetry);for(const input of $('#manual-sliders').querySelectorAll('input'))input.disabled=legacyBlocked;$('#clear-manual').disabled=legacyBlocked;
   if(active){$('#adjustment-layers').hidden=true;return;}
   const rows=[];
   for (const item of state.analysis?.recommendations || []) if(state.active.has(item.id)) rows.push({id:`suggestion:${item.id}`,label:item.title,source:`审片建议${item.previewAmount ? ' · 强度 '+item.previewAmount+'%':''}`,settings:item.adjustments});
@@ -3231,8 +3232,8 @@ $('#layer-list').addEventListener('click',event=>{const button=event.target.clos
 $('#agent-thread').addEventListener('click', event => { if(event.target.closest('[data-agent-cancel]')){cancelAdvisor();return;} const retry=event.target.closest('[data-agent-retry]');if(retry){const message=currentPhoto()?.conversation[Number(retry.dataset.agentRetry)];askDesignAgent(message?.requestQuestion);return;} const choice=event.target.closest('[data-agent-intent]');if(choice){setCreativeIntent(choice.dataset.agentIntent);askDesignAgent('请围绕这一张的调整目标给我建议。');return;} const button = event.target.closest('[data-agent-apply]'); if (button) applyAgentAction(Number(button.dataset.agentApply)); });
 $('#manual-sliders').addEventListener('input', event => {
   const key = event.target.dataset.key;
-  if(state.editDocument){const base=structuredClone(state.editDocument.base.state);base.settings[key]=Number(event.target.value);editStack.preview([{type:'ReplaceLegacyBase',state:base}]);return;}
   if (!key) return;
+  if(state.editDocument){const base=structuredClone(state.editDocument.base.state);base.settings[key]=Number(event.target.value);editStack.preview([{type:'ReplaceLegacyBase',state:base}]);$(`#output-${key}`).textContent=formatSlider(state.manual[key],sliderSpecs.find(s=>s.key===key));return;}
   beginRangeEdit(`manual:${key}`);
   state.manual[key] = Number(event.target.value);
   updateSliderTotals();
@@ -3241,7 +3242,15 @@ $('#manual-sliders').addEventListener('input', event => {
   markAssessmentStale();
 });
 $('#manual-sliders').addEventListener('change', event => { if(state.editDocument){editStack.commit([]);return;}if (event.target.matches('input[type="range"]')) finishRangeEdit(); });
-$('#clear-manual').addEventListener('click', () => { const before = beforeEdit(); state.manual = {...defaults}; saveEdit(before); renderSliders(); scheduleRender(); markAssessmentStale(); showToast('手动参数已重置。'); });
+$('#clear-manual').addEventListener('click', async () => {
+  if(state.editDocument){
+    const base=structuredClone(state.editDocument.base.state);
+    base.settings={...defaults};
+    if(await editStack.command([{type:'ReplaceLegacyBase',state:base}])){renderSliders();showToast('手动参数已重置。');}
+    return;
+  }
+  const before=beforeEdit();state.manual={...defaults};saveEdit(before);renderSliders();scheduleRender();markAssessmentStale();showToast('手动参数已重置。');
+});
 function resetAllEdits() {
   if(state.editDocument){editStack.command([{type:'ClearSteps'},{type:'ReplaceLegacyBase',state:{settings:defaults,style:null,crop:null,locals:[]}},{type:'UpdateGeometry',geometry:{crop:null}}]);return;}
   const before = beforeEdit();

@@ -1,0 +1,44 @@
+{
+  "fixture": "repository alpine-demo.png",
+  "sourceUnchanged": true,
+  "sourceHash": "2761c84426e849c52598a550070ab95e6534698524601076c982c37457839a25",
+  "projectRevision": 59,
+  "documentRevision": 24,
+  "baseExposure": 0,
+  "steps": [
+    {
+      "id": "qa-tone",
+      "tool": "tone",
+      "enabled": false,
+      "parameters": {
+        "contrast": 9,
+        "highlights": 0,
+        "shadows": 0,
+        "whites": 0,
+        "blacks": 0,
+        "curveShadows": 0,
+        "curveMidtones": 0,
+        "curveHighlights": 0,
+        "dehaze": 0,
+        "fade": 0
+      },
+      "opacity": 1,
+      "maskRef": null
+    },
+    {
+      "id": "step-36e21423-bbc8-492d-886f-ba7553f5123f",
+      "tool": "exposure",
+      "enabled": true,
+      "parameters": {
+        "ev": 0.28,
+        "headroomPolicy": "limit-positive-gain"
+      },
+      "opacity": 0.7,
+      "maskRef": {
+        "id": "mask-step-36e21423-bbc8-492d-886f-ba7553f5123f",
+        "version": 1
+      }
+    }
+  ],
+  "browserScenario": "change legacy exposure, reset, undo to .01, redo to 0, reload, independently read native document"
+}

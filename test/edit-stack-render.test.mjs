@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {neutralSettings} from '../apps/studio/public/editor-engine.js';
 import {srgbToLinear,linearToSrgb} from '../apps/studio/public/tone-processing.js';
 import {renderPhotoPixels} from '../apps/studio/public/photo-rendering.js';
@@ -8,11 +9,19 @@ import {applyCommands} from '../apps/studio/public/edit-stack/commands.js';
 import {sha256} from '../apps/studio/public/edit-stack/identity.js';
 import {renderStackPixels,displayMask,createStackRenderCache} from '../apps/studio/public/edit-stack/render.js';
 import {presetCommands} from '../apps/studio/public/edit-stack/styles.js';
+import {kernelFor} from '../apps/studio/public/edit-stack/kernels.js';
 const document=(width=8,height=6,base={settings:neutralSettings(),locals:[]})=>createDocument({documentId:'photo',source:{assetId:'source',contentHash:sha256('source'),width,height},base});
 const step=(id,tool,parameters)=>({id,title:id,tool,toolVersion:2,parameters});
 const add=(d,id,tool,parameters)=>applyCommands(d,[{type:'AddStep',step:step(id,tool,parameters)}]).next;
 const image=(width=8,height=6,color=[64,64,64,255])=>{const pixels=new Uint8ClampedArray(width*height*4);for(let i=0;i<pixels.length;i+=4)pixels.set(color,i);return pixels;};
 const render=(d,pixels,extra={})=>renderStackPixels({pixels,width:d.source.width,height:d.source.height,document:d,...extra}).pixels;
+test('optimized kernels preserve the pre-optimization RGBA across tools, masks and rotated frames',()=>{
+ const golden=JSON.parse(readFileSync(new URL('./edit-stack-kernel-v1-golden.json',import.meta.url)));
+ const {width,height,frame}=golden,pixels=new Uint8ClampedArray(width*height*4);
+ for(let i=0;i<pixels.length;i+=4){const p=i/4;pixels[i]=p*37%256;pixels[i+1]=p*61%256;pixels[i+2]=p*101%256;pixels[i+3]=p%11===0?0:p*29%256;}
+ const base=createDocument({documentId:'golden',source:{assetId:'fixture',contentHash:sha256(pixels),width:96,height:72},base:{settings:{},locals:[]}});
+ for(const sample of golden.results){const document=applyCommands(base,sample.commands).next;assert.equal(sha256(renderStackPixels({pixels,width,height,document,frame,maskView:sample.maskView}).pixels),sample.hash,sample.name);}
+});
 test('bounded prefix reuse matches cold pixels after changing the last or middle step',()=>{
  const pixels=image(),cache=createStackRenderCache({byteBudget:100000});let d=add(add(add(document(),'a','exposure',{ev:.3}),'b','tone',{contrast:20}),'c','color',{warmth:12});render(d,pixels,{cache});
  const last=applyCommands(d,[{type:'UpdateStepParameters',stepId:'c',parameters:{warmth:-8}}]).next,hot=renderStackPixels({pixels,width:8,height:6,document:last,cache});assert.equal(hot.cachedPrefix,2);assert.deepEqual(hot.pixels,render(last,pixels));
@@ -23,6 +32,27 @@ test('cache binds sampled bytes and the frame, even under the same source/docume
  const cache=createStackRenderCache(),d=add(document(),'grain','finish',{grain:40}),pixels=image();render(d,pixels,{cache});
  const different=image(8,6,[100,80,60,255]);assert.deepEqual(render(d,different,{cache}),render(d,different));
  const frame={fullWidth:8,fullHeight:6,sourceRect:{x:1,y:1,width:6,height:4},angle:0};assert.deepEqual(render(d,pixels,{cache,frame}),render(d,pixels,{frame}));
+});
+test('two bounded checkpoints reuse both middle and last edits without changing pixels',()=>{
+ const pixels=image(),byteBudget=pixels.length*4*2+pixels.length/4*2+pixels.length;
+ const d=applyCommands(document(),Array.from({length:8},(_,i)=>({type:'AddStep',step:step('s'+i,'exposure',{ev:.08})}))).next;
+ for(const index of [4,7]){
+   const cache=createStackRenderCache({byteBudget});render(d,pixels,{cache});
+   const changed=applyCommands(d,[{type:'UpdateStepParameters',stepId:'s'+index,parameters:{ev:.12}}]).next;
+   const hot=renderStackPixels({pixels,width:8,height:6,document:changed,cache});
+   assert.equal(hot.cachedPrefix,index);assert.deepEqual(hot.pixels,render(changed,pixels));assert.ok(cache.bytes<=byteBudget);
+ }
+});
+test('color hue adjustments cover all six sectors including red wrap and blue-purple',()=>{
+ // Independent HSL channel interpolation checks the two previously missing or
+ // misplaced sectors; no output from the optimized kernel defines this oracle.
+ const rgbFor=(h,s,l)=>{const a=s*Math.min(l,1-l);return [0,8,4].map(n=>{const k=(n+h/30)%12;return l-a*Math.max(-1,Math.min(k-3,9-k,1));});};
+ const samples=[[0,30,52,'orangeHue',-40],[70,30,52,'orangeHue',30],[125,125,67,'greenHue',-30],[180,220,68,'blueHue',-30],[250,220,68,'blueHue',30],[345,30,52,'orangeHue',-30]];
+ for(const [h,center,span,key,value] of samples){
+   const rgb=rgbFor(h,.6,.5),input=new Float32Array([...rgb.map(srgbToLinear),255]),p=applyCommands(document(1,1),[{type:'AddStep',step:step('color','color',{[key]:value})}]).next.steps[0];
+   const actual=kernelFor(p,input,{width:1,height:1})(0,0,0),weight=Math.max(0,1-Math.abs(((h-center+540)%360)-180)/span),shifted=((h+weight*value*.5)%360+360)%360,expected=rgbFor(shifted,.6,.5).map(srgbToLinear);
+   actual.forEach((channel,i)=>assert.ok(Math.abs(channel-expected[i])<1e-6,`hue ${h}, channel ${i}`));
+ }
 });
 test('disabled, zero opacity, neutral and zero masks strictly bypass all RGBA including hidden RGB',()=>{
  const pixels=image();pixels.set([123,45,67,0],0);let d=add(document(),'light','exposure',{ev:1});
