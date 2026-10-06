@@ -62,6 +62,17 @@ try{
  const p=await loadProject(reset.folder);
  const exposure=p.versions.find(v=>v.id===p.currentId).recipe.base.state.settings.exposure;if(exposure!==0||after.slider!=='0'||JSON.stringify(before.pixels)===JSON.stringify(after.pixels))throw Error('reset did not affect saved pixels');
  console.log(JSON.stringify({case:'clear-legacy-parameters',before,after,authoritativeExposure:exposure}));
+ await browser('click','#edit-stack-mount [data-action=highlights]');
+ await browser('wait','--fn','document.querySelector("#edit-stack-mount [data-range-advanced]")&&!document.querySelector("#export-button").disabled');
+ const rangeControls=await evaluate('JSON.stringify({advancedClosed:!document.querySelector("#edit-stack-mount [data-range-advanced]").open,scope:document.querySelector("#edit-stack-mount .edit-step-range").textContent,reference:document.querySelector("#edit-stack-mount [data-kind=reference]").value})');
+ if(!rangeControls.advancedClosed||rangeControls.reference!=='live-input'||!rangeControls.scope.includes('仅作用于当前步骤'))throw Error('range controls did not preserve their scope');
+ await browser('click','#edit-stack-mount [data-range-advanced]>summary');
+ await browser('select','#edit-stack-mount [data-kind=reference]','frozen-source');
+ await browser('wait','--fn','!document.querySelector("#export-button").disabled&&document.querySelector("#edit-stack-mount [data-reference-note]").textContent.includes("原始照片")');
+ const frozenProject=await loadProject(reset.folder),frozenRecipe=frozenProject.versions.find(v=>v.id===frozenProject.currentId).recipe,frozenRef=frozenRecipe.steps[0].maskRef,frozenMask=frozenRecipe.masks.find(mask=>mask.id===frozenRef.id&&mask.version===frozenRef.version);
+ if(frozenMask.reference.kind!=='frozen-source'||frozenMask.reference.sourceHash!==frozenRecipe.source.contentHash)throw Error('reference selection was not saved to the real recipe');
+ await browser('select','#edit-stack-mount [data-kind=reference]','live-input');await browser('wait','--fn','!document.querySelector("#export-button").disabled');
+ console.log(JSON.stringify({case:'advanced-range-reference-save',advancedInitiallyClosed:true,authoritativeReference:frozenMask.reference}));
  await browser('open',base+'/?project='+full.data.id);await browser('wait','--fn','document.querySelectorAll("#edit-stack-mount [data-step-select]").length===64&&!document.querySelector("#export-button").disabled');
  await evaluate('window.reviewErrors=[];window.addEventListener("error",event=>window.reviewErrors.push({message:event.message,code:event.error?.code,error:event.error?.message}));window.addEventListener("unhandledrejection",event=>window.reviewErrors.push({code:event.reason?.code,error:event.reason?.message}));JSON.stringify(true)');
  await browser('click','#panel-presets');await browser('wait','--fn','[...document.querySelectorAll(".curated-style-card img")].filter(image=>image.src.startsWith("data:image")).length===2');
