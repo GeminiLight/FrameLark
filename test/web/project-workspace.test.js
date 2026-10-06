@@ -4,17 +4,30 @@ import {createProjectWorkspace} from '../../apps/studio/public/project-workspace
 import {createDocument} from '../../apps/studio/public/edit-stack/document.js';
 import {documentHash,sha256} from '../../apps/studio/public/edit-stack/identity.js';
 
-function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onLoad=()=>photo,onUpdate=()=>{},getVersions=()=>[],getPhotos=()=>[photo],getPatch=()=>patch}={}){
+function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onLoad=()=>photo,onUpdate=()=>{},onOpenVersions,getVersions=()=>[],getPhotos=()=>[photo],getPatch=()=>patch}={}){
   const previous={document:globalThis.document,location:globalThis.location,history:globalThis.history,EventSource:globalThis.EventSource,fetch:globalThis.fetch};
   const nodes=new Map(),events=[];
   const node=id=>{if(!nodes.has(id))nodes.set(id,{hidden:false,listeners:{},addEventListener(type,fn){this.listeners[type]=fn;},insertAdjacentHTML(){},showModal(){this.open=true;},close(){this.open=false;}});return nodes.get(id);};
   globalThis.document={querySelector:node,getElementById:node,body:node('body')};globalThis.location={href:'http://localhost:3177/'};globalThis.history={replaceState(){}};
   globalThis.EventSource=class{constructor(){events.push(this);}close(){this.closed=true;}};globalThis.fetch=fetchImpl;
-  const workspace=createProjectWorkspace({getPhoto:()=>photo,getPhotos,getPatch,getVersions,onLoad,onUpdate,notify(){}});
+  const workspace=createProjectWorkspace({getPhoto:()=>photo,getPhotos,getPatch,getVersions,onLoad,onUpdate,onOpenVersions,notify(){}});
   t.after(()=>{workspace.close();Object.assign(globalThis,previous);});return {workspace,photo,patch,events,node};
 }
 const data=(revision=1)=>({id:'project',path:'/tmp/owned-project',name:'test',revision,currentId:'current',supported:true,current:{},candidates:[],versions:[],exports:[]});
 const response=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+test('the project entry opens edition management for its current photo after closing the project dialog',async t=>{
+  const opened=[],env=fixture(t,{onOpenVersions:photo=>{assert.equal(env.node('project-dialog').open,false);opened.push(photo);},fetchImpl:async url=>response(url==='/api/local-capabilities'?{local:true,projects:true}:{projects:[]})});
+  await env.workspace.attach(env.photo,data());await env.workspace.open();
+  assert.ok(env.node('project-details').innerHTML.includes('data-project-editions'));
+  await env.node('project-details').listeners.click({target:{closest:()=>({hasAttribute:key=>key==='data-project-editions'})}});
+  assert.deepEqual(opened,[env.photo]);
+});
+test('an outdated project dialog cannot open editions for a different selected project',async t=>{
+  let calls=0;const env=fixture(t,{onOpenVersions:()=>calls++,fetchImpl:async url=>response(url==='/api/local-capabilities'?{local:true,projects:true}:{projects:[]})});
+  await env.workspace.attach(env.photo,data());await env.workspace.open();env.photo.projectId='other-project';
+  await env.node('project-details').listeners.click({target:{closest:()=>({hasAttribute:key=>key==='data-project-editions'})}});
+  assert.equal(calls,0);assert.equal(env.node('project-dialog').open,true);
+});
 test('opening the project dialog retries an unavailable initial runtime capability',async t=>{
  let probes=0;const env=fixture(t,{fetchImpl:async url=>url==='/api/local-capabilities'?response({local:true,projects:++probes>1}):response({projects:[]})});
  assert.equal((await env.workspace.capabilities()).projects,false);await env.workspace.open();assert.equal(probes,2);assert.equal(env.node('project-create').disabled,false);assert.equal(env.node('project-notice').textContent,'');

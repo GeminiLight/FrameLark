@@ -1,0 +1,55 @@
+.export-remember { display:flex;align-items:flex-start;gap:10px;margin:16px 0 4px;padding:11px 12px;border:1px solid #e7dcdf;border-radius:5px;background:#f8f4f3;cursor:pointer; }
+.export-remember input { flex:none;width:15px;height:15px;margin:2px 0 0;accent-color:#715566; }
+.export-remember span { display:grid;gap:3px; }
+.export-remember strong { color:#4d3c46;font-size:11px;font-weight:700; }
+.export-remember small { color:#877780;font-size:10px;line-height:1.5; }
+.export-remember:has(input:disabled) { opacity:.68;cursor:default; }
+.profile-view-switch { display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:0 0 20px;padding:4px;border:1px solid #e8e0df;border-radius:5px;background:#f1edeb; }
+.profile-view-switch button { min-height:36px;border:0;border-radius:3px;background:transparent;color:#887b81;font-size:11px;font-weight:700; }
+.profile-view-switch button[aria-selected="true"] { background:#fff;color:#4d3945;box-shadow:0 2px 8px #4a344012; }
+#profile-preferences-view[hidden],#profile-growth-view[hidden] { display:none; }
+.taste-hero { position:relative;overflow:hidden;min-height:155px;padding:22px 24px;border-radius:5px;background:linear-gradient(117deg,#342d36,#624c5b 65%,#8c6f7d);color:#fff; }
+.taste-hero:after { content:"";position:absolute;width:240px;height:240px;right:-45px;top:-95px;border:1px solid #ffffff30;border-radius:50%;box-shadow:0 0 0 36px #ffffff0b,0 0 0 76px #ffffff08; }
+.taste-hero span { display:block;position:relative;z-index:1;color:#d5bec9;font-family:Georgia,serif;font-size:9px;letter-spacing:.18em; }
+.taste-hero strong { display:block;position:relative;z-index:1;max-width:420px;margin-top:18px;font-family:Georgia,'Songti SC',serif;font-size:23px;font-weight:500;line-height:1.35;letter-spacing:-.03em; }
+.taste-hero p { position:relative;z-index:1;max-width:440px;margin:8px 0 0;color:#e6dce1;font-size:10px;line-height:1.65; }
+.taste-section-title { display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:23px 0 11px; }
+.taste-section-title strong { color:#3f3239;font-size:12px; }
+.taste-section-title span { color:#9b8e94;font-size:9px;text-align:right; }
+.taste-signals { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px; }
+.taste-signal { min-height:80px;padding:12px;border:1px solid #e9dfdf;border-radius:5px;background:#fff; }
+.taste-signal span { color:#967c8a;font-size:9px;font-weight:750;letter-spacing:.08em; }
+.taste-signal strong { display:block;margin:7px 0 4px;color:#4a3943;font-size:12px;line-height:1.45; }
+.taste-signal small { color:#887a81;font-size:9px;line-height:1.5; }
+.taste-practice { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px; }
+.taste-practice-item { padding:12px;border:1px solid #e7dedd;border-radius:5px;background:#faf8f6; }
+.taste-practice-head { display:flex;align-items:baseline;justify-content:space-between;gap:5px; }
+.taste-practice-head strong { color:#4b3a44;font-size:11px; }
+.taste-practice-head span { color:#866f7b;font-size:9px;font-weight:700; }
+.taste-practice-marks { display:flex;gap:4px;margin:10px 0; }
+.taste-practice-marks i { width:21px;height:3px;border-radius:2px;background:#e3d8db; }
+.taste-practice-marks i.filled { background:#9d798b; }
+.taste-practice-item p { margin:0;color:#82747b;font-size:9px;line-height:1.55; }
+.taste-evolution { margin:0;padding:13px 15px;border-left:2px solid #a27d90;background:#f4eeef;color:#634f5b;font-family:Georgia,'Songti SC',serif;font-size:12px;line-height:1.75; }
+.taste-timeline { display:grid;gap:7px; }
+.taste-record { display:flex;align-items:flex-start;gap:11px;padding:12px;border:1px solid #e8dede;border-radius:5px;background:#fff; }
+.taste-record-date { flex:none;min-width:41px;padding-top:2px;color:#a18b96;font-family:Georgia,serif;font-size:10px; }
+.taste-record-main { flex:1;min-width:0; }
+.taste-record-main strong { display:block;color:#4a3943;font-size:11px; }
+.taste-record-main span { display:block;margin-top:4px;color:#786a71;font-size:9px;line-height:1.5; }
+.taste-record button { flex:none;border:0;background:transparent;color:#967f8b;font-size:9px;text-decoration:underline;text-underline-offset:2px; }
+.taste-empty { margin:0;padding:14px;border:1px dashed #dfd4d7;border-radius:5px;color:#897d83;font-size:10px;line-height:1.6; }
+.taste-signals .taste-empty { grid-column:1/-1; }
+.taste-signals .taste-signal:only-child { grid-column:1/-1; }
+.taste-accept { display:flex;align-items:center;gap:12px;margin-top:20px;padding-top:15px;border-top:1px solid #ebe3e1; }
+.taste-accept button { flex:none;min-height:36px;padding:0 13px;border:1px solid #735766;border-radius:4px;background:#6a5060;color:#fff;font-size:10px;font-weight:700; }
+.taste-accept button:hover:not(:disabled) { background:#4e3a46; }
+.taste-accept button:disabled { background:#ede8e9;border-color:#e3d9dc;color:#8e8187; }
+.taste-accept small { color:#8d7e85;font-size:9px;line-height:1.5; }
+@media(max-width:560px) {
+  .taste-hero { min-height:145px;padding:18px; }
+  .taste-hero strong { font-size:21px; }
+  .taste-signals,.taste-practice { grid-template-columns:1fr; }
+  .taste-accept { align-items:stretch;flex-direction:column; }
+  .taste-accept button { min-height:43px; }
+}

@@ -1,0 +1,35 @@
+{
+  "photos": [
+    {
+      "id": "architecture",
+      "author": "Willian Justen de Vasconcellos",
+      "page": "https://unsplash.com/photos/modern-architectural-staircase-with-dramatic-light-and-shadows-MKgocPMj2uM",
+      "license": "Unsplash License",
+      "license_url": "https://unsplash.com/license"
+    },
+    {
+      "id": "landscape",
+      "author": "Luca Bravo",
+      "page": "https://unsplash.com/photos/brown-wooden-house-on-lake-near-mountain-mxx-lVuVdFM",
+      "license": "Unsplash License",
+      "license_url": "https://unsplash.com/license"
+    }
+  ],
+  "hero": "Existing FrameLark sample image: public/assets/alpine-demo.png. Illustrative image, not a recorded user result.",
+  "board": "Photography-eye generated composition reference, selected warm-paper A design. Not a photograph or a retouched original.",
+  "generated": [
+    {
+      "id": "portrait-generated",
+      "asset": "/assets/website/portrait-generated.webp",
+      "method": "built-in image_gen; new fictional person and scene, followed by a camera-lettering cleanup edit",
+      "subject": "Original fictional adult Chinese woman, not a photograph of a real person",
+      "use": "Hero secondary image, People gallery, and portrait editing sample",
+      "comparison": "Generated input processed by the actual FrameLark pixel renderer; after image is not generated independently",
+      "settings": {
+        "exposure": 0.06,
+        "highlights": -12,
+        "shadows": 8
+      }
+    }
+  ]
+}

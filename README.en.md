@@ -1,5 +1,7 @@
 # FrameLark · 帧好
 
+**[Website](https://geminilight.github.io/FrameLark/) · [Browser photo editor](https://geminilight.github.io/FrameLark/studio/)**
+
 ![FrameLark: From first look to finished image. With Xiaozhen, our photography companion](docs/images/framelark-banner.png)
 
 **Your AI photography companion. Find scenes, refine photographs, and curate a series with Xiaozhen.**
@@ -24,11 +26,15 @@ Xiaozhen · 小帧 is FrameLark’s curious little bird and photography companio
 
 ## Get started
 
-**For Codex, install the unified plugin to get both skills and the local retouching tools.**
+**Install one plugin for shooting guidance, photo retouching, and series creation.**
 
-You need **Node.js 20.9+ with npm, Git, and a Codex CLI that supports plugins**. Check `codex plugin --help`; if the command is missing, see [prerequisites](docs/INSTALLATION.en.md#prerequisites).
+### Install
 
-Run in a terminal:
+Recommended: ask your local Codex agent to install it:
+
+> Install the FrameLark plugin from https://github.com/GeminiLight/FrameLark. Check my environment, prepare the local retouching tools, and tell me how to start.
+
+For manual installation, you need **Node.js 20.9+ with npm, Git, and a Codex CLI that supports plugins**. Run:
 
 ```sh
 git clone https://github.com/GeminiLight/FrameLark.git
@@ -36,13 +42,23 @@ cd FrameLark
 npm run plugin:install
 ```
 
-After installation, **open a new chat** and attach a scene photo: “Use FrameLark to show me how to shoot here.” For an existing photo, ask for retouching trials; for a directory, ask for a theme-led series. Follow up with an option number or a specific adjustment. See the [examples](#usage-examples).
+### Start a conversation
 
-The plugin uses your current agent for vision and conversation, with no additional model API key. It checks whether the host supports optional image generation or editing and skips those steps when unavailable. Installation uses the repository marketplace; FrameLark is not yet listed in OpenAI’s universal directory.
+**Open a new chat**, then attach a photo or provide an accessible photo folder:
+
+| Input | What to say |
+| --- | --- |
+| A scene photo | Use FrameLark to show me how to shoot here. |
+| An existing original | Use FrameLark to retouch this for sharing. Show me a trial first. |
+| A photo folder | Use FrameLark to create a nine-image series. Define a theme and preserve the originals. |
+
+Follow up with “I like P3—where should I stand?”, “Soften this background”, or “Use this version and export it.” Vision and optional generation use your current agent, without another model key. Without generation tools, you still receive shooting advice.
+
+Installation uses the repository marketplace. [Setup and updates](docs/INSTALLATION.en.md) · [Full guide](docs/USAGE.en.md) · [Examples](#usage-examples)
 
 ### Other ways to use FrameLark
 
-Run these commands in the repository above. Choose the entry point that suits you.
+For standalone skills or the browser studio, download this repository first and run the commands inside it:
 
 | Entry point | How to start |
 | --- | --- |
@@ -112,3 +128,4 @@ Installation and usage guides are available in English; technical and photograph
 ## Contributors
 
 Thanks to [Yijie Xu (@yeahjack)](https://github.com/yeahjack) for selective edit acceptance, parameter and local-layer locks, protected regions, and rendering and preview responsiveness improvements: [#1](https://github.com/GeminiLight/FrameLark/pull/1), [#2](https://github.com/GeminiLight/FrameLark/pull/2).
+

@@ -15,3 +15,4 @@ artifacts/
 coverage/
 
 /dist/
+/_site/

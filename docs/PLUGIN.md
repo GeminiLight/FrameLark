@@ -48,7 +48,7 @@ npm run plugin:check
 npm run plugin:build
 ```
 
-发布 ZIP 位于 `dist/framelark/framelark-0.1.6.zip`。包中只有两套 Skill、插件清单和小帧图标，不包含本机配置、密钥、照片项目、草稿、导出文件或原生 `node_modules`。图像依赖在用户的执行环境中准备，不把 macOS 的二进制依赖分发到其他系统。
+发布 ZIP 位于 `dist/framelark/framelark-0.1.7.zip`。包中只有两套 Skill、插件清单和小帧图标，不包含本机配置、密钥、照片项目、草稿、导出文件或原生 `node_modules`。图像依赖在用户的执行环境中准备，不把 macOS 的二进制依赖分发到其他系统。
 
 `skills/` 是唯一维护来源；构建只读取 Git 已跟踪的 Skill、图标和清单，校验发布副本与工作区源码。未跟踪的本地文件不会进入发布包；误跟踪的配置、照片项目或符号链接会在生成 ZIP 前报错，保留上一次有效包。新增发布资源需先加入 Git。根目录 `plugin.json` 提供 portable 格式，`.codex-plugin/plugin.json` 提供 Codex 兼容格式，`.agents/plugins/marketplace.json` 提供仓库安装入口。二者使用同一名称、版本与展示信息。
 

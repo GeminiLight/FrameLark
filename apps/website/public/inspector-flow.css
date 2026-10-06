@@ -1,0 +1,83 @@
+/* A stable inspector: review first, then edit, with conversation always nearby. */
+@media(min-width:961px) {
+  .workspace { grid-template-columns:minmax(0,1fr) clamp(360px,30vw,420px); }
+}
+.right-panel { display:flex;flex-direction:column;overflow:hidden; }
+.inspector-navigation.panel-tabs { position:static;flex:none;display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:68px;padding:8px 24px;margin:0;border-bottom:1px solid #ffffff0d;background:var(--paper); }
+.inspector-workflow { display:flex;align-items:center;gap:6px; }
+.inspector-navigation .panel-tab { position:relative;min-width:76px;min-height:44px;padding:0 12px;border:1px solid transparent;border-radius:6px;font-size:12px;line-height:1.5;color:var(--muted);box-shadow:none; }
+.inspector-navigation .panel-tab:hover { background:#ffffff06;color:var(--ink); }
+.inspector-navigation .panel-tab.active { background:#dfd2c10f;color:var(--accent);box-shadow:none; }
+.inspector-navigation .inspector-adviser { min-width:78px;margin-left:auto;border-color:#ffffff20;background:transparent; }
+.inspector-navigation .inspector-adviser.active { border-color:#dfd2c155;background:#dfd2c10b; }
+.inspector-navigation .panel-attention { top:7px;right:7px;width:4px;height:4px; }
+.right-panel .panel-scroll { flex:1;min-height:0;max-height:none;padding:0 24px 24px;overflow-y:auto;overscroll-behavior:contain; }
+.right-panel.agent-active .panel-scroll { display:flex;padding:0 24px;overflow:hidden; }
+.right-panel .panel-heading { align-items:flex-start;gap:12px;padding:23px 0 18px; }
+.right-panel .panel-heading>div { flex:1;min-width:0; }
+.right-panel .panel-heading h2 { font-size:20px;line-height:1.5; }
+.inspector-description { margin:6px 0 0;color:var(--quiet);font-size:11px;line-height:1.8; }
+.right-panel .analysis-source-button { flex:none;margin-top:4px;min-height:32px; }
+.right-panel[data-view="adjust"] .panel-guide { display:none; }
+.right-panel[data-view="adjust"] .photo-intent-entry { display:none; }
+.right-panel[data-view="adjust"] #vision-notice { display:none; }
+.inspector-space { min-width:0; }
+.inspector-space[hidden] { display:none!important; }
+.review-actions { margin-top:26px;padding-top:20px;border-top:1px solid #ffffff13; }
+.review-observations .panel-guide { margin:0 0 16px;padding:0 0 16px; }
+.review-observations #review-preservation { margin:0 0 16px; }
+.review-observations .preservation-details { padding-bottom:0;border:0; }
+.review-observations .preservation-details>summary { display:flex;align-items:center;min-height:44px;color:var(--muted);font-size:12px; }
+.review-observations .preservation-details>summary::after { content:'›';margin-left:auto;color:var(--quiet); }
+.review-observations .preservation-details[open]>summary::after { transform:rotate(90deg); }
+.review-observations .preservation-details>summary { list-style:none; }
+.review-observations .preservation-details>summary::-webkit-details-marker { display:none; }
+.suggestion-section-heading { align-items:center;gap:10px;margin-bottom:18px; }
+.suggestion-section-heading h3,.adjustment-style-head h3,.manual-adjustment-head h3 { margin:0;font-size:13px;font-weight:500;line-height:1.65;color:var(--ink); }
+.suggestion-count { white-space:nowrap;font-size:11px;color:var(--quiet); }
+.adjustment-style { padding-bottom:20px;margin-bottom:22px;border-bottom:1px solid #ffffff13; }
+.adjustment-style-head { display:flex;align-items:center;justify-content:space-between;gap:12px; }
+.adjustment-style-head>div { min-width:0; }
+#adjustment-style-status { margin:5px 0 0;color:var(--quiet);font-size:11px;line-height:1.8;overflow-wrap:anywhere; }
+.inspector-library-button { flex:none;display:flex;align-items:center;gap:6px;min-height:44px;padding:0 10px;border:1px solid #ffffff22;border-radius:5px;background:transparent;color:var(--accent);font-size:11px; }
+.inspector-library-button svg { width:14px;height:14px; }
+.inspector-library-button:hover { border-color:#dfd2c166;background:#dfd2c108; }
+.style-discovery { margin-top:12px; }
+.style-discovery>summary { display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:44px;padding:0;cursor:pointer;list-style:none;color:var(--muted);font-size:11px; }
+.style-discovery>summary::-webkit-details-marker { display:none; }
+.style-discovery>summary:hover { color:var(--accent); }
+.style-discovery[open]>summary .group-chevron { transform:rotate(180deg); }
+.style-discovery-body { padding-top:8px; }
+.style-discovery .style-audition-help { margin:0 0 15px; }
+.style-discovery .style-curation-intro { margin-bottom:16px; }
+.manual-adjustment-head { margin-bottom:12px; }
+.manual-adjustment-head>span { display:block;margin:5px 0 0;color:var(--quiet);font-size:11px;line-height:1.8; }
+.manual-adjustment .control-group { border-color:#ffffff16; }
+.manual-adjustment .control-group>summary { min-height:56px; }
+.manual-adjustment #clear-manual { margin-top:20px;min-height:44px; }
+.right-panel .panel-footer { flex:none; }
+@media(min-width:961px) and (max-width:1150px) {
+  .inspector-navigation.panel-tabs { padding-inline:20px;gap:12px; }
+  .right-panel .panel-scroll,.right-panel.agent-active .panel-scroll { padding-inline:20px; }
+}
+@media(max-width:960px) {
+  body { padding-bottom:calc(74px + env(safe-area-inset-bottom,0px)); }
+  .right-panel,.right-panel.agent-active { height:calc(100dvh - 144px);min-height:520px;overflow:hidden;scroll-margin-top:74px; }
+  .inspector-navigation.panel-tabs { min-height:64px;padding:8px 20px;gap:12px; }
+  .right-panel .panel-scroll { padding:0 20px 22px;overflow-y:auto; }
+  .right-panel.agent-active .panel-scroll { padding:0 20px;overflow:hidden; }
+  .right-panel .panel-heading { padding:20px 0 18px; }
+  .right-panel .panel-footer { position:static;width:auto;margin:0;padding:12px 20px;border-top:1px solid var(--line);border-radius:0;background:var(--paper);box-shadow:none; }
+  .right-panel .panel-guide>button,.right-panel .photo-intent-entry,.right-panel .analysis-source-button { min-height:44px; }
+  .right-panel .style-profile-link,.style-discovery .style-curation-intro button,.style-discovery .style-block-heading button { min-height:44px; }
+  .right-panel .crop-control-body button,.right-panel .reassessment button { min-height:44px; }
+}
+@media(max-width:360px) {
+  .inspector-navigation.panel-tabs { padding-inline:14px;gap:8px; }
+  .inspector-navigation .panel-tab { min-width:70px;padding-inline:9px;gap:5px; }
+  .inspector-workflow { gap:3px; }
+  .right-panel .panel-scroll,.right-panel.agent-active .panel-scroll { padding-inline:14px; }
+  .right-panel .panel-footer { padding-inline:14px; }
+  .adjustment-style-head { gap:7px; }
+  .inspector-library-button { padding-inline:8px; }
+}

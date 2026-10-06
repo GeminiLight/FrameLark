@@ -1,5 +1,7 @@
 # 帧好 · FrameLark
 
+**[访问官网](https://geminilight.github.io/FrameLark/) · [在线基础修片](https://geminilight.github.io/FrameLark/studio/)**
+
 ![帧好 · FrameLark：从看见，到成片。右侧是一只小帧](docs/images/framelark-banner.png)
 
 **你的 AI 摄影伙伴，让小帧陪你找画面、修照片、做组图。**
@@ -110,3 +112,4 @@ npm run plugin:install
 ## 贡献者
 
 感谢 [Yijie Xu（@yeahjack）](https://github.com/yeahjack) 贡献逐项调整采纳、参数与局部层锁定、画面区域保护，以及渲染和预览响应优化：[#1](https://github.com/GeminiLight/FrameLark/pull/1)、[#2](https://github.com/GeminiLight/FrameLark/pull/2)。
+
