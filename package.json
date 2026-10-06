@@ -32,6 +32,7 @@
     "plugin:build": "node scripts/build-framelark-plugin.mjs",
     "plugin:check": "node scripts/check-framelark-plugin.mjs",
     "plugin:install": "node scripts/install-framelark-plugin.mjs",
+    "cloud:build": "node scripts/build-photography-eye-cloud.mjs",
     "plugin:build:photography-eye": "node scripts/build-framelark-plugin.mjs --photography-eye",
     "plugin:sync:photography-eye": "node scripts/sync-photography-eye-plugin.mjs",
     "plugin:check:photography-eye": "node scripts/check-framelark-plugin.mjs --photography-eye",

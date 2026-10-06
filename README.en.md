@@ -26,7 +26,13 @@ Xiaozhen · 小帧 is FrameLark’s curious little bird and photography companio
 
 ## Get started
 
-**For on-location shooting advice, install Photography Eye on its own. Choose the full plugin when you need pixel retouching and photo series.**
+### Use Photography Eye in your cloud chat
+
+Use the [cloud setup page](https://tianfuwang.tech/FrameLark/cloud.html) to load shooting guidance in a conversation or your own private project. This uses the assistant's existing vision and optional image-generation tools; it does not install a global plugin or local retouching runtime.
+
+Ask an assistant with public-web access to read [CLOUD.md](CLOUD.md) and follow its Photography Eye workflow in this conversation. If it cannot read the link, download the startup text file and attach it instead. Then upload a scene photo and ask how to shoot here. For ongoing use, add the guide and project instructions to your own private project. A new ordinary chat does not automatically inherit this setup. Account availability, tools and usage limits still apply.
+
+**For local plugin use, install Photography Eye on its own for shooting advice. Choose the full plugin for pixel retouching and photo series.**
 
 ### Install Photography Eye only
 

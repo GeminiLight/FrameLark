@@ -8,6 +8,7 @@ FrameLark/
 ├── .codex-plugin/             Codex 兼容清单
 ├── .agents/plugins/           仓库插件市场
 ├── assets/                    插件小帧图标
+├── CLOUD.md                   从摄影眼维护来源生成的云端启动手册
 ├── plugins/framelark-eye/      独立摄影眼清单与生成的 GitHub 安装副本
 ├── apps/studio/
 │   ├── public/                 浏览器界面、资源与图片处理模块
@@ -36,6 +37,7 @@ FrameLark/
 | `apps/studio/server/app.mjs` | 提供请求处理函数，导入时不监听端口 |
 | `api/*.mjs` | Vercel 需要的薄适配层，复用工作台请求处理，不复制业务逻辑 |
 | `npm run photo -- …` | 调用修片 Skill 的 CLI |
+| `npm run cloud:build` | 从摄影眼维护来源生成云端手册与公开 TXT 下载，不打包修图依赖 |
 | `npm run install:skill` | 安装完整 `skills/photo-retouch` 目录 |
 | `npm run plugin:install:photography-eye` | 安装只有摄影眼的独立插件，不准备修图依赖 |
 | `npm run plugin:sync:photography-eye` | 从维护来源生成完整 GitHub 插件目录；CI 比较逐文件内容 |
@@ -65,6 +67,7 @@ flowchart LR
 - Web 与 Skill 分发相同的像素和工具模块。`engine:check` 逐文件检查一致性，防止分发副本漂移；移动目录不能顺带改变处理结果。
 - Skill 不依赖工作台目录，因此安装后的 CLI 和独立暗房仍能单独运行。
 - `skills/photography-eye` 是摄影眼唯一维护来源；`plugins/framelark-eye/skills/photography-eye` 是为 GitHub 插件市场生成的分发副本。修改源内容后执行同步命令，不手动修改副本。独立插件清单维护于 `plugins/framelark-eye/.codex-plugin/plugin.json`。
+- `CLOUD.md` 与网站 `downloads/photography-eye.cloud.txt` 是当前对话/私有项目模式的生成副本。云端适配层明确工具、会话和安装边界，再附维护来源中的常用章节。修改摄影眼后执行 `cloud:build`，CI 校验副本内容；该模式不创建全局插件、不提供模型服务。
 
 ## 状态与异步边界
 
