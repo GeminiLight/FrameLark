@@ -30,7 +30,12 @@
       "asset": "/assets/website/lakeside-original.jpg"
     }
   ],
-  "hero": "Existing FrameLark sample image: public/assets/alpine-demo.png. Illustrative image, not a recorded user result.",
+  "hero": {
+    "asset": "/assets/website/architecture-before.webp",
+    "photo_id": "architecture",
+    "author": "Willian Justen de Vasconcellos",
+    "description": "Licensed architectural staircase photograph used as a single, complete hero image; also the input for the actual retouch comparison."
+  },
   "board": "Photography-eye generated composition reference, selected warm-paper A design. Not a photograph or a retouched original.",
   "generated": [
     {
@@ -38,7 +43,7 @@
       "asset": "/assets/website/portrait-generated.webp",
       "method": "built-in image_gen; new fictional person and scene, followed by a camera-lettering cleanup edit",
       "subject": "Original fictional adult Chinese woman, not a photograph of a real person",
-      "use": "Hero secondary image, People gallery, and portrait editing sample",
+      "use": "Portrait editing sample",
       "comparison": "Generated input processed by the actual FrameLark pixel renderer; after image is not generated independently",
       "settings": {
         "exposure": 0.06,

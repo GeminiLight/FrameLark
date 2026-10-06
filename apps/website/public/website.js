@@ -186,7 +186,7 @@ if('IntersectionObserver' in window){
     entrances.unobserve(entry.target);
     arrive(entry.target,{startOpacity:.96});
   }),{threshold:.12});
-  document.querySelectorAll('.hero-copy,.hero-main-photo,.hero-small-photo,.journey,.section-heading,.eye-art,.eye-points,.atelier-demo,.chapter-case,.craft-principles,.series-photos,.series-story,.expression-features,.companion-portrait,.companion-copy,.faq-intro,.faq-list,.start-inner').forEach(element=>entrances.observe(element));
+  document.querySelectorAll('.hero-copy,.hero-main-photo,.journey,.section-heading,.eye-art,.eye-points,.atelier-demo,.chapter-case,.craft-principles,.series-photos,.series-story,.expression-features,.companion-portrait,.companion-copy,.faq-intro,.faq-list,.start-inner').forEach(element=>entrances.observe(element));
   const links=[...document.querySelectorAll('.desktop-nav a,.mobile-menu a')];
   const sections=[...document.querySelectorAll('#eye,#craft,#series,#companion')];
   let chapterFrame=0;

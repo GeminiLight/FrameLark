@@ -61,7 +61,7 @@ for(const name of ['examples.html','examples.css',...(await filesIn(join(caseSou
   count++;
 }
 let homepage=adapt(await readFile(join(source,'home.html'),'utf8'));
-homepage=homepage.replace(/(<meta property="og:image" content=")[^"]+/,`$1${siteURL.href}assets/website/hero-landscape.webp`)
+homepage=homepage.replace(/(<meta property="og:image" content=")([^"]+)/,(_,prefix,path)=>prefix+new URL(path,siteURL.origin).href)
   .replace('</head>',`  <link rel="canonical" href="${siteURL.href}" />\n  <script>if(location.protocol==='http:'&&!['localhost','127.0.0.1','::1'].includes(location.hostname))location.replace(location.href.replace(/^http:/,'https:'));</script>\n</head>`)
   .replace('网页的调色、裁剪与导出在浏览器中完成。启用视觉审片或向顾问提问时，会将压缩预览发送给配置的模型服务；原片不会保存到服务器文件夹。未连接模型时，也能手动编辑、试用风格和导出，基础光色分析会清楚标明来源。','这个在线工作台提供浏览器内的调色、裁剪、风格、版本和导出，照片不会发送到模型服务。视觉审片与顾问的看图能力，需要按使用指南运行完整工作台并连接视觉模型。当前诊断明确标为基础光色分析。');
 await writeFile(join(destination,'index.html'),homepage);
