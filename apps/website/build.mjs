@@ -39,7 +39,11 @@ for(const path of await filesIn(source)){
   if(relative==='home.html'||relative==='index.html')continue;
   const target=join(destination,relative);
   await mkdir(dirname(target),{recursive:true});
-  if(/\.(html|js|css|svg|json)$/.test(path))await writeFile(target,adapt(await readFile(path,'utf8')));
+  if(/\.(html|js|css|svg|json)$/.test(path)){
+    let text=adapt(await readFile(path,'utf8'));
+    if(relative==='install.html')text=text.replace('</head>',`  <link rel="canonical" href="${siteURL.href}install.html" />\n</head>`);
+    await writeFile(target,text);
+  }
   else await writeFile(target,await readFile(path));
   count++;
 }
@@ -70,10 +74,10 @@ const runtime=await readFile(join(websiteRoot,'static-runtime.js'),'utf8');
 await writeFile(join(destination,'pages-static-runtime.js'),runtime.replace('__FRAME_LARK_BASE_PATH__',JSON.stringify(basePath)));
 await writeFile(join(destination,'.nojekyll'),'');
 await writeFile(join(destination,'robots.txt'),`User-agent: *\nAllow: /\nSitemap: ${siteURL.href}sitemap.xml\n`);
-await writeFile(join(destination,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${siteURL.href}</loc></url><url><loc>${siteURL.href}examples.html</loc></url></urlset>\n`);
+await writeFile(join(destination,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${siteURL.href}</loc></url><url><loc>${siteURL.href}examples.html</loc></url><url><loc>${siteURL.href}install.html</loc></url></urlset>\n`);
 
 // Verify every local HTML resource before handing the output to Pages.
-for(const file of ['index.html','studio/index.html','examples.html']){
+for(const file of ['index.html','studio/index.html','examples.html','install.html']){
   const text=await readFile(join(destination,file),'utf8');
   for(const match of text.matchAll(/(?:src|href)=["']([^"']+)["']/g)){
     const target=match[1];

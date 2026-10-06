@@ -29,22 +29,42 @@ codex plugin --help
 
 插件和 Skill 使用宿主 Agent 的看图、对话能力，无需另填模型 API Key。修图还需要宿主能执行本地工具、访问所选照片；可选生图和图片编辑以宿主实际提供的能力为准。
 
-先下载仓库：
+摄影眼快速安装无需克隆仓库，见下一节。使用本地构建、统一插件、独立 Skill 或本地工作台时，再下载仓库：
 
 ```sh
 git clone https://github.com/GeminiLight/FrameLark.git
 cd FrameLark
 ```
 
-下面的命令均在这个仓库目录中运行。
+除标明无需克隆的快速安装命令外，下面的 npm 命令均在这个仓库目录中运行。
 
 ## 只安装摄影眼插件
+
+### 推荐：让本地 Codex 代装
+
+打开[摄影眼安装页](https://tianfuwang.tech/FrameLark/install.html)，点击打开 Codex，再发送预填的安装请求。按钮不会自动发送；安装后由 Agent 核实内容和启用状态，再开启新对话附照片问这里咋拍。
+
+### 终端快速安装，无需克隆
+
+需要 Node.js 20.9+、Git 和支持插件的 Codex CLI。下面的命令下载并执行本仓库的[独立安装脚本](../scripts/install-photography-eye.mjs)，不安装 npm 或图片处理依赖：
+
+```sh
+node --input-type=module -e "const r=await fetch('https://raw.githubusercontent.com/GeminiLight/FrameLark/main/scripts/install-photography-eye.mjs');if(!r.ok)throw Error('Download failed: '+r.status);await import('data:text/javascript;base64,'+Buffer.from(await r.text()).toString('base64'))"
+```
+
+安装器注册或刷新 `GeminiLight/FrameLark` 市场，只安装 `framelark-eye@framelark`。它检查安装目录仅含 `photography-eye`，并要求 Codex 的 `installed` 与 `enabled` 都为 `true` 才输出 `ok: true`。已有 `framelark` 市场指向其他来源或本地构建时保留配置并停止，由你明确选择是否切换。
+
+已有仓库也可运行 `npm run plugin:install:photography-eye:github`。安装只作用于运行命令的 Codex 环境，不表示已安装到其他电脑或 ChatGPT 手机账号。
+
+### 从本地构建安装
 
 ```sh
 npm run plugin:install:photography-eye
 ```
 
 只安装 `framelark-eye`，其中只有 `photography-eye`；不会准备照片精修依赖。也可以让本地 Codex 从 GitHub 注册或更新 FrameLark 插件市场，只安装 `framelark-eye@framelark`。完成后开启新对话，附上现场照，说「用 FrameLark 摄影眼看这里咋拍？」。
+
+本地开发构建使用独立的 `framelark-eye` 市场，与 GitHub 的 `framelark` 市场分开。成功输出包含 `installed: true`、`enabled: true` 和 `retouchDependencies: not-required`。
 
 摄影眼使用宿主的视觉与可选生图工具，无需额外模型 Key。以上是本地安装入口；ChatGPT 工作区导入与手机支持范围见[插件分发](PLUGIN.md#chatgpt-工作区与手机)。
 

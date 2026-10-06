@@ -36,11 +36,13 @@ Ask an assistant with public-web access to read [CLOUD.md](CLOUD.md) and follow 
 
 ### Install Photography Eye only
 
+**[Open the Photography Eye installer](https://tianfuwang.tech/FrameLark/install.html)** (Chinese): open a local Codex chat with the installation request already filled in, then send it. No checkout is required. A copyable terminal command is also available.
+
 The standalone **FrameLark Photography Eye** plugin (`framelark-eye`) contains only the `photography-eye` skill, reference material, and Xiaozhen assets. It does not prepare local retouching dependencies. In a local Codex client with plugin support, say:
 
 > Register or refresh the plugin marketplace from https://github.com/GeminiLight/FrameLark and install only framelark-eye@framelark. Confirm that it contains only photography-eye. I will open a new chat, attach a scene photo, and ask how to shoot here.
 
-From a cloned checkout, you can also run `npm run plugin:install:photography-eye`. Open a new chat, attach a scene photo, and ask “Use FrameLark Photography Eye to show me how to shoot here.”
+From a checkout, run `npm run plugin:install:photography-eye:github` to install and verify `framelark-eye@framelark` from GitHub. Use `npm run plugin:install:photography-eye` for the local development build. Both installers verify the installed skills and enabled state without preparing retouching dependencies. Open a new chat, attach a scene photo, and ask “How should I shoot here?”
 
 These are local Codex installation instructions. They do not establish direct GitHub installation in an ordinary ChatGPT mobile chat. Eligible workspace admins can import the repository marketplace and make the standalone plugin available to members; account and mobile availability still need verification. [Distribution scope](docs/PLUGIN.md#chatgpt-工作区与手机) (Chinese).
 

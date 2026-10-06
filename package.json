@@ -21,6 +21,7 @@
     "test:web": "node scripts/run-tests.mjs web",
     "test:skill": "node scripts/run-tests.mjs skill",
     "test:navigation": "node scripts/check-navigation.mjs",
+    "test:website": "node scripts/check-website.mjs",
     "quality": "node scripts/photo-quality.mjs",
     "quality:vision": "node scripts/photo-quality.mjs --vision",
     "architecture:check": "node scripts/check-architecture.mjs",
@@ -36,6 +37,7 @@
     "plugin:sync:photography-eye": "node scripts/sync-photography-eye-plugin.mjs",
     "plugin:check:photography-eye": "node scripts/check-framelark-plugin.mjs --photography-eye",
     "plugin:install:photography-eye": "node scripts/install-framelark-plugin.mjs --photography-eye",
+    "plugin:install:photography-eye:github": "node scripts/install-photography-eye.mjs",
     "install:skills": "node scripts/install-photo-skill.mjs --all",
     "install:photography-eye": "node scripts/install-photo-skill.mjs --skill photography-eye"
   }

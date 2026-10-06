@@ -82,28 +82,34 @@ tabs.forEach((tab,index)=>{
 
 const eyeScenes={
   arcade:{title:'光影拱廊',board:'/assets/website/photography-board.webp',original:'/assets/cases/arcade-reference.png',alt:'拱廊现场的五种机位与拍法参考'},
-  cafe:{title:'玻璃倒影',board:'/assets/website/cafe-board.webp',original:'/assets/cases/cafe-reference.png',alt:'咖啡馆玻璃倒影的五种机位与拍法参考'}
+  cafe:{title:'玻璃倒影',board:'/assets/website/cafe-board.webp',original:'/assets/cases/cafe-reference.png',alt:'咖啡馆玻璃倒影的五种机位与拍法参考'},
+  lakeside:{title:'湖岸暖光',board:'/assets/website/lakeside-board.webp',original:'/assets/website/lakeside-board.webp',alt:'湖岸暖光的五种拍法参考，金色树叶、蓝色湖水与散步的人'}
 };
 const eyeTabs=[...document.querySelectorAll('[data-eye-case]')];
 const eyeArt=document.querySelector('.eye-art');
+const eyeStatus=document.querySelector('#eye-announcement');
+const eyeTotal=document.querySelector('#eye-total');
+if(eyeTotal)eyeTotal.textContent=String(eyeTabs.length).padStart(2,'0');
 let eyeIndex=0,eyeRequest=0;
 async function selectEye(index){
   index=(index+eyeTabs.length)%eyeTabs.length;
   const request=++eyeRequest;
-  if(index===eyeIndex){eyeArt.setAttribute('aria-busy','false');return;}
+  eyeStatus.classList.remove('is-error');
+  if(index===eyeIndex){eyeArt.setAttribute('aria-busy','false');eyeStatus.textContent=`已显示${eyeScenes[eyeTabs[index].dataset.eyeCase].title}`;return;}
   const tab=eyeTabs[index],panel=document.getElementById(tab.getAttribute('aria-controls'));
   eyeArt.setAttribute('aria-busy','true');
+  eyeStatus.textContent='正在加载案例';
   try{
     await Promise.all([...panel.querySelectorAll('img')].map(img=>loadImage(img.src)));
     if(request!==eyeRequest)return;
     eyeIndex=index;
     eyeTabs.forEach((item,i)=>{item.setAttribute('aria-selected',String(i===index));item.tabIndex=i===index?0:-1;document.getElementById(item.getAttribute('aria-controls')).hidden=i!==index;});
     document.querySelector('#eye-current').textContent=String(index+1).padStart(2,'0');
-    document.querySelector('#eye-announcement').textContent=`已切换到${eyeScenes[tab.dataset.eyeCase].title}，现场输入与五种拍法参考。`;
+    eyeStatus.textContent=`已切换到${eyeScenes[tab.dataset.eyeCase].title}，现场输入与五种拍法参考。`;
     arrive(panel.querySelector('.scene-input'));
     arrive(panel.querySelector('.scene-output'));
   }catch{
-    if(request===eyeRequest)document.querySelector('#eye-announcement').textContent='案例图片暂未加载完成，请再次点击重试。';
+    if(request===eyeRequest){eyeStatus.textContent='案例图片暂未加载完成，当前案例已保留。请再次点击想看的案例重试。';eyeStatus.classList.add('is-error');}
   }finally{if(request===eyeRequest)eyeArt.setAttribute('aria-busy','false');}
 }
 function bindTabKeys(items,select){
