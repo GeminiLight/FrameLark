@@ -200,4 +200,5 @@ if('IntersectionObserver' in window){
 }
 reducedMotion.addEventListener('change',event=>{if(event.matches){stopSweep();document.getAnimations().forEach(animation=>animation.cancel());}});
 // Old shared links now land at the case switcher in the first chapter.
-if(location.hash==='#cases'){history.replaceState(null,'','#eye');document.querySelector('#eye').scrollIntoView();}
+function redirectLegacyCase(){if(location.hash==='#cases'){history.replaceState(null,'','#eye');document.querySelector('#eye').scrollIntoView();}}
+window.addEventListener('hashchange',redirectLegacyCase);redirectLegacyCase();
