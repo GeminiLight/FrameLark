@@ -63,6 +63,62 @@ tabs.forEach((tab,index)=>{
   });
 });
 
+const eyeCases={
+  arcade:{title:'光影拱廊',input:'/assets/cases/arcade-input.jpg',reference:'/assets/cases/arcade-reference.png',inputWidth:1800,inputHeight:2700,inputAlt:'输入现场照：重复石拱柱、地面斜光和远处人物',referenceAlt:'光影拱廊参考板：光带、光阶、门洞、人物间隙与灯阵五种拍法',question:'“用 FrameLark 看这里咋拍？”',summary:'拱门、斜光与人物，展开五个观看方向。',anchor:'photography'},
+  cafe:{title:'玻璃里的两重空间',input:'/assets/cases/cafe-input.jpg',reference:'/assets/cases/cafe-reference.png',inputWidth:1800,inputHeight:1201,inputAlt:'输入现场照：玻璃上叠着暖灯、黑椅、街景和人物',referenceAlt:'玻璃叠影参考板：背影、灯与砖墙、椅子叠影、冷暖分界和人物间隙',question:'“这里咋拍？”',summary:'灯光、街景与人影，在玻璃里重新组织。',anchor:'cafe'}
+};
+const eyeTabs=[...document.querySelectorAll('[data-eye-case]')];
+const eyePanel=document.querySelector('#eye-case-panel');
+const eyeStatus=document.querySelector('#eye-case-status');
+let eyeRequestId=0;
+async function selectEyeCase(tab){
+  eyeStatus.classList.remove('eye-case-error');
+  if(tab.getAttribute('aria-selected')==='true'){
+    if(eyePanel.getAttribute('aria-busy')==='true'){
+      ++eyeRequestId;eyePanel.setAttribute('aria-busy','false');
+      eyeStatus.textContent=`已显示${eyeCases[tab.dataset.eyeCase].title}`;
+    }
+    return;
+  }
+  const example=eyeCases[tab.dataset.eyeCase];
+  const thisRequest=++eyeRequestId;
+  eyePanel.setAttribute('aria-busy','true');
+  eyeStatus.textContent='正在加载案例';
+  try{
+    await Promise.all([loadImage(example.input),loadImage(example.reference)]);
+    if(thisRequest!==eyeRequestId)return;
+    const input=document.querySelector('#eye-input-image');
+    input.src=example.input;input.alt=example.inputAlt;input.width=example.inputWidth;input.height=example.inputHeight;
+    const inputLink=document.querySelector('#eye-input-link');inputLink.href=example.input;inputLink.setAttribute('aria-label',`查看${example.title}的原始现场照`);
+    const reference=document.querySelector('#eye-reference-image');reference.src=example.reference;reference.alt=example.referenceAlt;
+    document.querySelector('#eye-question').textContent=example.question;
+    document.querySelector('#eye-scene-summary').textContent=example.summary;
+    document.querySelector('#eye-case-caption').textContent=`${example.title} · 五种拍法`;
+    const detailLink=document.querySelector('#eye-case-details');const detailURL=new URL(detailLink.href);detailURL.hash=example.anchor;detailLink.href=detailURL.href;
+    document.querySelector('#board-dialog-title').textContent=example.title;
+    const fullBoard=document.querySelector('#board-dialog-image');fullBoard.src=example.reference;fullBoard.alt=example.referenceAlt;
+    document.querySelector('#original-board-link').href=example.reference;
+    eyeTabs.forEach(item=>{const selected=item===tab;item.setAttribute('aria-selected',String(selected));item.tabIndex=selected?0:-1;});
+    eyePanel.setAttribute('aria-labelledby',tab.id);
+    eyeStatus.textContent=`已显示${example.title}`;
+  }catch{
+    if(thisRequest===eyeRequestId){eyeStatus.textContent='案例图片暂未加载，请再点一次重试。';eyeStatus.classList.add('eye-case-error');}
+  }finally{
+    if(thisRequest===eyeRequestId)eyePanel.setAttribute('aria-busy','false');
+  }
+}
+eyeTabs.forEach((tab,index)=>{
+  tab.addEventListener('click',()=>selectEyeCase(tab));
+  tab.addEventListener('keydown',event=>{
+    let next;
+    if(event.key==='ArrowRight')next=(index+1)%eyeTabs.length;
+    if(event.key==='ArrowLeft')next=(index-1+eyeTabs.length)%eyeTabs.length;
+    if(event.key==='Home')next=0;
+    if(event.key==='End')next=eyeTabs.length-1;
+    if(next!==undefined){event.preventDefault();eyeTabs[next].focus();selectEyeCase(eyeTabs[next]);}
+  });
+});
+
 document.querySelectorAll('[data-open]').forEach(button=>button.addEventListener('click',()=>{
   const dialog=document.getElementById(button.dataset.open);if(!dialog)return;
   closeMenu();dialog.showModal();document.body.classList.add('has-dialog');
