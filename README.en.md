@@ -63,9 +63,9 @@ For standalone skills or the browser studio, download this repository first and 
 | Entry point | How to start |
 | --- | --- |
 | <a id="agent-skill"></a>Standalone skills | Run `npm run install:skills` to install into `~/.codex/skills/` by default; [individual skills, other hosts, and updates](docs/INSTALLATION.en.md#standalone-skills). |
-| <a id="web-ui"></a>Browser studio | Run `npm start`, then open [localhost:3177](http://localhost:3177) to upload, refine, compare, and export. |
+| <a id="web-ui"></a>Browser studio | Use the [online basic editor](https://tianfuwang.tech/FrameLark/studio/), or run `npm start` and open [localhost:3177](http://localhost:3177) for the full local studio. |
 
-Manual browser editing needs no model key. Connect a visual model in settings for the AI advisor. Scene-scouting guidance is currently provided through the Photography Eye skill.
+The online basic editor supports browser-side color, cropping, looks, versions, and export. Connect a visual model in the full local studio for the AI advisor. Scene-scouting guidance is currently provided through the Photography Eye skill.
 
 ## Usage examples
 
@@ -73,37 +73,60 @@ Manual browser editing needs no model key. Connect a visual model in settings fo
 
 ### Find scenes · Photography Eye
 
-Attach a scene photo and ask how to shoot:
+**Provide a scene photo and ask how to shoot. FrameLark proposes different photographs.**
 
-> Use FrameLark to show me how to shoot this staircase.
+| User input | User request |
+| --- | --- |
+| <img src="apps/studio/public/assets/cases/arcade-input.jpg" width="220" alt="Input: an arcade with diagonal sunlight and distant people" /> | Use FrameLark to show me how to shoot here. |
 
-![Photography Eye: five staircase compositions around layered space, warm light, and handrail lines](docs/images/showcase/photography-eye.png)
+**Delivery: one recommendation and four alternatives, with viewpoints, focus, finishing directions, and Xiaozhen tips.**
 
-With image generation available, the skill creates a five-option reference board and shooting directions by default. This staircase example explores space, warm light, and lines; its AI shot goals need a real reshoot.
+![Output: five arcade photographs in the selected warm paper editorial design](apps/studio/public/assets/cases/arcade-reference.png)
+
+This board was developed from scene-based shooting proposals and then refined as a design example. It shows AI capture and finishing goals; details may be redrawn and new viewpoints need a real reshoot. Actual retouching continues from the user's original.
+
+<details>
+<summary>More Photography Eye cases: an independent glass-reflection test and the staircase</summary>
+
+**Another input: café window reflections.** An independent agent received only the scene photo, the Photography Eye skill, and “How should I shoot here?” One board-generation call delivered five directions, without an old board or prompt as reference.
+
+<img src="apps/studio/public/assets/cases/cafe-input.jpg" width="320" alt="Input: warm lamps, chairs, people and street reflections overlap in glass" />
+
+![Independent first output: a seated back, light strips, chairs, cool/warm boundary and a silhouette gap](apps/studio/public/assets/cases/cafe-reference.png)
+
+This first output has aspect-ratio and redrawn-detail deviations. Use it for direction, and the [original-photo framing guide](apps/studio/public/assets/cases/cafe-framing.png) for the current-view boundaries.
+
+**Light-and-shadow staircase:** the previously approved example of space, warm light and handrail lines.
+
+![Five photographic directions from the staircase](docs/images/showcase/photography-eye.png)
+
+</details>
+
+[Case process and sources](docs/CASE_STUDIES.md) (Chinese). [Website cases: inputs and deliveries](https://tianfuwang.tech/FrameLark/examples.html).
 
 <a id="photo-retouch-demo"></a>
 
 ### Refine photos · Retouch Desk
 
-Attach the original and explain what to keep and improve:
+**Input:** an existing original, with what you want to preserve or improve:
 
 > Use FrameLark to refine this photo. Preserve the morning light and mountain layers, make the person a little clearer, and show me a trial first.
 
 ![Retouch Desk: a real comparison of the original and a saved retouch](docs/images/showcase/photo-retouch.png)
 
-Review, preview crop, color, and local adjustments, compare details, then accept and export. The screenshot compares the built-in original with a saved retouch.
+**Delivery:** comparable trials, editable saved versions, and exported finished files after acceptance. The screenshot shows an existing built-in demo version, not a new automatic retouch run.
 
 <a id="photo-series-demo"></a>
 
 ### Curate a series · Series Album
 
-Provide a photo folder, its purpose, the image count, and required photographs:
+**Input:** photos or an accessible folder, its purpose, the image count, and required photographs:
 
 > Use FrameLark to make a nine-image grid from this folder. Define a theme, select photos, refine each one, and arrange the sequence. Preserve the originals.
 
 ![Series Album: set the intent, arrange photographs, and refine each image](docs/images/screenshots/series-workspace.png)
 
-Get a selection, sequence, and finished set around your theme. This screenshot uses two cat and coffee samples to demonstrate a quiet daily-life series.
+**Delivery:** a theme-led selection, sequence, and individually finished photos. This screenshot demonstrates a two-image cat-and-coffee workflow, not a completed nine-image delivery.
 
 [Example sources and capture notes](docs/SCREENSHOTS.md#三个能力的使用示例) (Chinese)
 

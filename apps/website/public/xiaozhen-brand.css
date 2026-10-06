@@ -11,3 +11,7 @@
 @media (max-width:600px) {
   .agent-welcome>img.xiaozhen-avatar { width:68px;height:68px;margin-bottom:12px; }
 }
+
+.sidebar-bottom .studio-case-entry{font-size:11px;color:#776b5e;padding:6px 4px;text-decoration:none;white-space:nowrap}
+.sidebar-bottom .studio-case-entry:hover{color:#a35c3c}
+.sidebar-bottom .studio-case-entry:focus-visible{outline:2px solid #a35c3c;outline-offset:3px}

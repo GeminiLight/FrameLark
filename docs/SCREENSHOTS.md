@@ -2,11 +2,13 @@
 
 ## 三个能力的使用示例
 
-README 每项能力各展示一句调用示例、一张图和一段说明。图片对应的用途与来源如下：
+README 按“输入→提问→交付”展示案例；主摄影眼案例采用用户选定的暖纸拱廊板，咖啡馆独立首版与原有楼梯例折叠展示。完整过程与偏差见 [案例记录](CASE_STUDIES.md)。图片对应的用途与来源如下：
 
 | 示例 | 展示内容与来源 |
 | --- | --- |
-| [找画面 · 摄影眼](images/showcase/photography-eye.png) | 复用用户认可的 2026-10-04「光影楼梯」图板，展示层叠空间、暖光切片、扶手折线、暗面灯点与柱面光带。由内置 imagegen 根据 [Willian Justen de Vasconcellos 的原图](https://unsplash.com/photos/modern-architectural-staircase-with-dramatic-light-and-shadows-MKgocPMj2uM)制作，来源采用 [Unsplash License](https://unsplash.com/license)。原图已有成熟构图，本例展示不同表达方向；AI 会重画砖格与投影边界，不能当作精确原图裁剪或现场复拍成果。2026-10-06 直接复用原图板，没有重新生成。 |
+| [找画面 · 光影拱廊](../apps/studio/public/assets/cases/arcade-reference.png) | 输入为 [Moises Caro / Pexels](https://www.pexels.com/photo/people-walking-on-the-hallway-13304171/) 的现场照；先形成拍法，再探索版式，用户选定A暖纸杂志。本次复用用户再次附上的确切图片，没有重新生图。AI目标不等于原片修图或已验证复拍。 |
+| [找画面 · 玻璃倒影](../apps/studio/public/assets/cases/cafe-reference.png) | 输入为 [David Yu / Pexels](https://www.pexels.com/photo/reflection-of-cafe-in-window-9473089/) 的现场照；独立子代理仅收到图、Skill与“这里咋拍？”，一次整板生成。保留首版与具体重绘/画幅偏差，来源采用 [Pexels License](https://www.pexels.com/license/)。 |
+| [找画面 · 光影楼梯](images/showcase/photography-eye.png) | 保留用户认可的 2026-10-04图板。由内置 imagegen 根据 [Willian Justen de Vasconcellos 的原图](https://unsplash.com/photos/modern-architectural-staircase-with-dramatic-light-and-shadows-MKgocPMj2uM)制作，来源采用 [Unsplash License](https://unsplash.com/license)。原图已有成熟构图，AI会重画砖格与投影边界；此处复用，不称精确裁剪或现场复拍成果。 |
 | [修照片 · 精修台](images/showcase/photo-retouch.png) | 2026-10-06 从已安装的 FrameLark 0.1.1 插件暗房实际截取，视口 1280 × 800。使用内置 `alpine-demo.png` 与已有示例项目，进入「对照」，左侧为原片，右侧为已保存的「晨光 · 轻调人物」。本轮只展示已有版本，没有重新调用模型或生成照片。 |
 | [做组图 · 组图册](images/screenshots/series-workspace.png) | 使用下面记录的真实组图空间截图：猫与咖啡两张 CC0 样片，展示「安静日常」的表达、顺序与逐张精调。它是两图操作示例，不是已完成的九宫格交付。 |
 

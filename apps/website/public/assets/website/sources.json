@@ -13,6 +13,13 @@
       "page": "https://unsplash.com/photos/brown-wooden-house-on-lake-near-mountain-mxx-lVuVdFM",
       "license": "Unsplash License",
       "license_url": "https://unsplash.com/license"
+    },
+    {
+      "id": "arcade-input",
+      "author": "Moises Caro",
+      "page": "https://www.pexels.com/photo/people-walking-on-the-hallway-13304171/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/"
     }
   ],
   "hero": "Existing FrameLark sample image: public/assets/alpine-demo.png. Illustrative image, not a recorded user result.",

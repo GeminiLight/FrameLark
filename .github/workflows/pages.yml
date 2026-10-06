@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'apps/website/**'
+      - 'apps/studio/public/examples.html'
+      - 'apps/studio/public/examples.css'
+      - 'apps/studio/public/assets/cases/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 

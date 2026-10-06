@@ -133,3 +133,5 @@
 #advisor-tool-status{font-size:12px;color:var(--muted);line-height:1.6;margin:0 0 8px}
 #advisor-tool-status[hidden],#advisor-tool-retry[hidden]{display:none}
 #advisor-tool-retry{align-self:flex-start;min-height:36px;padding:7px 12px;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:4px;font:inherit;font-size:12px;margin-bottom:8px}
+
+.empty-secondary .case-link{display:inline-flex;align-items:center;min-height:44px;color:var(--muted);font-size:12px;text-underline-offset:4px;padding:0 4px}.empty-secondary .case-link:focus-visible{outline:2px solid var(--brand-warm);outline-offset:3px}

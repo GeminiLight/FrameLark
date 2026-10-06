@@ -6,6 +6,7 @@ const argumentsMap=new Map();
 for(let i=2;i<process.argv.length;i+=2)argumentsMap.set(process.argv[i],process.argv[i+1]);
 const websiteRoot=fileURLToPath(new URL('./',import.meta.url));
 const source=join(websiteRoot,'public');
+const caseSource=join(websiteRoot,'../studio/public');
 const destination=resolve(argumentsMap.get('--out')||join(websiteRoot,'../../_site'));
 const siteURL=new URL(argumentsMap.get('--site-url')||'https://geminilight.github.io/FrameLark/');
 if(!['http:','https:'].includes(siteURL.protocol))throw new Error('A web site URL is required');
@@ -42,6 +43,19 @@ for(const path of await filesIn(source)){
   else await writeFile(target,await readFile(path));
   count++;
 }
+// Keep the local studio and the published website on the same case sources.
+for(const name of ['examples.html','examples.css',...(await filesIn(join(caseSource,'assets/cases'))).map(path=>path.slice(caseSource.length+1))]){
+  const path=join(caseSource,name),target=join(destination,name);
+  await mkdir(dirname(target),{recursive:true});
+  if(name==='examples.html'){
+    let page=await readFile(path,'utf8');
+    page=page.replaceAll('href="/" data-case-studio','href="/studio" data-case-studio');
+    page=adapt(page).replace('</head>',`  <link rel="canonical" href="${siteURL.href}examples.html" />\n</head>`);
+    await writeFile(target,page);
+  }else if(name==='examples.css')await writeFile(target,adapt(await readFile(path,'utf8')));
+  else await writeFile(target,await readFile(path));
+  count++;
+}
 let homepage=adapt(await readFile(join(source,'home.html'),'utf8'));
 homepage=homepage.replace(/(<meta property="og:image" content=")[^"]+/,`$1${siteURL.href}assets/website/hero-landscape.webp`)
   .replace('</head>',`  <link rel="canonical" href="${siteURL.href}" />\n  <script>if(location.protocol==='http:'&&!['localhost','127.0.0.1','::1'].includes(location.hostname))location.replace(location.href.replace(/^http:/,'https:'));</script>\n</head>`)
@@ -56,10 +70,10 @@ const runtime=await readFile(join(websiteRoot,'static-runtime.js'),'utf8');
 await writeFile(join(destination,'pages-static-runtime.js'),runtime.replace('__FRAME_LARK_BASE_PATH__',JSON.stringify(basePath)));
 await writeFile(join(destination,'.nojekyll'),'');
 await writeFile(join(destination,'robots.txt'),`User-agent: *\nAllow: /\nSitemap: ${siteURL.href}sitemap.xml\n`);
-await writeFile(join(destination,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${siteURL.href}</loc></url></urlset>\n`);
+await writeFile(join(destination,'sitemap.xml'),`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>${siteURL.href}</loc></url><url><loc>${siteURL.href}examples.html</loc></url></urlset>\n`);
 
 // Verify every local HTML resource before handing the output to Pages.
-for(const file of ['index.html','studio/index.html']){
+for(const file of ['index.html','studio/index.html','examples.html']){
   const text=await readFile(join(destination,file),'utf8');
   for(const match of text.matchAll(/(?:src|href)=["']([^"']+)["']/g)){
     const target=match[1];
