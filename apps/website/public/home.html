@@ -14,8 +14,8 @@
   <link rel="icon" type="image/svg+xml" href="/assets/framelark-icon.svg" />
   <link rel="apple-touch-icon" href="/assets/framelark-icon-180.png" />
   <link rel="preload" as="image" href="/assets/website/hero-landscape.webp" />
-  <link rel="stylesheet" href="/website.css?v=20261006-chapter-colors-1" />
-  <script src="/website.js?v=20261006-chapter-colors-1" type="module"></script>
+  <link rel="stylesheet" href="/website.css?v=20261006-nav-numbered-1" />
+  <script src="/website.js?v=20261006-nav-numbered-1" type="module"></script>
 </head>
 <body>
   <svg class="icon-definitions" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs>
@@ -35,10 +35,10 @@
   <header class="site-header">
     <div class="header-inner container">
       <a class="wordmark" href="/" aria-label="帧好 FrameLark 首页"><svg class="brand-icon" aria-hidden="true"><use href="#frame"/></svg><span class="brand-name">帧好<span class="brand-en">FrameLark</span></span></a>
-      <nav class="desktop-nav" aria-label="官网导航"><a href="#eye">摄影眼</a><a href="#craft">照片精修</a><a href="#companion">认识小帧</a></nav>
+      <nav class="desktop-nav" aria-label="官网导航"><a href="#companion">认识小帧</a><a href="#eye"><span class="nav-number">01</span> 摄影眼</a><a href="#craft"><span class="nav-number">02</span> 精修图</a><a href="#series"><span class="nav-number">03</span> 组图册</a></nav>
       <div class="header-actions"><a class="header-start" href="/studio">开始创作<svg class="icon" aria-hidden="true"><use href="#arrow-up"/></svg></a><button class="menu-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="打开导航"><span></span><span></span></button></div>
     </div>
-    <nav id="mobile-menu" class="mobile-menu" aria-label="手机官网导航" hidden><a href="#eye">摄影眼</a><a href="#craft">照片精修</a><a href="#companion">认识小帧</a><a href="#questions">常见问题</a></nav>
+    <nav id="mobile-menu" class="mobile-menu" aria-label="手机官网导航" hidden><a href="#companion">认识小帧</a><a href="#eye"><span class="nav-number">01</span> 摄影眼</a><a href="#craft"><span class="nav-number">02</span> 精修图</a><a href="#series"><span class="nav-number">03</span> 组图册</a><a href="#questions">常见问题</a></nav>
   </header>
 
   <main id="main">
@@ -73,7 +73,7 @@
 
     <section class="craft-section" id="craft" aria-labelledby="craft-title">
       <div class="container">
-        <div class="section-heading dark-heading"><div><p class="eyebrow">02 / 照片精修</p><h2 id="craft-title">修得刚刚好。<br/><span>还是你的那张照片。</span></h2></div><p class="section-description">先看光线、构图和色彩，再给有依据的建议。<br/>值得保留的，就让它保留。<br/>值得改变的，先试试看，再由你决定。</p></div>
+        <div class="section-heading dark-heading"><div><p class="eyebrow">02 / 精修图</p><h2 id="craft-title">修得刚刚好。<br/><span>还是你的那张照片。</span></h2></div><p class="section-description">先看光线、构图和色彩，再给有依据的建议。<br/>值得保留的，就让它保留。<br/>值得改变的，先试试看，再由你决定。</p></div>
         <div class="atelier-demo">
           <div class="demo-topbar"><span class="demo-brand"><svg class="icon" aria-hidden="true"><use href="#frame"/></svg>帧好<span>PHOTO ATELIER</span></span><span class="demo-status"><span class="status-dot"></span>参数试修示例</span></div>
           <div class="demo-body">
@@ -99,8 +99,8 @@
       </div>
     </section>
 
-    <section class="expression-section" aria-labelledby="expression-title"><div class="container">
-      <div class="section-heading"><div><p class="eyebrow">03 / 你的影像语言</p><h2 id="expression-title">有自己的风格，<br/><span>也有自己的节奏。</span></h2></div><p class="section-description">一张照片，或一组故事。<br/>从风格试看到逐张打磨，<br/>让作品留下共同的气氛，也保留各自的内容。</p></div>
+    <section class="expression-section" id="series" aria-labelledby="expression-title"><div class="container">
+      <div class="section-heading"><div><p class="eyebrow">03 / 组图册</p><h2 id="expression-title">有自己的风格，<br/><span>也有自己的节奏。</span></h2></div><p class="section-description">一张照片，或一组故事。<br/>从风格试看到逐张打磨，<br/>让作品留下共同的气氛，也保留各自的内容。</p></div>
       <div class="editorial-gallery"><figure><div class="editorial-image people-photo"><img src="/assets/website/portrait-generated.webp" alt="AI 生成的人像示例：林间柔光下，中国女性手持胶片相机，神态自然，肤色与暖灰绿色背景形成层次" width="1122" height="1402" loading="lazy"/><span>01 / PEOPLE</span></div><figcaption><strong>留下温度</strong><span>人像 · AI 生成示例</span></figcaption></figure><figure><div class="editorial-image"><img src="/assets/website/lake.webp" alt="蓝调时分湖边木屋与群山的倒影" width="1440" height="960" loading="lazy"/><span>02 / LANDSCAPE</span></div><figcaption><strong>留下气氛</strong><span>风景 · 层次与空间</span></figcaption></figure><figure><div class="editorial-image"><img src="/assets/website/architecture.webp" alt="现代建筑中的台阶、斜线和窗影" width="1440" height="960" loading="lazy"/><span>03 / EVERYDAY</span></div><figcaption><strong>留下秩序</strong><span>日常 · 结构与光影</span></figcaption></figure></div>
       <div class="expression-features"><article><svg class="feature-icon" aria-hidden="true"><use href="#sliders"/></svg><h3>风格是起点，答案是你</h3><p>14 组原创调色配方，强度由你决定。先试看片，再收下喜欢的感觉。</p></article><article><svg class="feature-icon" aria-hidden="true"><use href="#grid"/></svg><h3>让照片，慢慢成为一组</h3><p>网页里逐张编辑、批量同步与导出；摄影插件陪你按主题选片、整理组图。</p></article><article><svg class="feature-icon" aria-hidden="true"><use href="#frame"/></svg><h3>你的选择，值得记住</h3><p>把喜欢的版本定稿，让自己的光色偏好和创作轨迹，一点点变得清晰。</p></article></div>
     </div></section>
@@ -127,3 +127,4 @@
   <dialog id="credits-dialog" class="site-dialog credits-dialog" aria-labelledby="credits-title"><div class="dialog-heading"><div><p class="eyebrow">WITH THANKS</p><h2 id="credits-title">光的来处，影像的来源。</h2></div><button class="dialog-close" type="button" data-close aria-label="关闭影像致谢"><svg class="icon" aria-hidden="true"><use href="#close"/></svg></button></div><p>建筑与湖景摄影来自下列创作者，按 <a href="https://unsplash.com/license" target="_blank" rel="noopener noreferrer">Unsplash License</a> 使用。人像由 AI 生成。</p><ul><li><strong>林间柔光 · AI 生成示例</strong><a href="/assets/website/portrait-generated.webp" target="_blank" rel="noopener noreferrer">查看完整示例 ↗</a></li><li><strong>几何光影 · Willian Justen de Vasconcellos</strong><a href="https://unsplash.com/photos/modern-architectural-staircase-with-dramatic-light-and-shadows-MKgocPMj2uM" target="_blank" rel="noopener noreferrer">查看摄影原作 ↗</a></li><li><strong>蓝调湖景 · Luca Bravo</strong><a href="https://unsplash.com/photos/brown-wooden-house-on-lake-near-mountain-mxx-lVuVdFM" target="_blank" rel="noopener noreferrer">查看摄影原作 ↗</a></li></ul><p>首页人像与摄影眼图板为 AI 生成示例；山野影像为内置示例。试修对比以同一张输入图通过实际参数渲染，编辑说明由本站整理。</p></dialog>
 </body>
 </html>
+
