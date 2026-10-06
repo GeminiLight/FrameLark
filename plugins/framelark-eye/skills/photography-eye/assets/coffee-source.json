@@ -1,0 +1,13 @@
+{
+  "file": "coffee-source.png",
+  "width": 600,
+  "height": 400,
+  "creator": "Rachel Michetti",
+  "courtesy": "Pikolo Espresso Bar",
+  "license": "CC0",
+  "sourceUrl": "https://scikit-image.org/docs/stable/api/skimage.data.html#skimage.data.coffee",
+  "verifiedAt": "2026-10-03",
+  "localSource": "test/fixtures/quality/still-life.png",
+  "sha256": "bc7c679e93a04b35aef5c5d644f0293d6aac8df7ccbba06f1d5bdddc0285050b",
+  "role": "教学原图，原字节复制；不是私人照片、生成图或拍法效果证明"
+}

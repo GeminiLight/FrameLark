@@ -1,0 +1,34 @@
+{
+  "name": "framelark-eye",
+  "version": "0.1.0",
+  "description": "现场拍一张，问这里咋拍：机位、构图、时机与五种拍法参考。",
+  "author": {
+    "name": "GeminiLight",
+    "url": "https://github.com/GeminiLight"
+  },
+  "homepage": "https://tianfuwang.tech/FrameLark/",
+  "repository": "https://github.com/GeminiLight/FrameLark",
+  "keywords": [
+    "photography",
+    "composition",
+    "photography-eye",
+    "framelark"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "FrameLark 摄影眼",
+    "shortDescription": "现场拍一张，发现五种拍法",
+    "longDescription": "只包含 photography-eye 摄影眼 Skill。上传一张现场照，问这里咋拍，获得机位、构图、时机、拍摄参数与后期方向；宿主支持生图时交付五种拍法参考板。使用当前 Agent 的看图与生图能力，无需额外模型 Key。摄影指导无需本地修图依赖；照片精修与组图属于另一个可选插件。",
+    "developerName": "GeminiLight",
+    "category": "Creativity",
+    "websiteURL": "https://tianfuwang.tech/FrameLark/",
+    "defaultPrompt": [
+      "用 FrameLark 摄影眼看这张现场照，这里咋拍？",
+      "喜欢 P3，具体站在哪里？",
+      "我又拍了一张，帮我看看还要怎么调整。"
+    ],
+    "brandColor": "#DE965B",
+    "composerIcon": "./skills/photography-eye/assets/xiaozhen.png",
+    "logo": "./skills/photography-eye/assets/xiaozhen.png"
+  }
+}

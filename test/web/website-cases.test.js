@@ -22,7 +22,7 @@ for(const prefix of ['', '/FrameLark'])test(`published cases work at ${prefix||'
   assert.match(await readFile(join(output,'examples.css'),'utf8'),/case-pair/);
   assert.ok((await readFile(join(output,'sitemap.xml'),'utf8')).includes(`https://example.com${prefix}/examples.html`));
   const homepage=await readFile(join(output,'index.html'),'utf8');
-  assert.ok(homepage.includes(`href="${prefix}/examples.html"`),'the official homepage has a case entry');
-  assert.ok(homepage.includes(`src="${prefix}/assets/cases/arcade-input.jpg"`),'the homepage shows the original input beside its output');
+  assert.match(homepage,new RegExp(`href="${prefix}/examples\\.html(?:#[^"]*)?"`),'the official homepage links to cases, including a specific case anchor');
+  assert.ok(homepage.includes(`href="${prefix}/assets/cases/arcade-input.jpg"`),'the original input remains accessible from its optimized homepage preview');
   assert.ok((await readFile(join(output,'studio/index.html'),'utf8')).includes(`href="${prefix}/examples.html"`),'the published editor links to cases');
 });

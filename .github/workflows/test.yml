@@ -47,6 +47,7 @@ jobs:
           package-manager-cache: false
       - run: npm run architecture:check
       - run: npm run plugin:check
+      - run: npm run plugin:check:photography-eye
       - run: npm run engine:check
       - run: npm run test:web
       - run: npm install --global agent-browser@0.38.1

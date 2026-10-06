@@ -6,7 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 const files=execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{cwd:root,encoding:'utf8'}).split('\0').filter(Boolean);
-const rootDirectories=new Set(['apps','api','skills','scripts','test','docs','assets','.agents','.github','.codex-plugin']);
+const rootDirectories=new Set(['apps','api','skills','plugins','scripts','test','docs','assets','.agents','.github','.codex-plugin']);
 const rootFiles=new Set(['README.md','README.en.md','CONTRIBUTING.md','Dockerfile','compose.yaml','package.json','package-lock.json','vercel.json','.gitignore','.gitattributes','.dockerignore','.vercelignore','.env.local.example','AGENTS.md','LICENSE','LICENSE.md','SECURITY.md','CODE_OF_CONDUCT.md','CHANGELOG.md','plugin.json','.editorconfig','.npmrc']);
 const errors=[];
 const exists=async path=>{try{await access(path);return true;}catch{return false;}};
@@ -18,6 +18,7 @@ async function checkPath(owner,spec){
   const destination=relative(root,target).split(sep).join('/');
   if(owner.startsWith('apps/studio/public/')&&!destination.startsWith('apps/studio/public/'))errors.push(`${owner}: browser code imports outside the public application: ${spec}`);
   if(owner.startsWith('skills/')&&!destination.startsWith('skills/'))errors.push(`${owner}: standalone skill depends on repository runtime: ${spec}`);
+  if(owner.startsWith('plugins/')&&!destination.startsWith(owner.split('/').slice(0,2).join('/')+'/'))errors.push(`${owner}: distributable plugin depends on repository runtime: ${spec}`);
   if(owner.startsWith('apps/studio/server/')&&owner!=='apps/studio/server/app.mjs'&&!owner.endsWith('/routes.mjs')&&destination.startsWith('apps/studio/server/')&&destination.endsWith('/routes.mjs'))errors.push(`${owner}: runtime depends on an HTTP route adapter: ${spec}; move shared logic to its own module`);
 }
 for(const file of files){

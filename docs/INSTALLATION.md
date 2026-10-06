@@ -1,6 +1,6 @@
 # 安装 FrameLark
 
-推荐 Codex 用户安装统一插件；其他支持 Skill 和本地工具的 Agent 可独立安装 Skill。只想在浏览器手动修图时，直接启动工作台即可。选择一种入口即可。
+现场问拍法时，推荐 Codex 用户只安装独立摄影眼插件；需要实际修图和组图时安装统一插件。其他支持 Skill 的 Agent 可独立安装 Skill。只想在浏览器手动修图时，直接启动工作台即可。选择一种入口即可。
 
 [返回主页](../README.md) · [English](INSTALLATION.en.md) · [使用指南](USAGE.md)
 
@@ -29,6 +29,16 @@ cd FrameLark
 ```
 
 下面的命令均在这个仓库目录中运行。
+
+## 只安装摄影眼插件
+
+```sh
+npm run plugin:install:photography-eye
+```
+
+只安装 `framelark-eye`，其中只有 `photography-eye`；不会准备照片精修依赖。也可以让本地 Codex 从 GitHub 注册或更新 FrameLark 插件市场，只安装 `framelark-eye@framelark`。完成后开启新对话，附上现场照，说「用 FrameLark 摄影眼看这里咋拍？」。
+
+摄影眼使用宿主的视觉与可选生图工具，无需额外模型 Key。以上是本地安装入口；ChatGPT 工作区导入与手机支持范围见[插件分发](PLUGIN.md#chatgpt-工作区与手机)。
 
 ## 统一 Codex 插件
 

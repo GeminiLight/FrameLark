@@ -1,6 +1,41 @@
-# FrameLark 统一插件
+# FrameLark 插件
 
-一个插件同时提供「摄影眼」和「照片精修」。插件包还带上修图 CLI、知识、批注与预览工具；摄影判断仍使用当前宿主的视觉 Agent。
+独立摄影眼插件提供现场拍法指导；统一插件同时提供「摄影眼」和「照片精修」，带上修图 CLI、知识、批注与预览工具。摄影判断使用当前宿主的视觉 Agent。
+
+## 独立摄影眼插件
+
+只需要现场拍法时，选择 **FrameLark 摄影眼**（`framelark-eye`）。它只有 `photography-eye`、拍摄与后期方向参考、小帧素材及无额外依赖的辅助脚本，不包含照片精修、组图工具或它们的图片处理依赖。看图和可选生图使用当前宿主能力。
+
+让支持插件的本地 Codex 代装：
+
+> 帮我从 https://github.com/GeminiLight/FrameLark 注册或更新插件市场，只安装 FrameLark 摄影眼插件 framelark-eye@framelark。确认只包含 photography-eye；开启新对话后，我会发一张现场照问「这里咋拍？」。
+
+手动从 GitHub 安装：
+
+```sh
+codex plugin marketplace add GeminiLight/FrameLark
+codex plugin add framelark-eye@framelark
+```
+
+市场已注册时先确认它指向本仓库并刷新来源，再安装独立插件。已克隆仓库时也可运行 `npm run plugin:install:photography-eye`；这个入口安装本地构建，不准备修图依赖。安装后开启新对话，选择摄影眼，附照片问「这里咋拍？」。
+
+`skills/photography-eye/` 是唯一维护的 Skill 内容。`plugins/framelark-eye/` 是 GitHub 安装所需的完整插件目录，其中的 Skill 副本由同步命令生成；原生插件清单在 `plugins/framelark-eye/.codex-plugin/plugin.json`。修改原始 Skill 或独立插件清单后，同步生成，再校验发布包：
+
+```sh
+npm run plugin:sync:photography-eye
+npm run plugin:check:photography-eye
+npm run plugin:build:photography-eye
+```
+
+输出为 `dist/framelark-eye/framelark-eye-0.1.0.zip`，其中只含一个 Skill。生成的发布副本不手动修改；CI 对比完整文件列表与逐文件内容，防止 GitHub 安装副本落后于维护来源。
+
+## ChatGPT 工作区与手机
+
+仓库市场同时提供 `framelark-eye` 和 `framelark`。有权限的工作区管理员可进入 ChatGPT 管理后台的 Plugins → Add → Import marketplace，Source 填 `https://github.com/GeminiLight/FrameLark`，Path 留空，导入后配置独立摄影眼插件的成员安装策略。管理员也可上传构建生成的独立 ZIP。账号、权限、插件导入结果和手机中的可用性需要实际验证。
+
+这不等于普通个人账号在手机聊天中发送 GitHub 链接就能直接安装。两种插件尚未上架 OpenAI 通用公共目录，当前没有已验证的公共手机安装卡或安装链接。
+
+官方依据：[GitHub 市场导入](https://help.openai.com/en/articles/20001504-importing-and-syncing-plugin-marketplaces-from-github)、[插件安装与手机可用范围](https://learn.chatgpt.com/docs/plugins)。
 
 ## 安装
 
