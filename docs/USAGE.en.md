@@ -12,6 +12,8 @@ Attach a scene photo and ask “How should I shoot here?” Add equipment or mov
 
 Photography Eye first gives an immediate shooting recommendation. When the host provides usable image generation, it directly creates a board with one recommendation and four alternatives, with viewpoint, focus, and finishing advice. No second request to generate an image is needed. Text-only requests and hosts without generation receive shooting and framing guidance. Choose a direction, take another photograph, and compare composition and light.
 
+The default uses the warm paper editorial design, with scene-specific Xiaozhen tips at the lower right. A design prompt supplies the layout; a separate sample board is optional, and the bundled mascot supplies character identity. Generated type and spacing can vary. Ask for another palette or layout if preferred; see [board design](../skills/photography-eye/references/board-design.md).
+
 Scene-scouting guidance is currently available through the skill, rather than the website. Hand the photographs to photo-retouch for actual pixel editing. See the [Photography Eye entry point](../skills/photography-eye/SKILL.md).
 
 ## Refine photos · Retouch Desk

@@ -1,4 +1,4 @@
 interface:
   display_name: "摄影眼"
   short_description: "附图问怎么拍，默认给五种拍法参考图、机位动作与后期方向"
-  default_prompt: "使用 $photography-eye 看这张现场照怎么拍：先给主推动作，再在生图工具可用时一次生成五种拍法的参考板，并给机位、对焦与后期方向。"
+  default_prompt: "使用 $photography-eye 看这张现场照怎么拍：先给主推动作，再在生图工具可用时一次生成五种拍法的暖纸杂志参考板，右下方加当前场景的小帧提醒，并给机位、对焦与后期方向。"
