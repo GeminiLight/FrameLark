@@ -42,9 +42,20 @@ try{
  const ids=await evaluate('JSON.stringify([...document.querySelectorAll("#edit-stack-mount [data-step-select]")].map(node=>node.dataset.stepSelect))');
  if(!ids.includes(firstId))throw Error('first edit was overwritten');
  console.log(JSON.stringify({case:'first-edit-admission',duplicateClickBlocked:preparing,actualStepIds:ids,firstStepPreserved:ids.includes(firstId)}));
+ // Operate on a different row from the selected last step. A row menu must
+ // retain its own stable ID rather than accidentally editing the inspector's ID.
+ await browser('click',`#edit-stack-mount [data-action=more][data-step-id="${firstId}"]`);
+ await browser('click',`#edit-stack-mount [data-action=down][data-step-id="${firstId}"]`);
+ await browser('wait','--fn',`document.querySelectorAll('#edit-stack-mount [data-step-select]')[1].dataset.stepSelect==='${firstId}'&&!document.querySelector('#export-button').disabled`);
+ await browser('click','#photo-undo');
+ await browser('wait','--fn',`document.querySelector('#edit-stack-mount [data-step-select]').dataset.stepSelect==='${firstId}'&&!document.querySelector('#export-button').disabled`);
+ console.log(JSON.stringify({case:'row-menu-target-and-undo',targetId:firstId,restoredOrder:ids}));
  await browser('open',base+'/?project='+reset.data.id);await browser('set','viewport','1280','800');
  await browser('wait','--fn','document.querySelector("#edit-stack-mount [data-action=legacy]")&&!document.querySelector("#export-button").disabled');
  await browser('click','#panel-adjust');await browser('click','#edit-stack-mount [data-action=legacy]');
+ const projectControls=await evaluate('JSON.stringify({projectLabel:document.querySelector("#project-open").textContent,duplicateEntry:!!document.querySelector("#collaboration-project"),draftLabel:document.querySelector("#draft-status").textContent,versionShortcutHidden:document.querySelector("#versions-open").hidden})');
+ if(projectControls.projectLabel!=='项目'||projectControls.duplicateEntry||projectControls.draftLabel!=='其他草稿'||!projectControls.versionShortcutHidden)throw Error('project access was not unified');
+ console.log(JSON.stringify({case:'unified-project-controls',...projectControls}));
  const before=await evaluate('JSON.stringify({slider:document.querySelector("#slider-exposure").value,pixels:Array.from(document.querySelector("#edited-canvas").getContext("2d").getImageData(0,0,1,1).data)})');
  await browser('click','#clear-manual');await browser('wait','--fn','!document.querySelector("#export-button").disabled');
  const after=await evaluate('JSON.stringify({slider:document.querySelector("#slider-exposure").value,pixels:Array.from(document.querySelector("#edited-canvas").getContext("2d").getImageData(0,0,1,1).data),toast:document.querySelector("#toast").textContent})');
@@ -63,7 +74,7 @@ try{
 
  native=await serveProject(reset.folder,{quiet:true});await browser('open',native.session.url);
  await browser('wait','--fn','document.querySelectorAll("#native-edit-stack [data-step-select]").length===1');
- await browser('click','#native-edit-stack [data-action=duplicate]');
+ await browser('click','#native-edit-stack [data-action=more]');await browser('click','#native-edit-stack [data-action=duplicate]');
  await browser('wait','--fn','document.querySelectorAll("#native-edit-stack [data-step-select]").length===2&&!document.querySelector("#accept-button").disabled');
  const names=await evaluate('JSON.stringify([...document.querySelectorAll("#native-edit-stack [data-step-select]")].map(node=>node.firstChild.textContent))');
  if(names[1].length>120||!names[1].endsWith(' · 副本'))throw Error('portable inspector did not bound a copied title');
