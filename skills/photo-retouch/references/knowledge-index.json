@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-04",
+  "reviewedAt": "2026-10-06",
   "retrieval": "keyword-only; relevance is not aesthetic quality",
   "adjustmentKeys": [
     "exposure",
@@ -2263,7 +2263,11 @@
         "成本",
         "调用次数",
         "提示",
-        "编辑目标"
+        "编辑目标",
+        "输入数量限制",
+        "原片联系表",
+        "多图输入",
+        "对应关系"
       ]
     },
     {
@@ -2380,6 +2384,49 @@
         "watch",
         "等待",
         "取消"
+      ]
+    },
+    {
+      "id": "finishing-target",
+      "kind": "workflow",
+      "file": "finishing-workflow.md",
+      "section": "先写可执行的成片目标",
+      "tags": [
+        "成片目标",
+        "精致",
+        "返修",
+        "九宫格",
+        "工作记录",
+        "共同观感"
+      ]
+    },
+    {
+      "id": "finishing-route",
+      "kind": "workflow",
+      "file": "finishing-workflow.md",
+      "section": "按目标选择处理路线",
+      "tags": [
+        "处理路线",
+        "综合精修",
+        "AI编辑",
+        "本地工具",
+        "干扰清理",
+        "材质"
+      ]
+    },
+    {
+      "id": "finishing-verdict",
+      "kind": "workflow",
+      "file": "finishing-workflow.md",
+      "section": "用照片作判断，再审排列",
+      "tags": [
+        "照片质量",
+        "图板设计",
+        "验收",
+        "minor",
+        "原片胜出",
+        "弱片",
+        "目标未达到"
       ]
     }
   ]

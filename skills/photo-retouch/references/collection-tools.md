@@ -16,7 +16,9 @@ node <skill>/scripts/cli.mjs collection-sheet --project <collection> --page 1 --
 {"images":["/absolute/path/a.jpg","/absolute/path/b.jpg"],"brief":{"purpose":"travel","theme":"海边两天的松弛感","targetCount":6,"sequence":"visual","constraints":["保留夕阳暖色，人物肤色自然"]}}
 ```
 
-目录不递归，最多 500 个文件；原片存入各单图项目，导入错误逐个写进 imports。静态 JPEG/PNG/WebP/AVIF 可用；HEIC/RAW/TIFF 会提示先转换。不会删除或写回输入文件。完全相同字节的文件只标 duplicateOf，不自动排除。每页 20 张，可切 original；实际打开返回的 PNG，再按返回的单图 project 路径 inspect/preview 深看。
+目录不递归，最多500个文件；原片存入各单图项目，导入错误逐个写进imports。静态JPEG/PNG/WebP/AVIF可用；macOS静态HEIC/HEIF可由系统解码，其他平台先转换；RAW由实际后端判断是否可读，普通TIFF输入仍不支持。当前目录枚举只覆盖部分RAW扩展名；RAF等请用明确的 `images` 列表导入，不能假定目录模式已经纳入它们。大批同帧JPG/RAW可先以JPG浏览，再对入选帧使用RAW，避免重复占组图名额和无必要的大批显影。
+
+不会删除或写回输入文件。完全相同字节的文件只标duplicateOf，不自动排除；JPG/RAW内容对应不能靠字节hash判断，须按同帧实际核对。每页20张，可切original；实际打开返回的PNG，再按单图project路径inspect/preview深看。
 
 `collection-brief --input` 使用 `{"revision":1,"brief":{"mustKeep":["P0002"],"theme":"保留这次旅行的安静"}}`。部分字段更新，其余保留。用途 purpose：story/travel/portrait/event/catalog/portfolio/archive；sequence：visual/chronological/emotional/manual；targetCount 可为 null；mustKeep 只用导入成功的 ID。所有变更需最新组图 revision。
 

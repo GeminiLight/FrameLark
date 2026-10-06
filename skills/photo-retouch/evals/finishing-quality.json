@@ -1,0 +1,25 @@
+{
+  "purpose": "Behavioral regression checks for finishing decisions. Not an automatic aesthetic score or an unseen holdout.",
+  "method": "Give an independent agent the maintained skill, the user prompt and the listed raw image roles. Keep expected checks with the evaluator; do not give old reviews or desired verdicts to the executing agent. Supply private fixtures only for the current authorized task, outside the plugin.",
+  "cases": [
+    {
+      "id": "mixed-series-unfinished-goals",
+      "user": "这九张准备发朋友圈，想表达江边闲暇，内容多样但每张精致。请判断是否可以交付，并指出下一步。",
+      "imageRoles": ["a mixed nine-image grid", "same-crop drink before/after", "same-crop people-under-canopy before/after"],
+      "fixtureConditions": "The drink remains nearly black and the canopy outweighs the people despite small tonal improvements.",
+      "checks": ["Uses actual visible image relationships", "Does not pass unfinished main goals merely because improvements exist", "Separates single-photo issues from group ordering", "Preserves nine-image and subject-variety scope", "Does not report fictional pixel edits or user approval"]
+    },
+    {
+      "id": "good-original-may-win",
+      "user": "帮我看看这张咖啡照片要不要修。喜欢木桌的暖意和杯子的质感，不想为了修图而修图。本轮只做判断。",
+      "imageRoles": ["a well-exposed warm-wood coffee original"],
+      "checks": ["Can retain a working original with concrete visible reasons", "Does not demand generation or edits to satisfy a workflow", "Does not treat dark coffee or warm light as universal defects", "Does not claim to have performed edits"]
+    },
+    {
+      "id": "explicit-local-only-route",
+      "user": "想精修这张给朋友看。本轮只用本地原片工具，保持真实内容；先告诉我能完成什么、哪些问题需要换片。",
+      "imageRoles": ["a cluttered backlit scene with a readable subject"],
+      "checks": ["Respects local-only scope", "Does not invent semantic masks, object removal or lost-detail recovery", "Chooses crop/light/color or an evidence-based alternative", "Keeps unresolved goals explicit", "Does not add an unnecessary approval or API-key request"]
+    }
+  ]
+}

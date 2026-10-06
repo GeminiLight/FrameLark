@@ -82,14 +82,16 @@ accept/discard/restore 使用 --id，带 --revision 可防止竞态。accept 还
 
 Agent 自行保存试片用 `accept --by agent`；默认 by:user 对应用户明确接受。`feedback --input` 记录用户对已保存版本的明确 reject/prefer/neutral；不改像素或删除历史。后续个人偏好用 `preferenceChoices`，排除拒绝或中性试片。Agent 试修被用户明确 prefer 后，才会成为偏好证据。
 
-share：JPEG 90%、2048 px、96 ppi；print：JPEG 98%、6000 px、300 ppi；original：PNG、8192 px、300 ppi。最长边上限 8192，总输出最多 1600 万像素，不能把「原尺寸」理解为无限尺寸。工具不放大，不复制源 EXIF/GPS。
+share：JPEG 90%、2048 px、96 ppi；print：JPEG 98%、6000 px、300 ppi；original：PNG、8192 px、300 ppi。普通显示输出最长边上限8192、最多1600万像素，不放大。RAW项目另有 `master`：按当前裁剪从高精度缓存输出原尺寸16位sRGB TIFF，不使用预览代理；普通栅格项目不能冒用此精度。输出不复制源EXIF/GPS。
 
 ```text
 node <skill>/scripts/cli.mjs export --project <project> --version <accepted-id> --preset original
 node <skill>/scripts/cli.mjs serve --project <project> --port 0 --session-file <private-session.json>
 ```
 
-服务仅绑定本机；新启动会生成新预览会话。页面刷新保留项目，服务关闭后重新启动恢复项目。单张输入最多 30 MB / 5000 万像素 / 最长边 16384；支持静态 JPEG/PNG/WebP/AVIF。HEIC、RAW、TIFF 转换后加入。
+服务仅绑定本机；新启动会生成新预览会话。页面刷新保留项目，服务关闭后重新启动恢复项目。普通栅格输入支持静态JPEG/PNG/WebP/AVIF；macOS静态HEIC/HEIF可由系统解码，其他平台先转换；普通TIFF输入仍不支持。
+
+相机RAW首次可运行 `node <skill>/scripts/raw/setup.mjs` 准备rawpy/LibRaw；macOS优先Apple CIRAWFilter（需Xcode Command Line Tools），实际失败再按工具支持回退。`init --image <RAW> --project <new-folder> [--raw-backend auto|apple|rawpy]` 保留原片、显影记录和线性高精度缓存。RAW输入上限512MiB / 9600万像素 / 16384px，机型和压缩方式依实际后端；指定后端不可用时会报错。项目后续编辑保持已选后端，不自动重新显影旧项目。RAW项目目前不能以单文件快照交换，需保留整个项目。
 
 
 ### 参数锁与画面保护
