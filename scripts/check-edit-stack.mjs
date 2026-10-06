@@ -42,15 +42,37 @@ try{
  const ids=await evaluate('JSON.stringify([...document.querySelectorAll("#edit-stack-mount [data-step-select]")].map(node=>node.dataset.stepSelect))');
  if(!ids.includes(firstId))throw Error('first edit was overwritten');
  console.log(JSON.stringify({case:'first-edit-admission',duplicateClickBlocked:preparing,actualStepIds:ids,firstStepPreserved:ids.includes(firstId)}));
+ // Operate on a different row from the selected last step. A row menu must
+ // retain its own stable ID rather than accidentally editing the inspector's ID.
+ await browser('click',`#edit-stack-mount [data-action=more][data-step-id="${firstId}"]`);
+ await browser('click',`#edit-stack-mount [data-action=down][data-step-id="${firstId}"]`);
+ await browser('wait','--fn',`document.querySelectorAll('#edit-stack-mount [data-step-select]')[1].dataset.stepSelect==='${firstId}'&&!document.querySelector('#export-button').disabled`);
+ await browser('click','#photo-undo');
+ await browser('wait','--fn',`document.querySelector('#edit-stack-mount [data-step-select]').dataset.stepSelect==='${firstId}'&&!document.querySelector('#export-button').disabled`);
+ console.log(JSON.stringify({case:'row-menu-target-and-undo',targetId:firstId,restoredOrder:ids}));
  await browser('open',base+'/?project='+reset.data.id);await browser('set','viewport','1280','800');
  await browser('wait','--fn','document.querySelector("#edit-stack-mount [data-action=legacy]")&&!document.querySelector("#export-button").disabled');
  await browser('click','#panel-adjust');await browser('click','#edit-stack-mount [data-action=legacy]');
+ const projectControls=await evaluate('JSON.stringify({projectLabel:document.querySelector("#project-open").textContent,duplicateEntry:!!document.querySelector("#collaboration-project"),draftLabel:document.querySelector("#draft-status").textContent,versionShortcutHidden:document.querySelector("#versions-open").hidden})');
+ if(projectControls.projectLabel!=='项目'||projectControls.duplicateEntry||projectControls.draftLabel!=='其他草稿'||!projectControls.versionShortcutHidden)throw Error('project access was not unified');
+ console.log(JSON.stringify({case:'unified-project-controls',...projectControls}));
  const before=await evaluate('JSON.stringify({slider:document.querySelector("#slider-exposure").value,pixels:Array.from(document.querySelector("#edited-canvas").getContext("2d").getImageData(0,0,1,1).data)})');
  await browser('click','#clear-manual');await browser('wait','--fn','!document.querySelector("#export-button").disabled');
  const after=await evaluate('JSON.stringify({slider:document.querySelector("#slider-exposure").value,pixels:Array.from(document.querySelector("#edited-canvas").getContext("2d").getImageData(0,0,1,1).data),toast:document.querySelector("#toast").textContent})');
  const p=await loadProject(reset.folder);
  const exposure=p.versions.find(v=>v.id===p.currentId).recipe.base.state.settings.exposure;if(exposure!==0||after.slider!=='0'||JSON.stringify(before.pixels)===JSON.stringify(after.pixels))throw Error('reset did not affect saved pixels');
  console.log(JSON.stringify({case:'clear-legacy-parameters',before,after,authoritativeExposure:exposure}));
+ await browser('click','#edit-stack-mount [data-action=highlights]');
+ await browser('wait','--fn','document.querySelector("#edit-stack-mount [data-range-advanced]")&&!document.querySelector("#export-button").disabled');
+ const rangeControls=await evaluate('JSON.stringify({advancedClosed:!document.querySelector("#edit-stack-mount [data-range-advanced]").open,scope:document.querySelector("#edit-stack-mount .edit-step-range").textContent,reference:document.querySelector("#edit-stack-mount [data-kind=reference]").value})');
+ if(!rangeControls.advancedClosed||rangeControls.reference!=='live-input'||!rangeControls.scope.includes('仅作用于当前步骤'))throw Error('range controls did not preserve their scope');
+ await browser('click','#edit-stack-mount [data-range-advanced]>summary');
+ await browser('select','#edit-stack-mount [data-kind=reference]','frozen-source');
+ await browser('wait','--fn','!document.querySelector("#export-button").disabled&&document.querySelector("#edit-stack-mount [data-reference-note]").textContent.includes("原始照片")');
+ const frozenProject=await loadProject(reset.folder),frozenRecipe=frozenProject.versions.find(v=>v.id===frozenProject.currentId).recipe,frozenRef=frozenRecipe.steps[0].maskRef,frozenMask=frozenRecipe.masks.find(mask=>mask.id===frozenRef.id&&mask.version===frozenRef.version);
+ if(frozenMask.reference.kind!=='frozen-source'||frozenMask.reference.sourceHash!==frozenRecipe.source.contentHash)throw Error('reference selection was not saved to the real recipe');
+ await browser('select','#edit-stack-mount [data-kind=reference]','live-input');await browser('wait','--fn','!document.querySelector("#export-button").disabled');
+ console.log(JSON.stringify({case:'advanced-range-reference-save',advancedInitiallyClosed:true,authoritativeReference:frozenMask.reference}));
  await browser('open',base+'/?project='+full.data.id);await browser('wait','--fn','document.querySelectorAll("#edit-stack-mount [data-step-select]").length===64&&!document.querySelector("#export-button").disabled');
  await evaluate('window.reviewErrors=[];window.addEventListener("error",event=>window.reviewErrors.push({message:event.message,code:event.error?.code,error:event.error?.message}));window.addEventListener("unhandledrejection",event=>window.reviewErrors.push({code:event.reason?.code,error:event.reason?.message}));JSON.stringify(true)');
  await browser('click','#panel-presets');await browser('wait','--fn','[...document.querySelectorAll(".curated-style-card img")].filter(image=>image.src.startsWith("data:image")).length===2');
@@ -63,7 +85,7 @@ try{
 
  native=await serveProject(reset.folder,{quiet:true});await browser('open',native.session.url);
  await browser('wait','--fn','document.querySelectorAll("#native-edit-stack [data-step-select]").length===1');
- await browser('click','#native-edit-stack [data-action=duplicate]');
+ await browser('click','#native-edit-stack [data-action=more]');await browser('click','#native-edit-stack [data-action=duplicate]');
  await browser('wait','--fn','document.querySelectorAll("#native-edit-stack [data-step-select]").length===2&&!document.querySelector("#accept-button").disabled');
  const names=await evaluate('JSON.stringify([...document.querySelectorAll("#native-edit-stack [data-step-select]")].map(node=>node.firstChild.textContent))');
  if(names[1].length>120||!names[1].endsWith(' · 副本'))throw Error('portable inspector did not bound a copied title');

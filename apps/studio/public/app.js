@@ -307,7 +307,7 @@ const projectWorkspace=createProjectWorkspace({
   getPhoto:currentPhoto,getPhotos:()=>photoSessions,
   getPatch:photo=>{commitPhotoInputs({finish:false});return workspacePatch(photoSnapshot(photo),{intent:photo.creativeIntent,conversation:photo.conversation});},
   getVersions:(photo,options)=>workspaceEditions(photo.versions||[],options),
-  onVersions:syncSharedEditions,
+  onVersions:syncSharedEditions,onOpenVersions:openEditions,
   onLoad:async(data,existing)=>{
     let photo=existing;
     if(!photo){
@@ -990,7 +990,7 @@ function refreshActions() {
   if(!visibility.comparison)hideComparisonPopover();
   $('.photo-history').hidden=!visibility.history;
   $('#photo-reset').hidden=!edited;
-  $('#versions-open').hidden=!state.image;
+  $('#versions-open').hidden=!state.image||Boolean(photo?.projectId);
   $('#mark-photo').hidden=!state.image;
   $('#heading-counter').hidden=!state.image;
   $('#open-tasks').hidden=!analysisQueue.tasks.length && !exportQueue.tasks.length;
@@ -3383,10 +3383,10 @@ $('#version-items').addEventListener('click',event=>{
 });
 
 function renderDraftStatus() {
-  if(currentPhoto()?.projectId){$('#draft-status').textContent='浏览器草稿';$('#draft-status').title='当前照片保存在文件项目中；这里可查看其他浏览器草稿。';$('#draft-status').classList.remove('save-failed');return;}
+  if(currentPhoto()?.projectId){$('#draft-status').textContent='其他草稿';$('#draft-status').title='查看保存在此浏览器中的其他照片草稿。';$('#draft-status').classList.remove('save-failed');return;}
   const own=Boolean(currentPhoto() && !currentPhoto().isDemo);
   const {savedAt:draftSavedAt,dirty:draftDirty,saving:draftSaving}=draftAutosave.status,draftFailed=draftAutosave.status.failed||draftListFailed;
-  $('#draft-status').textContent=draftFailed ? '保存失败 · 重试':draftSaving || draftDirty ? '保存中…':draftSavedAt && own ? '草稿已保存':own ? '等待保存':'草稿';
+  $('#draft-status').textContent=draftFailed ? '保存失败 · 重试':draftSaving || draftDirty ? '正在保存草稿…':draftSavedAt && own ? '草稿已保存在此浏览器':own ? '草稿等待保存':'草稿';
   $('#draft-status').classList.toggle('save-failed',draftFailed);
   $('#draft-status').title=draftFailed ? '本次修改尚未保存；点击可重试或导出照片':draftSavedAt ? `上次保存 ${new Date(draftSavedAt).toLocaleString('zh-CN')}`:'查看、继续编辑或清理草稿';
 }
@@ -3540,10 +3540,11 @@ function renderEditions() {
   $('#edition-compare').disabled=versionSelections.length!==2;
   $('#edition-storage-note').textContent=photo?.isDemo ? '示例版本仅在当前页面暂存；导入照片后的版本随草稿自动保存。' : photo?.projectId ? '命名版本保存到文件项目，网页与 Skill 共用；比较不会改变当前编辑。' : '版本随照片草稿保存；恢复可撤销，不会修改原始文件。';
 }
-$('#versions-open').addEventListener('click',async()=>{
-  if(!state.image)return;finishRangeEdit();finishAnnotationNote();const photo=currentPhoto();
+async function openEditions(photo=currentPhoto()){
+  if(!state.image||photo!==currentPhoto())return;finishRangeEdit();finishAnnotationNote();
   try{if(photo.projectId)await projectWorkspace.flush(photo);if(currentPhotoId!==photo.id)return;renderEditions();$('#versions-dialog').showModal();}catch(error){showToast(error.message);}
-});
+}
+$('#versions-open').addEventListener('click',()=>openEditions());
 $('#versions-close').addEventListener('click',()=>$('#versions-dialog').close());
 $('#edition-save').addEventListener('click',async()=>{const button=$('#edition-save');button.disabled=true;try{if(await captureVersion('manual',$('#edition-name').value.trim() || `方案 ${currentPhoto().versions.length+1}`)){$('#edition-name').value='';showToast('已保存独立版本，可以继续尝试。');}}finally{button.disabled=false;}});
 $('#edition-items').addEventListener('change',event=>{const id=event.target.dataset.editionSelect;if(!id)return;versionSelections=versionSelections.filter(value=>value!==id);if(event.target.checked)versionSelections.push(id);versionSelections=versionSelections.slice(-2);renderEditions();});
@@ -3554,7 +3555,7 @@ $('#edition-items').addEventListener('click',async event=>{
   const photo=currentPhoto();
   if(restore&&photo.projectId){try{await projectWorkspace.restoreEdition(photo,item.id);renderEditions();$('#versions-dialog').close();showToast(`已恢复「${item.label}」。其他版本仍保留。`);}catch(error){showToast(error.message);}return;}
   if(restore){const before=beforeEdit();restoreEdit(item.snapshot);saveEdit(before);renderEditions();scheduleDraftSave();$('#versions-dialog').close();showToast(`已恢复「${item.label}」，可撤销；其他版本保留。`);}
-  if(rename){const copy=event.target.closest('.edition-row').querySelector('.edition-copy');copy.replaceChildren();const input=document.createElement('input');input.value=item.label;input.maxLength=40;input.setAttribute('aria-label','修改版本名称');copy.append(input);input.focus();input.select();const commit=async()=>{const name=input.value.trim()||item.label;if(photo.projectId){try{await projectWorkspace.renameEdition(photo,item.id,name);}catch(error){showToast(error.message);}}else{item.label=name;scheduleDraftSave();}renderEditions();renderVersions();};input.addEventListener('blur',commit,{once:true});input.addEventListener('keydown',e=>{if(e.key==='Enter')input.blur();if(e.key==='Escape'){input.value=item.label;input.blur();}});}
+  if(rename){const copy=event.target.closest('.edition-row').querySelector('.edition-copy');copy.replaceChildren();const input=document.createElement('input');input.value=item.label;input.maxLength=40;input.setAttribute('aria-label','修改版本名称');copy.append(input);input.focus();input.select();const commit=async()=>{const name=input.value.trim()||item.label;if(photo.projectId){try{await projectWorkspace.renameEdition(photo,item.id,name);}catch(error){showToast(error.message);}}else{item.label=name;scheduleDraftSave();}renderEditions();renderVersions();};input.addEventListener('blur',commit,{once:true});input.addEventListener('keydown',e=>{if(!['Enter','Escape'].includes(e.key))return;e.preventDefault();e.stopPropagation();if(e.key==='Escape')input.value=item.label;input.blur();});}
 });
 $('#edition-compare').addEventListener('click',()=>{if(versionSelections.length===2)openPhotoViewer(...versionSelections);});
 function cropRatio(){return $('#crop-ratio').value==='original' ? state.image.naturalWidth/state.image.naturalHeight:Number($('#crop-ratio').value)||0;}

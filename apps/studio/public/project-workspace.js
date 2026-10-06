@@ -9,19 +9,19 @@ export async function projectRequest(url,{method='GET',value,body,headers={},sig
   const response=await fetch(url,{method,signal,headers:{...(value?{'Content-Type':'application/json'}:{}),...headers,...(onEvent?{Accept:'application/x-ndjson'}:{})},body:value?JSON.stringify(value):body});
   const result=onEvent?await readVisionStream(response,onEvent,{maxBytes:8*1024*1024}):await response.json();if(!response.ok)throw Object.assign(new Error(result.error?.message || '项目操作未完成。'),{code:result.error?.code,status:response.status});return result;
 }
-export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=()=>[],onLoad,onUpdate,onVersions=()=>{},onState=()=>{},notify}) {
-  document.querySelector('.heading-actions').insertAdjacentHTML('afterbegin','<button type="button" class="draft-status" id="project-open" hidden>文件项目</button>');
+export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=()=>[],onLoad,onUpdate,onVersions=()=>{},onState=()=>{},onOpenVersions,notify}) {
+  document.querySelector('.heading-actions').insertAdjacentHTML('afterbegin','<button type="button" class="draft-status" id="project-open" hidden>项目</button>');
   document.querySelector('.page-heading').insertAdjacentHTML('afterend','<div class="project-sync-status" id="project-sync-status" hidden role="status"></div>');
-  document.body.insertAdjacentHTML('beforeend',`<dialog id="project-dialog" class="project-dialog"><header><h2>文件项目</h2><button type="button" id="project-close" aria-label="关闭文件项目">×</button></header><p>照片、批注和版本保存在本机，网页与 Codex Skill 共用同一个项目。</p><button type="button" id="project-create">将当前照片保存为文件项目</button><form id="project-register"><label for="project-path">已有项目的文件夹路径</label><div><input id="project-path" placeholder="包含 project.json 的文件夹" /><button type="submit">打开</button></div></form><p id="project-notice" role="status"></p><section id="project-details"></section><h3>最近项目</h3><div id="project-recent"></div></dialog>
+  document.body.insertAdjacentHTML('beforeend',`<dialog id="project-dialog" class="project-dialog"><header><h2>项目</h2><button type="button" id="project-close" aria-label="关闭项目">×</button></header><p>照片、批注、版本和导出记录保存在本机。网页与外部编辑工具共用同一个项目。</p><button type="button" id="project-create">将当前照片保存为文件项目</button><form id="project-register"><label for="project-path">已有项目的文件夹路径</label><div><input id="project-path" placeholder="包含 project.json 的文件夹" /><button type="submit">打开</button></div></form><p id="project-notice" role="status"></p><section id="project-details"></section><h3>最近项目</h3><div id="project-recent"></div></dialog>
   <dialog id="project-preview" class="project-preview"><header><h2 id="project-preview-title">比较方案</h2><button type="button" id="project-preview-close" aria-label="关闭项目预览">×</button></header><div class="project-preview-images"><figure><figcaption>当前版本</figcaption><img id="project-before" alt="项目当前版本" /></figure><figure><figcaption>候选方案</figcaption><img id="project-after" alt="项目候选预览" /></figure></div><p id="project-preview-note"></p><button type="button" id="project-accept" disabled>应用这个方案</button></dialog>`);
-  const $=id=>document.getElementById(id),links=new Map(),updatingPhotos=new WeakMap();let selected=null,previewToken=null,available=false;
+  const $=id=>document.getElementById(id),links=new Map(),updatingPhotos=new WeakMap();let selected=null,previewToken=null,available=false,dialogLoads=0;
   async function updatePhoto(photo,action){
     if(!photo)return action();
     updatingPhotos.set(photo,(updatingPhotos.get(photo)||0)+1);
     try{return await action();}
     finally{const count=updatingPhotos.get(photo)-1;if(count)updatingPhotos.set(photo,count);else updatingPhotos.delete(photo);}
   }
-  const collaboration=createProjectCollaboration({getPhoto,onOpen:()=>open(),onPreview:previewCandidate,onRequest:requestContinue,
+  const collaboration=createProjectCollaboration({getPhoto,onPreview:previewCandidate,onRequest:requestContinue,
     onSwitchEditor:photo=>flush(photo),
     onCancel:async id=>{const photo=getPhoto();await flush(photo);return mutate(photo,'handoff',{action:'cancel',id,revision:photo.projectRevision});},
     onPending:pending=>{const photo=getPhoto();if(!photo)return;photo.projectNativePending=pending;status(photo);if(!pending)drainRemote(photo).catch(error=>notify(error.message));},notify});
@@ -35,13 +35,13 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     if(photo===getPhoto())collaboration.show(photo,link?.data);
     if(!photo?.projectId)return;
     node.title=photo.projectPath;
-    node.textContent=(photo.projectNativePending?'协作精修有未保存输入':link?.conflict?'项目有更新 · 当前修改尚未同步':link?.error?'项目保存失败':link?.busy||link?.dirty?'正在保存到项目…':link?.remote>photo.projectRevision?'正在读取项目更新…':'已保存到文件项目')+' · 本机共享项目';
+    node.textContent=photo.projectNativePending?'协作精修中的修改尚未保存':link?.conflict?'项目有更新，当前修改尚未同步':link?.error?'修改尚未保存到项目':link?.busy||link?.dirty?'正在保存到项目…':link?.remote>photo.projectRevision?'正在读取项目更新…':'已保存到项目';
   }
   function render(data=selected) {
     selected=data;
-    $('project-create').disabled=!getPhoto()||!available||collaboration.isNative(getPhoto());
+    $('project-create').disabled=dialogLoads>0||!getPhoto()||!available||collaboration.isNative(getPhoto());
     $('project-create').textContent=getPhoto()?.projectId?'将当前修改另存为新项目':'将当前照片保存为文件项目';
-    $('project-details').innerHTML=data?`<h3>${escape(data.name)}</h3><p class="project-path">${escape(data.path)}</p><p>版本 ${data.revision} · 自动保存到此文件夹</p>${!data.supported?`<p class="project-error">已进入协作精修，诊断、文字和保护设置会完整保留。</p>`:''}<div class="project-buttons"><button type="button" data-project-copy>复制给 Codex</button><button type="button" data-project-reload>重新读取项目</button></div><h3>候选方案</h3>${data.candidates.map(c=>`<article class="project-candidate" data-candidate="${escape(c.id)}"><strong>${escape(c.name)}</strong><p>${escape(c.goal)}</p><p>${escape(c.tradeoff)}</p>${c.items.map(item=>`<label><input type="checkbox" data-project-item="${escape(item.id)}" ${c.selectedItemIds.includes(item.id)?'checked':''} ${c.stale||c.unsupported?'disabled':''}/>${escape(item.title)}</label>`).join('')}<div class="project-buttons"><button type="button" data-project-preview="${escape(c.id)}" ${c.stale||c.unsupported?'disabled':''}>${c.stale?'方案已过期':'对比预览'}</button><button type="button" data-project-discard="${escape(c.id)}">取消方案</button></div></article>`).join('')||'<p>还没有候选。可以在 Codex 中生成方案。</p>'}<details data-project-section="versions"><summary>已保存版本 · ${data.versions.length}</summary>${data.versions.slice().reverse().map(v=>`<div class="project-version"><span>${escape(v.name)}<small>${escape(new Date(v.at).toLocaleString())}</small></span><button type="button" data-project-restore="${escape(v.id)}" ${v.id===data.currentId?'disabled':''}>${v.id===data.currentId?'当前':'恢复'}</button></div>`).join('')}</details><details data-project-section="exports"><summary>导出记录 · ${data.exports.length}</summary>${data.exports.map(e=>`<p class="project-path">${escape(e.path)} · ${escape(e.width)} × ${escape(e.height)}</p>`).join('')||'<p>导出后可在这里查看文件位置。</p>'}</details>`:'';
+    $('project-details').innerHTML=data?`<h3>${escape(data.name)}</h3><p class="project-path">${escape(data.path)}</p><p>版本 ${data.revision} · 自动保存到此文件夹</p>${!data.supported?`<p class="project-error">已进入协作精修，诊断、文字和保护设置会完整保留。</p>`:''}<div class="project-buttons"><button type="button" data-project-copy>复制给 Codex</button><button type="button" data-project-reload>重新读取项目</button></div><h3>候选方案</h3>${data.candidates.map(c=>`<article class="project-candidate" data-candidate="${escape(c.id)}"><strong>${escape(c.name)}</strong><p>${escape(c.goal)}</p><p>${escape(c.tradeoff)}</p>${c.items.map(item=>`<label><input type="checkbox" data-project-item="${escape(item.id)}" ${c.selectedItemIds.includes(item.id)?'checked':''} ${c.stale||c.unsupported?'disabled':''}/>${escape(item.title)}</label>`).join('')}<div class="project-buttons"><button type="button" data-project-preview="${escape(c.id)}" ${c.stale||c.unsupported?'disabled':''}>${c.stale?'方案已过期':'对比预览'}</button><button type="button" data-project-discard="${escape(c.id)}">取消方案</button></div></article>`).join('')||'<p>还没有候选。可以在 Codex 中生成方案。</p>'}<details data-project-section="versions"><summary>已保存版本 · ${data.versions.length}</summary>${onOpenVersions&&data.supported?`<div class="project-buttons"><button type="button" data-project-editions ${dialogLoads>0||getPhoto()?.projectId!==data.id||collaboration.isNative(getPhoto())?'disabled':''}>保存与比较版本</button></div>`:''}${data.versions.slice().reverse().map(v=>`<div class="project-version"><span>${escape(v.name)}<small>${escape(new Date(v.at).toLocaleString())}</small></span><button type="button" data-project-restore="${escape(v.id)}" ${v.id===data.currentId?'disabled':''}>${v.id===data.currentId?'当前':'恢复'}</button></div>`).join('')}</details><details data-project-section="exports"><summary>导出记录 · ${data.exports.length}</summary>${data.exports.map(e=>`<p class="project-path">${escape(e.path)} · ${escape(e.width)} × ${escape(e.height)}</p>`).join('')||'<p>导出后可在这里查看文件位置。</p>'}</details>`:'';
   }
   async function recent(){const {projects}=await projectRequest('/api/projects');$('project-recent').innerHTML=projects.map(p=>`<button type="button" class="project-recent" data-project-load="${escape(p.id)}"><strong>${escape(p.name)}</strong><small>${escape(p.path)}</small></button>`).join('')||'<p>尚未保存文件项目。</p>';}
   async function attach(photo,data,baseline=getPatch(photo)){
@@ -162,7 +162,13 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     if(baseline&&link.dirty)return data;
     await drainRemote(photo);return {...link.data,candidateId:data.candidateId,toolRun:data.toolRun,remoteUpdated:link.data.revision!==data.revision};
   }
-  async function open(section){if(!available)await capabilities();notice(available?'':'请先运行 npm run setup，安装本地图片处理依赖后刷新页面。');render(getPhoto()?.projectId?links.get(getPhoto().id)?.data:null);$('project-dialog').showModal();try{if(getPhoto()?.projectId){await flush(getPhoto());render(links.get(getPhoto().id)?.data);}await recent();if(['versions','exports'].includes(section))$('project-details').querySelector(`[data-project-section="${section}"]`)?.setAttribute('open','');}catch(error){notice(error.message);}}
+  async function open(section){
+    if(!available)await capabilities();
+    dialogLoads++;$('project-dialog').ariaBusy='true';notice(available?'':'请先运行 npm run setup，安装本地图片处理依赖后刷新页面。');render(getPhoto()?.projectId?links.get(getPhoto().id)?.data:null);$('project-dialog').showModal();
+    try{if(getPhoto()?.projectId){await flush(getPhoto());render(links.get(getPhoto().id)?.data);}await recent();if(['versions','exports'].includes(section))$('project-details').querySelector(`[data-project-section="${section}"]`)?.setAttribute('open','');}
+    catch(error){notice(error.message);}
+    finally{dialogLoads--; $('project-dialog').ariaBusy=String(dialogLoads>0);$('project-create').disabled=dialogLoads>0||!getPhoto()||!available||collaboration.isNative(getPhoto());const editions=document.querySelector('#project-details [data-project-editions]');if(editions)editions.disabled=dialogLoads>0||getPhoto()?.projectId!==selected?.id||collaboration.isNative(getPhoto());}
+  }
   async function requestContinue(){
     const photo=getPhoto();if(!photo)return;if(!photo.projectId)await createFileProject(photo);await flush(photo);
     const message=`请按当前意图与全部最新批注继续审片，先给我可比较的候选。${photo.creativeIntent?'目标：'+photo.creativeIntent:''}`;
@@ -203,6 +209,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
   $('project-details').addEventListener('click',async event=>{
     const button=event.target.closest('button');if(!button||!selected)return;
     try{
+      if(button.hasAttribute('data-project-editions')){const photo=getPhoto();if(photo?.projectId!==selected.id||collaboration.isNative(photo)||dialogLoads||!onOpenVersions)return;$('project-dialog').close();await onOpenVersions(photo);return;}
       if(button.hasAttribute('data-project-copy')){await navigator.clipboard.writeText(`请用 FrameLark Skill 继续编辑这个项目：\n${selected.path}\n先 inspect 并查看当前预览与全部批注，基于最新 revision 生成候选。网页会同步候选，先让我比较再应用。`);notice('已复制项目位置和继续编辑说明。');return;}
       if(button.hasAttribute('data-project-reload')){await load(selected.id);return;}
       if(button.dataset.projectDiscard){await projectRequest(`/api/projects/${selected.id}/discard`,{method:'POST',value:{id:button.dataset.projectDiscard,revision:selected.revision}});await load(selected.id);return;}

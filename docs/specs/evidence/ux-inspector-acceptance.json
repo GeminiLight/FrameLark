@@ -1,0 +1,36 @@
+{
+  "fixture": "repository alpine-demo.png",
+  "sourceUnchanged": true,
+  "sourceHash": "2761c84426e849c52598a550070ab95e6534698524601076c982c37457839a25",
+  "projectRevision": 67,
+  "documentRevision": 28,
+  "curveShadows": 1,
+  "tonePaused": true,
+  "exposure": 0.28,
+  "opacity": 0.7,
+  "maskReference": "live-input",
+  "maskStart": 0.55,
+  "maskEnd": 0.8,
+  "manualCases": [
+    "unified project dialog exposes saved versions and exports",
+    "row menu moves the requested exposure step",
+    "curve remains editable and its collapsed header shows an adjustment",
+    "reference changes to original image and back are saved in the native document",
+    "black-white range preview returns to photo view",
+    "portable inspector displays the same groups and scope controls"
+  ],
+  "responsive": [
+    {
+      "width": 390,
+      "scrollWidth": 390,
+      "moreWidth": 44,
+      "minMenuButtonHeight": 44
+    },
+    {
+      "width": 320,
+      "scrollWidth": 320,
+      "moreWidth": 44,
+      "minMenuButtonHeight": 44
+    }
+  ]
+}

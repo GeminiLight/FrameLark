@@ -43,7 +43,7 @@ try {
     width??=state.width;assert.equal(state.width,width,'Panel switching does not move the photograph');
   }
   await browser('wait','--fn','!document.querySelector("#export-button").disabled');assert.deepEqual(await frame(),before,'Navigation preserves the edited pixels and parameters');
-  await browser('wait','--fn','document.querySelector("#draft-status").textContent==="草稿已保存"');
+  await browser('wait','--fn','document.querySelector("#draft-status").textContent==="草稿已保存在此浏览器"');
   const initialTitle=await evaluate(`JSON.stringify(document.querySelector('#workspace-title').textContent)`);
   await evaluate(`(async()=>{const {createDraftStore}=await import('/draft-store.js');const store=createDraftStore(),saved=(await store.list())[0],copy=structuredClone(saved);copy.id='navigation-recovery';copy.photos[0].imageName='恢复测试';copy.photos[0].manual.exposure=-.2;await store.save(copy);return JSON.stringify(true);})()`);
   // Delay transaction completion, not the button: restore must wait for the real save promise.
@@ -64,7 +64,7 @@ try {
   await browser('wait','--fn','document.querySelector("#toast").textContent.includes("当前草稿尚未保存")');
   assert.equal(await evaluate(`JSON.stringify(document.querySelector('#workspace-title').textContent)`),'恢复测试','A storage failure preserves current edits');
   await evaluate(`(()=>{window.failDraftWrite=false;document.querySelector('#draft-status').click();return JSON.stringify(true);})()`);
-  await browser('wait','--fn','document.querySelector("#draft-status").textContent==="草稿已保存"');await browser('click','#close-drafts');
+  await browser('wait','--fn','document.querySelector("#draft-status").textContent==="草稿已保存在此浏览器"');await browser('click','#close-drafts');
   await browser('click','#nav-learn');assert.equal(await evaluate(`JSON.stringify(!document.querySelector('#learn-space').hidden)`),true);
   await browser('click','#profile-button');assert.equal(await evaluate(`JSON.stringify(document.querySelector('#profile-dialog').open&&document.querySelector('#profile-overview-tab').getAttribute('aria-selected')==='true')`),true);
   await browser('click','#close-profile');await browser('click','#nav-profile');
