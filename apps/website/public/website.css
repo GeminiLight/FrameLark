@@ -65,7 +65,7 @@ h2{font-family:var(--serif);font-size:clamp(34px,3.5vw,47px);font-weight:500;lin
 .case-gallery-section{padding:90px 0;background:var(--chapter-expression);border-top:1px solid var(--line)}
 .case-gallery-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:36px}
 .case-gallery-heading .eyebrow{color:var(--orange);margin-bottom:16px}
-.case-gallery-heading h2 span{color:var(--orange)}
+.case-gallery-heading h2 span{color:var(--orange);display:inline-block;white-space:nowrap}
 .case-gallery-heading p:not(.eyebrow){color:var(--muted);font-size:14px;margin-top:14px}
 .case-gallery-heading>.text-link{white-space:nowrap;margin-bottom:5px}
 .case-gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px}
