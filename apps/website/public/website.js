@@ -5,10 +5,16 @@ const examples = {
 };
 
 const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
-function arrive(element,{distance=18,duration=550,delay=0}={}){
+const feedbackByElement=new WeakMap();
+const activeFeedback=new Set();
+function arrive(element,{duration=260,startOpacity=.88}={}){
   if(!element||reducedMotion.matches||typeof element.animate!=='function')return;
-  element.getAnimations().forEach(animation=>animation.cancel());
-  element.animate([{opacity:0,transform:`translateY(${distance}px)`},{opacity:1,transform:'translateY(0)'}],{duration,delay,easing:'cubic-bezier(.2,.65,.3,1)'});
+  feedbackByElement.get(element)?.cancel();
+  // Opacity feedback never replaces a photograph's existing rotation or position.
+  const animation=element.animate([{opacity:startOpacity},{opacity:1}],{duration:Math.min(duration,300),easing:'cubic-bezier(.2,.65,.3,1)'});
+  feedbackByElement.set(element,animation);activeFeedback.add(animation);
+  const release=()=>{activeFeedback.delete(animation);if(feedbackByElement.get(element)===animation)feedbackByElement.delete(element);};
+  animation.finished.then(release,release);
 }
 
 const header = document.querySelector('.site-header');
@@ -55,9 +61,9 @@ async function selectExample(tab){
     document.querySelector('#demo-quote').textContent=example.quote;
     document.querySelector('#demo-keep').textContent=example.keep;
     const list=document.querySelector('#demo-adjustments');list.replaceChildren(...example.adjustments.map(([label,value])=>{const li=document.createElement('li');const name=document.createElement('span');const number=document.createElement('strong');name.textContent=label;number.textContent=value;li.append(name,number);return li;}));
-    arrive(comparison,{distance:6,duration:450});
-    arrive(document.querySelector('#demo-quote'),{distance:10,duration:450,delay:60});
-    arrive(list,{distance:10,duration:450,delay:100});
+    arrive(comparison);
+    arrive(document.querySelector('#demo-quote'));
+    arrive(list);
   }catch{
     if(thisRequest===requestId)document.querySelector('.compare-instruction').textContent='图片暂未加载完成，请再点一次样张重试。';
   }finally{if(thisRequest===requestId)comparison.setAttribute('aria-busy','false');}
@@ -94,8 +100,8 @@ async function selectEye(index){
     eyeTabs.forEach((item,i)=>{item.setAttribute('aria-selected',String(i===index));item.tabIndex=i===index?0:-1;document.getElementById(item.getAttribute('aria-controls')).hidden=i!==index;});
     document.querySelector('#eye-current').textContent=String(index+1).padStart(2,'0');
     document.querySelector('#eye-announcement').textContent=`已切换到${eyeScenes[tab.dataset.eyeCase].title}，现场输入与五种拍法参考。`;
-    arrive(panel.querySelector('.scene-input'),{distance:14,duration:450});
-    arrive(panel.querySelector('.scene-output'),{distance:14,duration:550,delay:60});
+    arrive(panel.querySelector('.scene-input'));
+    arrive(panel.querySelector('.scene-output'));
   }catch{
     if(request===eyeRequest)document.querySelector('#eye-announcement').textContent='案例图片暂未加载完成，请再次点击重试。';
   }finally{if(request===eyeRequest)eyeArt.setAttribute('aria-busy','false');}
@@ -133,7 +139,7 @@ function selectSeries(index){
   panel.querySelector('.series-step-title').textContent=content.title;
   panel.querySelector('.series-step-description').textContent=content.description;
   document.querySelector('.series-case').dataset.step=step;
-  arrive(panel,{distance:10,duration:420});
+  arrive(panel);
 }
 seriesTabs.forEach((tab,index)=>tab.addEventListener('click',()=>selectSeries(index)));
 bindTabKeys(seriesTabs,selectSeries);
@@ -154,9 +160,9 @@ if('IntersectionObserver' in window){
   const entrances=new IntersectionObserver(entries=>entries.forEach(entry=>{
     if(!entry.isIntersecting)return;
     entrances.unobserve(entry.target);
-    arrive(entry.target,{distance:entry.target.matches('h1,h2')?24:18,duration:700,delay:Number(entry.target.dataset.motionDelay||0)});
+    arrive(entry.target,{startOpacity:.96});
   }),{threshold:.12});
-  document.querySelectorAll('.hero-copy>.eyebrow,.hero-copy>h1,.hero-description,.hero-actions,.hero-main-photo,.hero-small-photo,.journey>p,.journey li,.section-heading h2,.section-heading .section-description,.eye-art,.eye-points li,.atelier-demo,.chapter-case,.craft-principles p,.series-photos,.series-story,.expression-features article,.companion-portrait,.companion-copy,.faq-intro,.faq-list details,.start-inner>h2,.start-actions').forEach((element,index)=>{element.dataset.motionDelay=String((index%3)*65);entrances.observe(element);});
+  document.querySelectorAll('.hero-copy,.hero-main-photo,.hero-small-photo,.journey,.section-heading,.eye-art,.eye-points,.atelier-demo,.chapter-case,.craft-principles,.series-photos,.series-story,.expression-features,.companion-portrait,.companion-copy,.faq-intro,.faq-list,.start-inner').forEach(element=>entrances.observe(element));
   const links=[...document.querySelectorAll('.desktop-nav a,.mobile-menu a')];
   const sections=[...document.querySelectorAll('#eye,#craft,#series,#companion')];
   let chapterFrame=0;
@@ -168,37 +174,10 @@ if('IntersectionObserver' in window){
   };
   const scheduleChapter=()=>{if(!chapterFrame)chapterFrame=requestAnimationFrame(updateChapter);};
   window.addEventListener('scroll',scheduleChapter,{passive:true});window.addEventListener('resize',scheduleChapter,{passive:true});scheduleChapter();
-  const ambient=new IntersectionObserver(entries=>entries.forEach(entry=>{entry.target.dataset.inView=String(entry.isIntersecting);}),{threshold:.1});
-  ambient.observe(document.querySelector('.hero-gallery'));
 }
 
-// A single short sweep makes the comparison understandable; user input wins.
-let sweepFrame=0,sweepStopped=false;
-function stopSweep(){sweepStopped=true;cancelAnimationFrame(sweepFrame);}
-['pointerdown','keydown','input'].forEach(type=>range.addEventListener(type,stopSweep));
-tabs.forEach(tab=>{tab.addEventListener('click',stopSweep);tab.addEventListener('keydown',stopSweep);});
-if('IntersectionObserver' in window){
-  let sweepTimer;
-  const comparisonEntrance=new IntersectionObserver(entries=>{
-    clearTimeout(sweepTimer);
-    if(!entries.some(entry=>entry.isIntersecting)||reducedMotion.matches||sweepStopped)return;
-    sweepTimer=setTimeout(()=>{
-      if(reducedMotion.matches||sweepStopped)return;
-      comparisonEntrance.disconnect();
-      const start=performance.now(),initial=Number(range.value),points=[initial,70,34,initial];
-      function sweep(now){
-        if(sweepStopped||reducedMotion.matches)return;
-        const rect=comparison.getBoundingClientRect();
-        if(rect.bottom<80||rect.top>innerHeight){range.value=String(initial);updateComparison();return;}
-        const progress=Math.min(1,(now-start)/2100),segment=Math.min(2,Math.floor(progress*3)),fraction=Math.min(1,progress*3-segment),ease=(1-Math.cos(fraction*Math.PI))/2;
-        range.value=String(Math.round(points[segment]+(points[segment+1]-points[segment])*ease));updateComparison();
-        if(progress<1)sweepFrame=requestAnimationFrame(sweep);else{range.value=String(initial);updateComparison();}
-      }
-      sweepFrame=requestAnimationFrame(sweep);
-    },500);
-  },{threshold:.55});comparisonEntrance.observe(comparison);
-}
-reducedMotion.addEventListener('change',event=>{if(event.matches){stopSweep();document.getAnimations().forEach(animation=>animation.cancel());}});
+// The divider moves only when the visitor drags or uses its arrow keys.
+reducedMotion.addEventListener('change',event=>{if(event.matches)activeFeedback.forEach(animation=>animation.cancel());});
 // Old shared links now land at the case switcher in the first chapter.
 function redirectLegacyCase(){if(location.hash==='#cases'){history.replaceState(null,'','#eye');document.querySelector('#eye').scrollIntoView();}}
 window.addEventListener('hashchange',redirectLegacyCase);redirectLegacyCase();
