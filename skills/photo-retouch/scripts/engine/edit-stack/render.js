@@ -20,7 +20,7 @@ function checkpoints(document,slots){
   return selected;
 }
 const decode=pixels=>{const out=new Float32Array(pixels.length);for(let i=0;i<pixels.length;i+=4){out[i]=linearBytes[pixels[i]];out[i+1]=linearBytes[pixels[i+1]];out[i+2]=linearBytes[pixels[i+2]];out[i+3]=pixels[i+3];}return out;};
-export function renderStackPixels({pixels,originalPixels=pixels,width,height,document,frame,signal,maskView,onProgress=()=>{},memoryBudgetBytes=1024*1024*1024,cache}){
+export function renderStackPixels({pixels,originalPixels=pixels,workingPixels,originalWorking=workingPixels,linearOutput=false,width,height,document,frame,signal,maskView,onProgress=()=>{},memoryBudgetBytes=1024*1024*1024,cache}){
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<1||height<1||width*height>16_000_000||pixels.length!==width*height*4||originalPixels.length!==pixels.length)fail('RENDER_BUDGET_EXCEEDED','编辑栈输出网格或像素数量超过限制。');
   const actualFrame={fullWidth:document.source.width,fullHeight:document.source.height,sourceRect:{x:0,y:0,width:document.source.width,height:document.source.height},angle:document.geometry.crop?.angle||0,...frame};
   if(actualFrame.fullWidth!==document.source.width||actualFrame.fullHeight!==document.source.height)fail('SOURCE_CHANGED','渲染网格不属于当前原片。');
@@ -28,7 +28,9 @@ export function renderStackPixels({pixels,originalPixels=pixels,width,height,doc
   const plan=compileRenderPlan(document,{...actualFrame,width,height,pixelCenters:'half',pipeline:document.pipeline}),steps=document.steps.filter(step=>step.enabled&&step.opacity>0&&!neutralStep(step));
   const crop={x:actualFrame.sourceRect.x/actualFrame.fullWidth,y:actualFrame.sourceRect.y/actualFrame.fullHeight,width:actualFrame.sourceRect.width/actualFrame.fullWidth,height:actualFrame.sourceRect.height/actualFrame.fullHeight,angle:actualFrame.angle};
   if(maskView&&(!['overlay','bw'].includes(maskView.mode)||!document.steps.some(step=>step.id===maskView.stepId&&step.maskRef)))fail('MASK_REFERENCE_MISSING','请选择有范围的步骤查看蒙版。');
-  if(!steps.length&&!maskView)return {pixels:new Uint8ClampedArray(pixels),plan,noChange:true};
+  if(workingPixels&&(!(workingPixels instanceof Float32Array)||workingPixels.length!==pixels.length||originalWorking.length!==pixels.length))fail('INVALID_DOCUMENT','线性工作像素的尺寸无效。');
+  if(workingPixels)cache=null;
+  if(!steps.length&&!maskView)return {...(linearOutput?{}:{pixels:new Uint8ClampedArray(pixels)}),...(workingPixels?{workingPixels:new Float32Array(workingPixels)}:{}),plan,noChange:true};
   const frozen=document.masks.some(mask=>mask.reference.kind==='frozen-source'),buffers=2+(steps.some(step=>step.tool==='detail')?2:0)+(frozen?1:0),estimatedBytes=pixels.length*4*buffers+pixels.length*2+width*height+(maskView?width*height*4:0);
   if(!Number.isFinite(memoryBudgetBytes)||estimatedBytes>memoryBudgetBytes)fail('RENDER_BUDGET_EXCEEDED','编辑栈需要的工作缓冲超过预算，请降低导出尺寸。',{estimatedBytes,memoryBudgetBytes});
   if(cache&&cache.bytes+estimatedBytes>memoryBudgetBytes)cache.clear();
@@ -40,7 +42,7 @@ export function renderStackPixels({pixels,originalPixels=pixels,width,height,doc
   if(final)return {pixels:new Uint8ClampedArray(final.pixels),plan,noChange:final.noChange,estimatedBytes,cached:true};
   let prefix=null,startIndex=0;
   if(cache&&!maskView)for(let index=plan.prefixes.length-1;index>=0;index--){const found=cache.get(bufferKey+':'+plan.prefixes[index].prefixHash);if(found){prefix=found;startIndex=index+1;break;}}
-  let input=prefix?new Float32Array(prefix.input):decode(pixels),output=new Float32Array(input.length);const original=frozen?decode(originalPixels):input,touched=prefix?new Uint8Array(prefix.touched):new Uint8Array(width*height),coverage=maskView?new Float32Array(width*height):null;
+  let input=workingPixels?new Float32Array(workingPixels):prefix?new Float32Array(prefix.input):decode(pixels),output=new Float32Array(input.length);const original=frozen?(originalWorking?originalWorking:decode(originalPixels)):input,touched=prefix?new Uint8Array(prefix.touched):new Uint8Array(width*height),coverage=maskView?new Float32Array(width*height):null;
   function cancelled(){if(signal?.aborted)fail('RENDER_CANCELLED','预览已取消。');}
   const prefixSlots=cache?Math.max(0,Math.floor(((cache.byteBudget||0)-pixels.byteLength)/(input.byteLength+touched.byteLength))):0,checkpointIndexes=checkpoints(document,prefixSlots);
   let completed=0;const scratch=[0,0,0];
@@ -64,11 +66,11 @@ export function renderStackPixels({pixels,originalPixels=pixels,width,height,doc
     [input,output]=[output,input];onProgress({stage:'rendering',stepId:step.id,index:++completed,total:steps.length});
     if(cache&&!maskView&&checkpointIndexes.has(stepIndex)&&estimatedBytes+cache.bytes+input.byteLength+touched.byteLength<=memoryBudgetBytes)cache.put(bufferKey+':'+plan.prefixes[stepIndex].prefixHash,{input:new Float32Array(input),touched:new Uint8Array(touched)});
   }
-  cancelled();const result=new Uint8ClampedArray(pixels);for(let i=0;i<result.length;i+=4){if(touched[i/4]){const values=encodeWorking(input[i],input[i+1],input[i+2],scratch);result[i]=values[0];result[i+1]=values[1];result[i+2]=values[2];}}
+  cancelled();if(linearOutput&&!maskView)return {workingPixels:input,plan,noChange:!touched.some(Boolean),estimatedBytes,cachedPrefix:startIndex};const result=new Uint8ClampedArray(pixels);for(let i=0;i<result.length;i+=4){if(touched[i/4]){const values=encodeWorking(input[i],input[i+1],input[i+2],scratch);result[i]=values[0];result[i+1]=values[1];result[i+2]=values[2];}}
   if(coverage){for(let at=0;at<result.length;at+=4){const weight=coverage[at/4];if(maskView.mode==='bw'){result[at]=result[at+1]=result[at+2]=weight*255;result[at+3]=255;}else for(let c=0;c<3;c++)result[at+c]=result[at+c]*(1-weight*.4)+[72,210,160][c]*weight*.4;}}
   const noChange=!touched.some(Boolean);
   if(cache&&!maskView&&estimatedBytes+cache.bytes+result.byteLength<=memoryBudgetBytes)cache.put(finalKey,{pixels:new Uint8ClampedArray(result),noChange});
-  return {pixels:result,plan,noChange,estimatedBytes,displayOnly:Boolean(maskView),cachedPrefix:startIndex};
+  return {pixels:result,...(linearOutput?{workingPixels:input}:{}),plan,noChange,estimatedBytes,displayOnly:Boolean(maskView),cachedPrefix:startIndex};
 }
 export function displayMask({pixels,originalPixels=pixels,width,height,document,maskRef,frame,mode='overlay'}){
   const input=decode(pixels),original=decode(originalPixels),actual={fullWidth:document.source.width,fullHeight:document.source.height,sourceRect:{x:0,y:0,width:document.source.width,height:document.source.height},angle:0,...frame},crop={x:actual.sourceRect.x/actual.fullWidth,y:actual.sourceRect.y/actual.fullHeight,width:actual.sourceRect.width/actual.fullWidth,height:actual.sourceRect.height/actual.fullHeight,angle:actual.angle},sample=maskSampler(document,maskRef,input,original,{width,height,frame:actual,crop}),out=new Uint8ClampedArray(pixels);

@@ -312,10 +312,11 @@ const projectWorkspace=createProjectWorkspace({
     let photo=existing;
     if(!photo){
       if(photoSessions.length>=12)throw new Error('最多打开 12 张照片，请先移出一张。');
-      if(photoSessions.reduce((sum,p)=>sum+p.image.naturalWidth*p.image.naturalHeight,0)+data.source.width*data.source.height>100_000_000)throw new Error('工作区照片总尺寸接近上限，请先移出部分照片。');
-      const [response,original]=await Promise.all([fetch(`/api/projects/${data.id}/source`),fetch(`/api/projects/${data.id}/original`)]);
-      if(!response.ok||!original.ok)throw new Error('项目原片无法读取。请恢复项目文件后重试，已有编辑保留。');
-      const [blob,raw]=await Promise.all([response.blob(),original.blob()]);
+      const previewPixels=data.source.raw?data.source.raw.proxyWidth*data.source.raw.proxyHeight:data.source.width*data.source.height;
+      if(photoSessions.reduce((sum,p)=>sum+p.image.naturalWidth*p.image.naturalHeight,0)+previewPixels>100_000_000)throw new Error('工作区照片总尺寸接近上限，请先移出部分照片。');
+      const [response,original]=await Promise.all([fetch(`/api/projects/${data.id}/source`),data.source.raw?null:fetch(`/api/projects/${data.id}/original`)]);
+      if(!response.ok||original&&!original.ok)throw new Error('项目原片无法读取。请恢复项目文件后重试，已有编辑保留。');
+      const [blob,raw]=await Promise.all([response.blob(),original?.blob()]);
       photo=await addPhotoSource(URL.createObjectURL(blob),data.name,false,false,blob,{strict:true});photo.sourceOriginalBlob=raw;
     }
     await applySharedProject(photo,data);if(currentPhotoId!==photo.id)activatePhoto(photo.id);return photo;
@@ -358,7 +359,7 @@ function applySharedProject(photo,data,{force=false}={}) {
   const meaningful=value=>JSON.stringify([value.currentId,value.current,value.intent,value.notes.map(({id,note,rect,protect})=>({id,note,rect,protect}))]);
   if(!force&&photo.projectData&&meaningful(photo.projectData)===meaningful(data)){
     if(JSON.stringify(data.conversation)!==JSON.stringify(photo.projectData.conversation)){photo.conversation=data.conversation.map(m=>({...m,id:m.id||crypto.randomUUID()}));if(currentPhotoId===photo.id)renderAgent();}
-    photo.projectData=data;return;
+    photo.projectData=data;photo.exported=data.exports.some(e=>e.versionId===data.currentId);photo.lastExportSignature=photo.exported?snapshotAcceptanceSignature(photoSnapshot(photo)):'';if(currentPhotoId===photo.id)state.exported=photo.exported;syncPhotoTabs();return;
   }
   const snapshot=snapshotFromProject(data);
   advisorRequests.cancel(photo.id,'project-updated');photo.agentBusy=false;
@@ -1143,6 +1144,7 @@ function drawHistogram(data, width, height) {
 }
 
 function scheduleRender() {
+  if(currentPhoto()?.projectData?.source.raw){photoRenderer.cancel();state.renderPending=false;$('#render-status').hidden=true;return;}
   endStyleAudition();
   renderRevision++;
   const frameKey=JSON.stringify({photo:currentPhotoId,crop:state.crop});
@@ -1155,6 +1157,7 @@ function scheduleRender() {
   requestAnimationFrame(async () => {
     try {
       while (state.previewData) {
+        if(currentPhoto()?.projectData?.source.raw)break;
         const revision=renderRevision,photoId=currentPhotoId;
         const source=currentPreviewPixels();
         let output;try{output=await photoRenderer.render(currentRenderJob(source.data,source.width,source.height));}catch(error){if(error.name==='AbortError'&&(revision!==renderRevision||photoId!==currentPhotoId))continue;throw error;}
@@ -2558,6 +2561,7 @@ async function processImportRows(rows) {
       prepare:(file,signal)=>preparePhotoFile(file,{signal}),
       capacity:()=>({count:photoSessions.length,pixels:photoSessions.reduce((sum,photo)=>sum+photo.image.naturalWidth*photo.image.naturalHeight,0)}),
       commit:async(file,metadata,signal,original)=>{
+        if(file.rawProject){await projectWorkspace.load(file.rawProject.id);const photo=currentPhoto();newPhotos.push(photo);return {id:photo.id,width:photo.image.naturalWidth,height:photo.image.naturalHeight};}
         // Keep original bytes separately when a HEIC working copy was converted.
         const blob=file.slice(0,file.size,metadata.mime),url=URL.createObjectURL(blob);
         const photo=await addPhotoSource(url,file.name.replace(/\.[^.]+$/,''),false,false,blob,{metadata,signal,strict:true});

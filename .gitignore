@@ -16,3 +16,8 @@ coverage/
 
 /dist/
 /_site/
+
+**/.raw-venv/
+**/__pycache__/
+
+**/node_modules

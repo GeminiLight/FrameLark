@@ -138,7 +138,11 @@ test('a request paused while saving its session cannot send a turn on a replacem
 
 test('cancellation interrupts the actual turn and does not deliver a partial result',async t=>{
   const env=await setup(t),app=env.client(),controller=new AbortController();
-  const request=app.request(payload('slow-fixture'),{model:'gpt-6.1-sol',sessionKey:'photo-a',signal:controller.signal,onEvent:e=>{if(e.stage==='analyzing')setTimeout(()=>controller.abort(),10);}});
+  const request=app.request(payload('slow-fixture'),{model:'gpt-6.1-sol',sessionKey:'photo-a',signal:controller.signal,onEvent:e=>{
+    // Session preparation also emits analyzing. Cancel only after the real
+    // turn/started notification, which does not carry the preparation threadId.
+    if(e.stage==='analyzing'&&!e.threadId)controller.abort();
+  }});
   await assert.rejects(request,e=>e.code==='CANCELLED');
   assert.equal(app.active.size,0);
   assert.match(await readFile(env.log,'utf8'),/turn\/interrupt/);

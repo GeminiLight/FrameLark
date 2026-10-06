@@ -22,7 +22,8 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
     if(url.pathname==='/api/projects/register'&&request.method==='POST'){json(response,200,await bridge.register((await body()).path));return true;}
     if(url.pathname==='/api/projects/create'&&request.method==='POST') {
       const name=decodeURIComponent(String(request.headers['x-photo-name']||'photo.png'));
-      json(response,200,await bridge.create(await readBody(request,30*1024*1024),name));return true;
+      const {rawExtensions,rawLimits}=await import('../../../../skills/photo-retouch/scripts/raw/contract.mjs');
+      json(response,200,await bridge.create(await readBody(request,rawExtensions.test(name)?rawLimits.bytes:30*1024*1024),name,{signal:controller.signal}));return true;
     }
     const match=/^\/api\/projects\/([-a-zA-Z0-9]{1,80})(?:\/(.*))?$/.exec(url.pathname);
     if(!match){json(response,404,{error:{message:'找不到这个项目操作。'}});return true;}
@@ -62,7 +63,7 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
     if(operation==='export'&&request.method==='POST'){json(response,200,await bridge.export(id,await body(),controller.signal));return true;}
     if(operation.startsWith('exports/')&&request.method==='GET') {
       const {bytes,name}=await bridge.exportedFile(id,decodeURIComponent(operation.slice(8)));
-      response.writeHead(200,{'Content-Type':name.endsWith('.png')?'image/png':'image/jpeg','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(name)}`,'Cache-Control':'no-store'});response.end(bytes);return true;
+      response.writeHead(200,{'Content-Type':name.endsWith('.tif')?'image/tiff':name.endsWith('.png')?'image/png':'image/jpeg','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(name)}`,'Cache-Control':'no-store'});response.end(bytes);return true;
     }
     json(response,405,{error:{message:'不支持这个项目操作。'}});return true;
   }catch(error){

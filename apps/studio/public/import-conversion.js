@@ -1,5 +1,13 @@
-import {PhotoImportError,importLimits} from './photo-import.js';
+import {PhotoImportError,importLimits,rawImportLimits,isRawPhotoName} from './photo-import.js';
 export async function preparePhotoFile(file,{signal,fetchImpl=fetch}={}) {
+  if(signal?.aborted)throw new PhotoImportError('CANCELLED');
+  if(isRawPhotoName(file.name)){
+    if(file.size>rawImportLimits.bytes)throw new PhotoImportError('RAW_SIZE');
+    const response=await fetchImpl('/api/projects/create',{method:'POST',signal,headers:{'Content-Type':'application/octet-stream','X-Photo-Name':encodeURIComponent(file.name)},body:file});
+    if(!response.ok){const problem=await response.json().catch(()=>null);throw new PhotoImportError('RAW',problem?.error?.message||'本机 RAW 后端未就绪或机型不支持。');}
+    const project=await response.json(),source=await fetchImpl(`/api/projects/${project.id}/source`,{signal});if(!source.ok)throw new PhotoImportError('RAW','RAW 已保存，但代理预览未能读取，请从项目重新打开。');
+    const result=new File([await source.blob()],file.name,{type:'image/png',lastModified:file.lastModified});result.rawProject=project;return result;
+  }
   if(file.size>importLimits.bytes)throw new PhotoImportError('SIZE');
   if(signal?.aborted)throw new PhotoImportError('CANCELLED');
   const bytes=new Uint8Array(await file.slice(0,96).arrayBuffer()),header=String.fromCharCode(...bytes);

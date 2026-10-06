@@ -11,6 +11,7 @@ import {outputGeometry,safeFilename} from './engine/export-settings.js';
 import {photoMetering} from './engine/photo-metering.js';
 import {writeImageMetadata} from './engine/export-files.js';
 import {drawTextOverlays} from './text-overlays.mjs';
+import {rawFrame,rawGeometry,rawMasterExport,rawRenderingVersion} from './raw/render.mjs';
 let cached=null;
 async function sourceImage(folder,p) {
   const file=path.join(folder,'source','normalized.png');let bytes,original;
@@ -80,6 +81,24 @@ export async function createRenderSession(folder, project) {
   }
   async function renderFrame(key='current',options={}) {
     const version=findVersion(p,key);
+    if(p.source.raw){
+      if(options.revision!==undefined&&options.revision!==p.revision)fail('STALE_REVISION','RAW 预览请求的版本已更新。');
+      if(options.selectionHash!==undefined&&options.selectionHash!==version.selectionHash)fail('STALE_SELECTION','RAW 预览组合已更新。');
+      const crop=options.referenceCrop!==undefined?options.referenceCrop:version.state.crop,g=rawGeometry(crop,W,H,Number(options.maxSide)||1400),result=await rawFrame(folder,p,version,g,{...options,renderCrop:crop});
+      const frameSpec={sourceRect:g.rect,width:g.width,height:g.height,angle:crop?.angle||0,pixelCenters:'half',pipeline:versionPipeline(version),rawManifest:p.source.raw.manifestHash,rawPipeline:rawRenderingVersion,quality:options.master?'master':'proxy',...(options.maskView?{maskView:options.maskView}:{})};
+      if(guardsOf(version.state).regions.length&&!equal(crop,version.state.crop))fail('PROTECTED_GEOMETRY','已保护版本不能换用另一裁剪网格对照。');
+      let regionPixels;
+      if(options.region){
+        const r=cleanRect(options.region),actualCrop={x:g.rect.x/W,y:g.rect.y/H,width:g.rect.width/W,height:g.rect.height/H,angle:crop?.angle||0},view=transformRect(r,point=>originalToViewPoint(point,actualCrop,W,H));
+        if(!view)fail('REGION_OUTSIDE','这处范围不在当前画幅内。');
+        const left=Math.max(0,Math.floor(view.x*g.width)),top=Math.max(0,Math.floor(view.y*g.height)),right=Math.min(g.width,Math.ceil((view.x+view.width)*g.width)),bottom=Math.min(g.height,Math.ceil((view.y+view.height)*g.height));
+        regionPixels={left,top,width:right-left,height:bottom-top};const pixels=new Uint8ClampedArray(regionPixels.width*regionPixels.height*4);
+        for(let y=0;y<regionPixels.height;y++)pixels.set(result.pixels.subarray(((top+y)*g.width+left)*4,((top+y)*g.width+right)*4),y*regionPixels.width*4);
+        g.rect={x:g.rect.x+left/g.width*g.rect.width,y:g.rect.y+top/g.height*g.rect.height,width:regionPixels.width/g.width*g.rect.width,height:regionPixels.height/g.height*g.rect.height};
+        result.pixels=pixels;result.png=await sharp(pixels,{raw:{width:regionPixels.width,height:regionPixels.height,channels:4}}).png().toBuffer();g.width=regionPixels.width;g.height=regionPixels.height;
+      }
+      return {...result,regionPixels,regionMode:options.region?'crop-final-frame':undefined,width:g.width,height:g.height,sourceRect:g.rect,limited:g.limited,versionId:version.id,revision:p.revision,selectionHash:version.selectionHash||null,stateHash:versionStateHash(version),frameSpec,frameSpecHash:hash(frameSpec),stats:photoMetering(result.pixels,g.width,g.height),textLayout:[],withoutText:Boolean(options.withoutText),pipeline:frameSpec.pipeline,pixelHash:hash(Buffer.from(result.pixels)),renderPixelHash:hash(Buffer.from(result.pixels))};
+    }
     imagePromise??=sourceImage(folder,p);
     await imagePromise;
   if(options.revision!==undefined&&options.revision!==p.revision)fail('STALE_REVISION','预览请求的项目已更新，请重新读取。');
@@ -116,9 +135,11 @@ export async function createRenderSession(folder, project) {
   return {png,pixels,width,height,sourceRect,limited:geometry.limited,versionId:version.id,revision:p.revision,selectionHash:version.selectionHash||null,stateHash:versionStateHash(version),frameSpec,frameSpecHash:hash(frameSpec),regionPixels,regionMode:options.region?'crop-final-frame':undefined,stats:photoMetering(pixels,width,height),textLayout:rendered.textLayout,withoutText,pipeline:frameSpec.pipeline,pixelHash,renderPixelHash:pixelHash};
 }
   async function previewPhoto(key='current',options={}) {
-  const frame=await renderFrame(key,options);const name=`${frame.versionId}-${hash({options,stateHash:frame.stateHash,selectionHash:frame.selectionHash,frameSpec:frame.frameSpec}).slice(0,20)}.png`,file=path.join(path.resolve(folder),'previews',name);
+  const frame=await renderFrame(key,options);
+  if(p.source.raw&&!options.region&&!options.showNotes){const {png,pixels,working,cachePath,...metadata}=frame;return {path:cachePath,...metadata};}
+  const name=`${frame.versionId}-${hash({options,stateHash:frame.stateHash,selectionHash:frame.selectionHash,frameSpec:frame.frameSpec}).slice(0,20)}.png`,file=path.join(path.resolve(folder),'previews',name);
   await mkdir(path.dirname(file),{recursive:true});await writeFile(file,frame.png,{mode:0o600});
-  const {png,pixels,...metadata}=frame;return {path:file,...metadata};
+  const {png,pixels,working,...metadata}=frame;return {path:file,...metadata};
 }
   return {project:p,renderFrame,previewPhoto};
 }
@@ -130,11 +151,17 @@ export async function previewPhoto(folder,key='current',options={}) {
 }
 export async function exportPhoto(folder,key='current',options={}) {
   const p=await loadProject(folder),v=findVersion(p,key);if(!p.versions.some(x=>x.id===v.id))fail('UNACCEPTED_EXPORT','请先接受候选，再导出成片。');
-  const preset=options.preset||'original',format=options.format||(preset==='original'?'png':'jpeg');if(!['png','jpeg'].includes(format))fail('EXPORT_FORMAT','成片支持 PNG 或 JPEG。');
+  const namedPng=typeof options.output==='string'&&/\.png$/i.test(options.output),namedTiff=typeof options.output==='string'&&/\.tiff?$/i.test(options.output),preset=options.preset||(namedTiff?'master':namedPng||options.format==='png'?'original':'share'),format=options.format||(namedTiff?'tiff':namedPng?'png':preset==='master'?'tiff':preset==='original'?'png':'jpeg');if(!['png','jpeg','tiff'].includes(format))fail('EXPORT_FORMAT','成片支持 PNG、JPEG 或 TIFF。');
+  if(format==='tiff'){
+    if(!p.source.raw)fail('RAW_MASTER_REQUIRED','16 位原尺寸母版目前适用于 RAW 文件项目。');
+    const result=await rawMasterExport(folder,p,v,{withoutText:Boolean(options.withoutText)}),output=options.output?path.resolve(options.output):path.join(path.resolve(folder),'exports',safeFilename(p.source.name,'tif',Date.now()));
+    const rel=path.relative(path.resolve(folder),output);if(rel==='project.json'||rel.startsWith('source'+path.sep)||rel.startsWith('previews'+path.sep))fail('OUTPUT_PROTECTED','母版不能覆盖原片或项目记录。');
+    try{await writeFile(output,result.bytes,{flag:'wx',mode:0o600});}catch(error){if(error.code==='EEXIST')fail('OUTPUT_EXISTS','输出文件已存在，请换一个名称。');throw error;}return {...result,bytes:result.bytes.length,path:output,versionId:v.id,format,dpi:300,quality:100,pipeline:versionPipeline(v),fileHash:hash(result.bytes),renderPixelHash:result.pixelHash,pixelGuarantee:'decoded-rgb16',frameSpec:{pipeline:versionPipeline(v),rawManifest:p.source.raw.manifestHash,rawPipeline:rawRenderingVersion,width:result.width,height:result.height,depth:16}};
+  }
   const maxSide=options.maxSide??({share:2048,print:6000,original:8192}[preset]);if(!Number.isFinite(maxSide)||maxSide<512||maxSide>8192)fail('EXPORT_SIZE','最长边应为 512～8192；总像素最多 1600 万。');
   const quality=options.quality??(preset==='print'?98:90);if(!Number.isFinite(quality)||quality<60||quality>100)fail('EXPORT_QUALITY','JPEG 画质应为 60～100。');
   const dpi=options.dpi??(preset==='share'?96:300);if(!Number.isInteger(dpi)||dpi<72||dpi>1200)fail('EXPORT_DPI','像素密度应为 72～1200 ppi。');
-  const frame=await renderFrame(folder,v.id,{maxSide,withoutText:Boolean(options.withoutText)});let bytes=frame.png;
+  const frame=await renderFrame(folder,v.id,{maxSide,master:Boolean(p.source.raw),withoutText:Boolean(options.withoutText)});let bytes=frame.png;
   if(format==='jpeg')bytes=await sharp(bytes).flatten({background:'#ffffff'}).jpeg({quality,chromaSubsampling:'4:4:4'}).toBuffer();
   bytes=Buffer.from(writeImageMetadata(bytes,format,{dpi,includeArtwork:Boolean(options.includeArtwork),title:options.title||'',author:options.author||'',copyright:options.copyright||''}));
   const output=options.output?path.resolve(options.output):path.join(path.resolve(folder),'exports',safeFilename(p.source.name,format==='jpeg'?'jpg':'png',`${v.name}${options.withoutText?'-无字':''}-${Date.now()}`));

@@ -91,6 +91,8 @@ npm run plugin:install
 
 在线基础修片支持浏览器内调色、裁剪、风格、版本与导出；完整本地工作台的 AI 顾问需在设置中连接视觉模型。现场拍摄辅导目前通过摄影眼 Skill 使用。
 
+本地工作台现已支持相机 RAW。先运行 `npm run setup:raw`；macOS 优先使用 CIRAWFilter，其他平台使用 LibRaw/rawpy。默认导出日常分享 JPEG，也可选择无损 PNG 和原尺寸 16 位 TIFF。[RAW 支持与限制](docs/RAW.md)。
+
 ## 使用示例
 
 <a id="photography-eye-demo"></a>

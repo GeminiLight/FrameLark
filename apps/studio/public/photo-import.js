@@ -1,7 +1,11 @@
 // Read bounded headers before asking the browser to allocate a full image.
 // The browser owns EXIF orientation; we verify JPEG dimensions, never rotate twice.
 export const importLimits=Object.freeze({bytes:30*1024*1024,pixels:50_000_000,edge:16384,workspacePixels:100_000_000,photos:12,headerBytes:1024*1024,timeoutMs:30000});
-export const importAccept='image/*,.heic,.heif,.avif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.tif,.tiff';
+// One active RAW decode and eight queued decodes can each use up to 180 seconds.
+// The browser deadline also leaves time for upload and proxy construction.
+export const rawImportLimits=Object.freeze({bytes:512*1024*1024,timeoutMs:30*60*1000});
+export const isRawPhotoName=name=>/\.(dng|crw|cr2|cr3|nef|nrw|arw|srf|sr2|raf|orf|rw2|pef|ptx|srw|x3f|3fr|fff|iiq|mos|mrw|kdc|dcr|erf|rwl|raw)$/i.test(name);
+export const importAccept='image/*,.heic,.heif,.avif,.dng,.crw,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.raf,.orf,.rw2,.pef,.ptx,.srw,.x3f,.3fr,.fff,.iiq,.mos,.mrw,.kdc,.dcr,.erf,.rwl,.raw,.tif,.tiff';
 const mime={jpeg:'image/jpeg',png:'image/png',webp:'image/webp',avif:'image/avif'};
 const text=(b,p,n)=>String.fromCharCode(...b.subarray(p,p+n));
 const u32=(b,p,little=false)=>p+4<=b.length ? new DataView(b.buffer,b.byteOffset,b.byteLength).getUint32(p,little):0;
@@ -16,8 +20,10 @@ export function importProblem(error) {
   const messages={
     EMPTY:['文件是空的','从原照片重新下载或导出，再选择一次。'],
     SIZE:['文件超过 30 MB','导出一份小于 30 MB 的 JPEG/PNG 副本；原文件无需删除。'],
+    RAW_SIZE:['RAW 文件超过 512 MiB','请选择较小的 RAW 文件，或从相机软件导出 JPEG/PNG 副本；原片无需删除。'],
+    RAW_TIMEOUT:['RAW 导入等待超时','已停止这次请求；检查本机服务或解码队列后重试，其他照片和原片保留。'],
     HEIC:['HEIC / HEIF 未能转换','macOS 本地工作台可以自动转换；其他环境请先转为 JPEG/PNG。改文件后缀不能转换格式。'],
-    RAW:['暂不支持 RAW / TIFF 原始格式','在相机或照片软件中导出 JPEG/PNG 副本，再继续修片。'],
+    RAW:['RAW 未能读取',error?.detail||'请使用本机 RAW 后端，检查机型与压缩方式；其他照片和原片保留。'],
     FORMAT:['不是支持的照片格式','请选择 JPG、PNG、WebP 或 AVIF；文件内容必须是照片。'],
     HEADER:['照片头信息不完整','重新下载原文件，或从照片软件重新导出 JPEG/PNG。'],
     ANIMATED:['这是一张动态图片','导出你想编辑的那一帧为静态 JPEG/PNG，再添加。'],
@@ -32,7 +38,7 @@ export function importProblem(error) {
     CANCELLED:['已取消读取','已经加入的照片和当前编辑都保留；需要时可以重试。']
   };
   const [reason,action]=messages[code] || messages.READ;
-  return {code,reason,action,detail:error?.detail || '',retryable:['CAPACITY','WORKSPACE_PIXELS','READ','TIMEOUT','RESOURCE','DECODE','CANCELLED'].includes(code)};
+  return {code,reason,action,detail:error?.detail || '',retryable:['CAPACITY','WORKSPACE_PIXELS','READ','TIMEOUT','RESOURCE','DECODE','CANCELLED','RAW_TIMEOUT'].includes(code)};
 }
 
 function exifOrientation(bytes) {
@@ -184,9 +190,10 @@ export async function runImportBatch(rows,{signal,inspect=inspectPhotoFile,prepa
     row.status='reading';row.problem=null;onChange(row);
     try {
       if(signal?.aborted)throw new PhotoImportError('CANCELLED');
-      const prepared=await boundedRead(()=>prepare(row.file,signal),signal);
-      const metadata=await boundedRead(()=>inspect(prepared,{maxBytes:prepared===row.file?importLimits.bytes:220_000_000}),signal);
-      if(prepared!==row.file)metadata.convertedFrom='HEIC';
+      const raw=isRawPhotoName(row.file.name);
+      const prepared=await boundedRead(stepSignal=>prepare(row.file,stepSignal),signal,{timeoutMs:raw?rawImportLimits.timeoutMs:importLimits.timeoutMs,timeoutCode:raw?'RAW_TIMEOUT':'TIMEOUT'});
+      const metadata=await boundedRead(stepSignal=>inspect(prepared,{maxBytes:prepared===row.file?importLimits.bytes:220_000_000,signal:stepSignal}),signal);
+      if(prepared!==row.file)metadata.convertedFrom=prepared.rawProject?'RAW':'HEIC';
       if(signal?.aborted)throw new PhotoImportError('CANCELLED');
       checkImportCapacity(metadata,capacity());
       row.photo=await commit(prepared,metadata,signal,row.file);
@@ -196,14 +203,14 @@ export async function runImportBatch(rows,{signal,inspect=inspectPhotoFile,prepa
   }
   return rows;
 }
-function boundedRead(read,signal) {
+function boundedRead(read,signal,{timeoutMs=importLimits.timeoutMs,timeoutCode='TIMEOUT'}={}) {
   return new Promise((resolve,reject)=>{
-    let finished=false,timer;
-    const finish=(error,value)=>{if(finished)return;finished=true;clearTimeout(timer);signal?.removeEventListener('abort',abort);error ? reject(error):resolve(value);};
+    let finished=false,timer;const controller=new AbortController();
+    const finish=(error,value)=>{if(finished)return;finished=true;clearTimeout(timer);signal?.removeEventListener('abort',abort);if(error)controller.abort(error);error ? reject(error):resolve(value);};
     const abort=()=>finish(new PhotoImportError('CANCELLED'));
     if(signal?.aborted){abort();return;}
     signal?.addEventListener('abort',abort,{once:true});
-    timer=setTimeout(()=>finish(new PhotoImportError('TIMEOUT')),importLimits.timeoutMs);
-    Promise.resolve().then(read).then(value=>finish(null,value),error=>finish(error));
+    timer=setTimeout(()=>finish(new PhotoImportError(timeoutCode)),timeoutMs);
+    Promise.resolve().then(()=>finished?undefined:read(controller.signal)).then(value=>finish(null,value),error=>finish(error));
   });
 }

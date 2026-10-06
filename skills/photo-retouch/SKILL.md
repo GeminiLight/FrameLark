@@ -68,7 +68,7 @@ description: FrameLark 摄影审片、选片与精修：单张诊断，或从一
 4. 通过返回的单图项目路径进入下面的候选/批注/接受流程。接受新版本、更新主题或批注会使旧组选片过期；复看单张完整画面、关键细节和真实三行三列的九格，再以最新 snapshotHash 保存最终方案。单张或整组仍有表达阻碍时保留为试修；不能为导出把弱片问题全部降成 minor。
 5. `collection-export` 按顺序导出已保存版本与 manifest；失败逐张保留并可重试。交付主题、已审阅范围、顺序、取舍理由和备选，供用户继续换图或精调。上传发布和删除照片需用户明确要求。
 
-具体命令和 JSON 见 [组图工具](references/collection-tools.md)。批次最多 500 个文件，联系表每页 20 张；大批分段审阅。不把目前的几何蒙版称为语义选区，不把静态照片工具称为 RAW、视频或印刷排版工具。
+具体命令和 JSON 见 [组图工具](references/collection-tools.md)。批次最多 500 个文件，联系表每页 20 张；大批分段审阅。不把目前的几何蒙版称为语义选区，不把 RAW 导入称为所有机型兼容，也不把静态照片工具称为视频或印刷排版工具。
 
 ## 可追踪的精修
 
@@ -109,7 +109,7 @@ description: FrameLark 摄影审片、选片与精修：单张诊断，或从一
 
 开启诊断与复审、含文字或保护设置的项目会在完整工作台内进入“协作精修”，仍使用同一份项目和原生处理流程。也可用下面的 `serve` 独立预览。不要通过网页快照接口绕过诊断、复评或保护检查。
 
-macOS 可直接 `init` 静态 HEIC/HEIF，工具用系统解码器生成 8 位工作图，保留原文件字节。其他系统仍需先转换；RAW/TIFF 仍需导出 JPEG/PNG。
+macOS 可直接 `init` 静态 HEIC/HEIF，工具用系统解码器生成 8 位工作图，保留原文件字节。其他系统仍需先转换；相机 RAW 首次运行 `node <skill>/scripts/raw/setup.mjs` 安装 LibRaw/rawpy；macOS 优先 CIRAWFilter（需 Xcode Command Line Tools），其他平台使用 rawpy。`init --image <RAW> --project <folder> [--raw-backend auto|apple|rawpy]` 保留原片和线性高精度数据。机型和压缩方式取决于实际后端；普通 TIFF 输入仍不支持。
 
 ## 接续请求与等待
 
@@ -148,7 +148,7 @@ macOS 可直接 `init` 静态 HEIC/HEIF，工具用系统解码器生成 8 位�
 
 区域保护仅承诺同尺寸、同构图的最终 RGBA 核心一致。PNG 解码可逐字节验收，JPEG 只保证编码前一致。无字输出使用独立无字参考；管线/字体无法复现参考时停止保护输出，保留备份并显式解除后重新确认。
 
-接受版用 `export` 导出，输出路径必须是新文件。验证实际尺寸，复看成片；若使用有损 JPEG，注意编码后的颜色和细节变化。
+接受版用 `export` 导出，默认 `--preset share` 为 2048px sRGB JPEG；另有 `print`、`original`（PNG）和 RAW 专用 `master`（原尺寸 16 位 TIFF）。RAW 导出取样高精度缓存，不使用预览代理。输出路径必须是新文件。验证实际尺寸，复看成片；若使用有损 JPEG，注意编码后的颜色和细节变化。
 
 需要跨项目记忆时，经用户要求用 `profile-init/read/learn/edit` 建立可携带本地档案，记录题材、光线和具体理由；参考匹配条件，允许查看、修改与删除，不把单次选择泛化成永久口味。详见 [学习与记忆](references/learning-memory.md)。
 
