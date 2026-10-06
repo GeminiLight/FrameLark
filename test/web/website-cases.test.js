@@ -37,5 +37,9 @@ for(const prefix of ['', '/FrameLark'])test(`published cases work at ${prefix||'
   assert.ok(homepage.includes(`src="${prefix}/assets/website/cafe-board.webp"`),'the cafe reference is visible in its chapter');
   const script=await readFile(join(output,'website.js'),'utf8');
   for(const scene of ['arcade','cafe'])assert.ok(script.includes(`${prefix}/assets/cases/${scene}-reference.png`),scene+' retains the full-resolution board action');
+  assert.ok(links.includes(`${prefix}/lakeside-case.html`),'the new lakeside example keeps its complete case page');
+  const lakeside=await readFile(join(output,'lakeside-case.html'),'utf8');
+  assert.ok(lakeside.includes(`href="${prefix}/#eye"`),'the lakeside case returns to the site chapter');
+  for(const name of ['lakeside-original.jpg','lakeside-board.webp'])assert.deepEqual(await readFile(join(output,'assets/website',name)),await readFile(join(root,'apps/website/public/assets/website',name)),name+' remains unchanged');
   assert.ok((await readFile(join(output,'studio/index.html'),'utf8')).includes(`href="${prefix}/examples.html"`),'the published editor links to cases');
 });

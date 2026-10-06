@@ -51,6 +51,12 @@ try{
   await browser('click','#board-dialog [data-close]');await browser('focus','[data-eye-case=cafe]');await browser('press','Home');
   await browser('wait','--fn','!document.querySelector("#eye-panel-arcade").hidden');
   console.log('PASS keyboard case selection and the selected full-board action');
+  await click('[data-eye-case=lakeside]');await browser('wait','--fn','!document.querySelector("#eye-panel-lakeside").hidden');
+  assert.equal(await evaluate('JSON.stringify(Number(document.querySelector("#eye-total").textContent))'),await evaluate('JSON.stringify(document.querySelectorAll("[data-eye-case]").length)'));
+  await click('#eye-panel-lakeside [data-board=lakeside]');await browser('wait','--fn','document.querySelector("#board-dialog").open');
+  assert.ok((await evaluate('JSON.stringify(document.querySelector("#board-dialog .original-board-link").href)')).endsWith('/assets/website/lakeside-board.webp'));
+  await browser('click','#board-dialog [data-close]');
+  console.log('PASS new lakeside case, dynamic counter and matching full-board action');
 
   await browser('open',base);
   await evaluate(`(()=>{const NativeImage=window.Image,src=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');window.Image=function(...args){const image=new NativeImage(...args);Object.defineProperty(image,'src',{get(){return src.get.call(image);},set(value){if(value.endsWith('/cafe-board.webp')){window.releaseCafe=()=>{image.addEventListener('load',()=>window.cafeLoaded=true,{once:true});src.set.call(image,value);};}else src.set.call(image,value);}});return image;};return JSON.stringify(true);})()`);

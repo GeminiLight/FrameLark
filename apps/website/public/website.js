@@ -82,11 +82,14 @@ tabs.forEach((tab,index)=>{
 
 const eyeScenes={
   arcade:{title:'光影拱廊',board:'/assets/website/photography-board.webp',original:'/assets/cases/arcade-reference.png',alt:'拱廊现场的五种机位与拍法参考'},
-  cafe:{title:'玻璃倒影',board:'/assets/website/cafe-board.webp',original:'/assets/cases/cafe-reference.png',alt:'咖啡馆玻璃倒影的五种机位与拍法参考'}
+  cafe:{title:'玻璃倒影',board:'/assets/website/cafe-board.webp',original:'/assets/cases/cafe-reference.png',alt:'咖啡馆玻璃倒影的五种机位与拍法参考'},
+  lakeside:{title:'湖岸暖光',board:'/assets/website/lakeside-board.webp',original:'/assets/website/lakeside-board.webp',alt:'湖岸暖光的五种拍法参考，金色树叶、蓝色湖水与散步的人'}
 };
 const eyeTabs=[...document.querySelectorAll('[data-eye-case]')];
 const eyeArt=document.querySelector('.eye-art');
 const eyeStatus=document.querySelector('#eye-announcement');
+const eyeTotal=document.querySelector('#eye-total');
+if(eyeTotal)eyeTotal.textContent=String(eyeTabs.length).padStart(2,'0');
 let eyeIndex=0,eyeRequest=0;
 async function selectEye(index){
   index=(index+eyeTabs.length)%eyeTabs.length;
