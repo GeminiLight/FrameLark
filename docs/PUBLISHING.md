@@ -34,3 +34,11 @@ Skills-only 插件不需要为了提交额外搭建 MCP 服务，也不需要 MC
 更新 Skill 或插件元数据时重新上传 ZIP；GitHub 市场更新不会自动更新公共目录版本。
 
 官方说明（核对日期：2026-10-06）：[打包与分发](https://developers.openai.com/plugins/build/plugins)、[上传与发布](https://developers.openai.com/plugins/deploy/submission)、[插件要求](https://developers.openai.com/plugins/plugin-guidelines)、[插件使用范围](https://learn.chatgpt.com/docs/plugins)。
+
+## GitHub Release 版本包
+
+这与 OpenAI 公共目录提交是独立流程。先执行 `npm run release:build`，生成 `dist/release/` 下的统一插件 ZIP、摄影眼 ZIP、独立安装脚本、`framelark-release.json` 和 `SHA256SUMS`。所有案例图都包含在包中，原生依赖在第一次安装时按平台准备。
+
+版本号取自两份统一插件清单；发布标签必须等于 `v<统一插件版本>`。在安装、回归和发布包检查通过后，将对应提交打标签并推送，Release 工作流会重新构建并发布这些资产。普通开发分支 push 不会发布 Release。首次正式 Release 发布前，新安装链接不可用，不能声称该链接已经可安装。
+
+发布后从一个没有 FrameLark 仓库的目录验证安装命令、实际版本、启用状态、全部案例图片及原生依赖就绪。下载地址只使用同仓库的版本资产，不回退到 main 分支或 Git clone。

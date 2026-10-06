@@ -40,9 +40,9 @@ Ask an assistant with public-web access to read [CLOUD.md](CLOUD.md) and follow 
 
 The standalone **FrameLark Photography Eye** plugin (`framelark-eye`) contains only the `photography-eye` skill, reference material, and Xiaozhen assets. It does not prepare local retouching dependencies. In a local Codex client with plugin support, say:
 
-> Register or refresh the plugin marketplace from https://github.com/GeminiLight/FrameLark and install only framelark-eye@framelark. Confirm that it contains only photography-eye. I will open a new chat, attach a scene photo, and ask how to shoot here.
+> Install only framelark-eye@framelark from the latest published GitHub Release at https://github.com/GeminiLight/FrameLark/releases, without cloning the repository. Confirm that it contains only photography-eye. I will open a new chat, attach a scene photo, and ask how to shoot here.
 
-From a checkout, run `npm run plugin:install:photography-eye:github` to install and verify `framelark-eye@framelark` from GitHub. Use `npm run plugin:install:photography-eye` for the local development build. Both installers verify the installed skills and enabled state without preparing retouching dependencies. Open a new chat, attach a scene photo, and ask “How should I shoot here?”
+From a checkout, run `npm run plugin:install:photography-eye` to install and verify `framelark-eye@framelark` from GitHub Releases. Use `npm run plugin:install:local:photography-eye` for the local development build. Both installers verify the installed skills and enabled state without preparing retouching dependencies. Open a new chat, attach a scene photo, and ask “How should I shoot here?”
 
 These are local Codex installation instructions. They do not establish direct GitHub installation in an ordinary ChatGPT mobile chat. Eligible workspace admins can import the repository marketplace and make the standalone plugin available to members; account and mobile availability still need verification. [Distribution scope](docs/PLUGIN.md#chatgpt-工作区与手机) (Chinese).
 
@@ -54,12 +54,10 @@ Recommended: ask your local Codex agent to install it:
 
 > Install the FrameLark plugin from https://github.com/GeminiLight/FrameLark. Check my environment, prepare the local retouching tools, and tell me how to start.
 
-For manual installation, you need **Node.js 20.9+ with npm, Git, and a Codex CLI that supports plugins**. Run:
+For release installation, you need **Node.js 20.9+ with npm and a Codex CLI that supports plugins**. No Git checkout is needed. Run:
 
 ```sh
-git clone https://github.com/GeminiLight/FrameLark.git
-cd FrameLark
-npm run plugin:install
+node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight/FrameLark/releases/latest/download/install-framelark.mjs');if(!r.ok)throw Error('Download failed: '+r.status);await import('data:text/javascript;base64,'+Buffer.from(await r.text()).toString('base64'))"
 ```
 
 ### Start a conversation

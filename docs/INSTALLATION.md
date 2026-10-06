@@ -29,7 +29,7 @@ codex plugin --help
 
 插件和 Skill 使用宿主 Agent 的看图、对话能力，无需另填模型 API Key。修图还需要宿主能执行本地工具、访问所选照片；可选生图和图片编辑以宿主实际提供的能力为准。
 
-摄影眼快速安装无需克隆仓库，见下一节。使用本地构建、统一插件、独立 Skill 或本地工作台时，再下载仓库：
+两种插件均可从正式 Release 安装，无需 Git 或仓库。仅开发、本地工作台及独立 Skill 的源码安装需要下载仓库：
 
 ```sh
 git clone https://github.com/GeminiLight/FrameLark.git
@@ -46,20 +46,20 @@ cd FrameLark
 
 ### 终端快速安装，无需克隆
 
-需要 Node.js 20.9+、Git 和支持插件的 Codex CLI。下面的命令下载并执行本仓库的[独立安装脚本](../scripts/install-photography-eye.mjs)，不安装 npm 或图片处理依赖：
+需要 Node.js 20.9+ 和支持插件的 Codex CLI。下面的命令下载 Release 中的[独立安装脚本](../scripts/install-framelark-release.mjs)，校验并安装版本包，不克隆仓库。摄影眼不安装图片处理依赖：
 
 ```sh
-node --input-type=module -e "const r=await fetch('https://raw.githubusercontent.com/GeminiLight/FrameLark/main/scripts/install-photography-eye.mjs');if(!r.ok)throw Error('Download failed: '+r.status);await import('data:text/javascript;base64,'+Buffer.from(await r.text()).toString('base64'))"
+node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight/FrameLark/releases/latest/download/install-framelark.mjs');if(!r.ok)throw Error('Download failed: '+r.status);await import('data:text/javascript;base64,'+Buffer.from(await r.text()).toString('base64'))" -- --photography-eye
 ```
 
-安装器注册或刷新 `GeminiLight/FrameLark` 市场，只安装 `framelark-eye@framelark`。它检查安装目录仅含 `photography-eye`，并要求 Codex 的 `installed` 与 `enabled` 都为 `true` 才输出 `ok: true`。已有 `framelark` 市场指向其他来源或本地构建时保留配置并停止，由你明确选择是否切换。
+安装器下载并校验最新正式 Release 的摄影眼 ZIP，注册本地版本市场，只安装 `framelark-eye@framelark`。它检查安装目录仅含 `photography-eye`，并要求 Codex 的 `installed` 与 `enabled` 都为 `true` 才输出 `ok: true`。已有 `framelark` 市场指向其他来源或本地构建时保留配置并停止，由你明确选择是否切换。
 
-已有仓库也可运行 `npm run plugin:install:photography-eye:github`。安装只作用于运行命令的 Codex 环境，不表示已安装到其他电脑或 ChatGPT 手机账号。
+已有仓库也可运行 `npm run plugin:install:photography-eye`。安装只作用于运行命令的 Codex 环境，不表示已安装到其他电脑或 ChatGPT 手机账号。
 
 ### 从本地构建安装
 
 ```sh
-npm run plugin:install:photography-eye
+npm run plugin:install:local:photography-eye
 ```
 
 只安装 `framelark-eye`，其中只有 `photography-eye`；不会准备照片精修依赖。也可以让本地 Codex 从 GitHub 注册或更新 FrameLark 插件市场，只安装 `framelark-eye@framelark`。完成后开启新对话，附上现场照，说「用 FrameLark 摄影眼看这里咋拍？」。
@@ -70,11 +70,15 @@ npm run plugin:install:photography-eye
 
 ## 统一 Codex 插件
 
+直接下载最新正式 Release 安装：
+
 ```sh
-npm run plugin:install
+node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight/FrameLark/releases/latest/download/install-framelark.mjs');if(!r.ok)throw Error('Download failed: '+r.status);await import('data:text/javascript;base64,'+Buffer.from(await r.text()).toString('base64'))"
 ```
 
-安装器会构建插件、注册 FrameLark 市场、安装 `framelark@framelark`，再准备本地修图依赖。首次准备依赖需要联网。成功时输出 `ok: true`、两套 Skill 名称和 `retouchDependencies: ready`。 成功后还会给出三种任务的起手句和继续追问的例子；只装一套 Skill 时只展示相应入口。看图和可选生图仍需在当前会话确认，不因安装成功就称生图已就绪。
+已有仓库时，`npm run plugin:install` 使用同一版本安装器；开发构建使用 `npm run plugin:install:local`。
+
+安装器会校验版本包、准备本平台修图依赖、注册本地 FrameLark 市场并安装 `framelark@framelark`。全部案例图随包下载，安装成功后即可离线查看；Sharp 与 Canvas 首次安装完成前不会报告就绪。首次准备依赖需要联网。成功时输出 `ok: true`、两套 Skill 名称和 `retouchDependencies: ready`。 看图和可选生图仍需在当前会话确认，不因安装成功就称生图已就绪。
 
 **开启一个新对话**，确认插件已启用，附上照片开始：
 
@@ -84,20 +88,15 @@ npm run plugin:install
 
 也可以在已有 Codex 对话中直接说：
 
-> 从 GeminiLight/FrameLark 注册 FrameLark 插件市场，安装 framelark@framelark，确认摄影眼和照片精修两套 Skill 都已包含。
+> 从 GeminiLight/FrameLark 的最新正式 Release 安装 framelark@framelark，不克隆仓库；首次准备好本平台修图依赖，确认两套 Skill 和全部案例图都已包含。
 
-Agent 会按当前环境安装。直接市场命令、启用状态检查、ZIP 分发和发布范围见 [插件说明](PLUGIN.md)。当前通过仓库插件市场安装，尚未上架 OpenAI 官方通用目录。
+Agent 会按当前环境安装。直接市场命令、启用状态检查、ZIP 分发和发布范围见 [插件说明](PLUGIN.md)。默认从 GitHub Release 安装，尚未上架 OpenAI 官方通用目录。首次正式 Release 发布前，新入口会明确提示版本包不可用，不会退回整仓克隆。
 
 ### 更新插件
 
-在下载仓库时所用的 FrameLark 目录中运行：
+再次运行同一 Release 安装命令即可检查最新正式版本；也可下载安装脚本后用 `--version vX.Y.Z` 固定版本。原片和项目不属于插件缓存，不会被更新清理。
 
-```sh
-git pull --ff-only
-npm run plugin:install
-```
-
-安装器会将 FrameLark 市场指向这份本地构建，再安装对应版本；其他插件市场与已有独立 Skill 不受影响。完成后开启新对话。
+版本包存放在 `~/.local/share/framelark/marketplace/releases/<版本>/`；可用 `FRAMELARK_INSTALL_ROOT` 指定专用缓存目录。缓存不包含 Git 历史，也不保留第二份修图依赖。已有官方 Git 市场可迁移；其他同名来源或本地开发构建会保留并提示明确选择。开发者从源码安装仍使用 `npm run plugin:install:local`。
 
 ## 独立安装 Skill
 

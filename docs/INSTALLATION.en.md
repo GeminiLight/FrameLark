@@ -21,7 +21,7 @@ If `codex` or plugin support is missing, follow the [official CLI setup](https:/
 
 The plugin and skills use the host agent for vision and conversation, without another model API key. Retouching also requires local tool execution and access to the selected photos. Optional image generation and editing depend on the host’s available tools.
 
-Photography Eye has a no-checkout installer below. Download the repository for a local build, the full plugin, standalone skills, or the local studio:
+Both plugins have a release installer without Git. Download the repository only for local development builds, source-based standalone skills, or the local studio:
 
 ```sh
 git clone https://github.com/GeminiLight/FrameLark.git
@@ -34,20 +34,20 @@ Run the remaining npm commands in this repository directory.
 
 Open the [Photography Eye installation page](https://tianfuwang.tech/FrameLark/install.html) (Chinese) to start a local Codex chat with a prefilled installation request. Send the request to begin; the button does not send it automatically.
 
-For a no-checkout terminal installation, Node.js 20.9+, Git, and a plugin-capable Codex CLI are required. Download and execute the [standalone installer](../scripts/install-photography-eye.mjs):
+For a no-checkout terminal installation, Node.js 20.9+ and a plugin-capable Codex CLI are required. Download and execute the [release installer](../scripts/install-framelark-release.mjs):
 
 ```sh
-node --input-type=module -e "const r=await fetch('https://raw.githubusercontent.com/GeminiLight/FrameLark/main/scripts/install-photography-eye.mjs');if(!r.ok)throw Error('Download failed: '+r.status);await import('data:text/javascript;base64,'+Buffer.from(await r.text()).toString('base64'))"
+node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight/FrameLark/releases/latest/download/install-framelark.mjs');if(!r.ok)throw Error('Download failed: '+r.status);await import('data:text/javascript;base64,'+Buffer.from(await r.text()).toString('base64'))" -- --photography-eye
 ```
 
-It registers or refreshes the GitHub marketplace and installs only `framelark-eye@framelark`. Success requires exactly the `photography-eye` skill and an installed, enabled plugin. A same-name marketplace with another source is preserved rather than silently replaced. No npm or image-processing dependencies are installed.
+It downloads a checksum-verified release archive, registers its local marketplace, and installs only `framelark-eye@framelark`. Success requires exactly the `photography-eye` skill and an installed, enabled plugin. A same-name marketplace with another source is preserved rather than silently replaced. No image-processing dependencies are installed.
 
-From a checkout, `npm run plugin:install:photography-eye:github` runs the same installer. Installation applies to the Codex environment running the command, not other devices or your ChatGPT mobile account.
+From a checkout, `npm run plugin:install:photography-eye` runs the same installer. Installation applies to the Codex environment running the command, not other devices or your ChatGPT mobile account.
 
 For a local development build instead:
 
 ```sh
-npm run plugin:install:photography-eye
+npm run plugin:install:local:photography-eye
 ```
 
 This installs `framelark-eye` with only the `photography-eye` skill, without preparing retouching dependencies. You can also ask local Codex to register or refresh the marketplace from GeminiLight/FrameLark and install only `framelark-eye@framelark`. Open a new chat, attach a scene photo, and ask “Use FrameLark Photography Eye to show me how to shoot here.”
@@ -58,9 +58,13 @@ These are local installation instructions. Eligible ChatGPT workspace admins can
 
 ## Unified Codex plugin
 
+Install from a published GitHub Release without cloning the repository:
+
 ```sh
-npm run plugin:install
+node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight/FrameLark/releases/latest/download/install-framelark.mjs');if(!r.ok)throw Error('Download failed: '+r.status);await import('data:text/javascript;base64,'+Buffer.from(await r.text()).toString('base64'))"
 ```
+
+`npm run plugin:install` runs the same release installer from a checkout; `npm run plugin:install:local` installs the local development build. All examples and native retouch dependencies are prepared during installation.
 
 The installer builds the plugin, registers the FrameLark marketplace, installs `framelark@framelark`, and prepares local retouching dependencies. The first dependency setup needs an internet connection. Success reports `ok: true`, both skill names, and `retouchDependencies: ready`, followed by starting requests and follow-up examples for the installed workflows. Vision and optional image generation still need to be checked in the current session; installation does not enable a model service.
 
@@ -81,11 +85,10 @@ The agent will install it according to your environment. See [plugin documentati
 In the FrameLark directory you cloned:
 
 ```sh
-git pull --ff-only
 npm run plugin:install
 ```
 
-The installer points the FrameLark marketplace at this local build and installs the corresponding version. Other marketplaces and standalone skills are preserved. Open a new chat afterward.
+The installer selects the latest published release, or a version pinned with `--version vX.Y.Z`. Development builds use `npm run plugin:install:local`. Other marketplaces and standalone skills are preserved. Open a new chat afterward.
 
 ## Standalone skills
 
