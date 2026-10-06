@@ -21,6 +21,7 @@
     "test:web": "node scripts/run-tests.mjs web",
     "test:skill": "node scripts/run-tests.mjs skill",
     "test:navigation": "node scripts/check-navigation.mjs",
+    "test:website": "node scripts/check-website.mjs",
     "quality": "node scripts/photo-quality.mjs",
     "quality:vision": "node scripts/photo-quality.mjs --vision",
     "architecture:check": "node scripts/check-architecture.mjs",

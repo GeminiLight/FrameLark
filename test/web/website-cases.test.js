@@ -18,11 +18,24 @@ for(const prefix of ['', '/FrameLark'])test(`published cases work at ${prefix||'
   assert.match(cases,new RegExp(`href="${prefix}/studio/"[^>]*data-case-studio`),'the case CTA opens the published editor');
   assert.ok(cases.includes(`href="${prefix}/"`),'the case brand returns to the homepage');
   assert.ok(!cases.includes(`href="${prefix}/studio/" aria-label="帧好`),'the brand link is not mistaken for the editor CTA');
-  assert.deepEqual(await readFile(join(output,'assets/cases/arcade-reference.png')),await readFile(join(root,'apps/studio/public/assets/cases/arcade-reference.png')),'the approved image is published without pixel changes');
+  for(const name of ['arcade-input.jpg','arcade-reference.png','cafe-input.jpg','cafe-reference.png','retouch-comparison.png','series-workspace.png']){
+    assert.deepEqual(await readFile(join(output,'assets/cases',name)),await readFile(join(root,'apps/studio/public/assets/cases',name)),name+' is published without changing the approved source');
+  }
   assert.match(await readFile(join(output,'examples.css'),'utf8'),/case-pair/);
   assert.ok((await readFile(join(output,'sitemap.xml'),'utf8')).includes(`https://example.com${prefix}/examples.html`));
   const homepage=await readFile(join(output,'index.html'),'utf8');
-  assert.match(homepage,new RegExp(`href="${prefix}/examples\\.html(?:#[^"]*)?"`),'the official homepage links to cases, including a specific case anchor');
-  assert.ok(homepage.includes(`href="${prefix}/assets/cases/arcade-input.jpg"`),'the original input remains accessible from its optimized homepage preview');
+  const links=[...homepage.matchAll(/href="([^"]+)"/g)].map(match=>match[1]);
+  for(const anchor of ['photography','cafe','retouch','series']){
+    assert.ok(links.includes(`${prefix}/examples.html#${anchor}`),anchor+' has a complete case/source entry from its feature chapter');
+    assert.match(cases,new RegExp(`id="${anchor}"`),anchor+' lands at an existing case section');
+  }
+  for(const scene of ['arcade','cafe']){
+    assert.ok(links.includes(`${prefix}/assets/cases/${scene}-input.jpg`),scene+' links to the original input');
+    assert.ok(homepage.includes(`src="${prefix}/assets/website/scene-${scene}.webp"`),scene+' has an optimized source preview');
+  }
+  assert.ok(homepage.includes(`src="${prefix}/assets/website/photography-board.webp"`),'the arcade reference is visible in its chapter');
+  assert.ok(homepage.includes(`src="${prefix}/assets/website/cafe-board.webp"`),'the cafe reference is visible in its chapter');
+  const script=await readFile(join(output,'website.js'),'utf8');
+  for(const scene of ['arcade','cafe'])assert.ok(script.includes(`${prefix}/assets/cases/${scene}-reference.png`),scene+' retains the full-resolution board action');
   assert.ok((await readFile(join(output,'studio/index.html'),'utf8')).includes(`href="${prefix}/examples.html"`),'the published editor links to cases');
 });

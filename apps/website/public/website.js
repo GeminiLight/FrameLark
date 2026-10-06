@@ -86,24 +86,27 @@ const eyeScenes={
 };
 const eyeTabs=[...document.querySelectorAll('[data-eye-case]')];
 const eyeArt=document.querySelector('.eye-art');
+const eyeStatus=document.querySelector('#eye-announcement');
 let eyeIndex=0,eyeRequest=0;
 async function selectEye(index){
   index=(index+eyeTabs.length)%eyeTabs.length;
   const request=++eyeRequest;
-  if(index===eyeIndex){eyeArt.setAttribute('aria-busy','false');return;}
+  eyeStatus.classList.remove('is-error');
+  if(index===eyeIndex){eyeArt.setAttribute('aria-busy','false');eyeStatus.textContent=`已显示${eyeScenes[eyeTabs[index].dataset.eyeCase].title}`;return;}
   const tab=eyeTabs[index],panel=document.getElementById(tab.getAttribute('aria-controls'));
   eyeArt.setAttribute('aria-busy','true');
+  eyeStatus.textContent='正在加载案例';
   try{
     await Promise.all([...panel.querySelectorAll('img')].map(img=>loadImage(img.src)));
     if(request!==eyeRequest)return;
     eyeIndex=index;
     eyeTabs.forEach((item,i)=>{item.setAttribute('aria-selected',String(i===index));item.tabIndex=i===index?0:-1;document.getElementById(item.getAttribute('aria-controls')).hidden=i!==index;});
     document.querySelector('#eye-current').textContent=String(index+1).padStart(2,'0');
-    document.querySelector('#eye-announcement').textContent=`已切换到${eyeScenes[tab.dataset.eyeCase].title}，现场输入与五种拍法参考。`;
+    eyeStatus.textContent=`已切换到${eyeScenes[tab.dataset.eyeCase].title}，现场输入与五种拍法参考。`;
     arrive(panel.querySelector('.scene-input'));
     arrive(panel.querySelector('.scene-output'));
   }catch{
-    if(request===eyeRequest)document.querySelector('#eye-announcement').textContent='案例图片暂未加载完成，请再次点击重试。';
+    if(request===eyeRequest){eyeStatus.textContent='案例图片暂未加载完成，当前案例已保留。请再次点击想看的案例重试。';eyeStatus.classList.add('is-error');}
   }finally{if(request===eyeRequest)eyeArt.setAttribute('aria-busy','false');}
 }
 function bindTabKeys(items,select){
