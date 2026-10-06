@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parameterSections,changedParameterCount} from '../../apps/studio/public/edit-stack-view.js';
+import {parameterSections,changedParameterCount,rangeDescription,brightnessLabels} from '../../apps/studio/public/edit-stack-view.js';
 import {pixelCapabilities} from '../../apps/studio/public/edit-stack/tools.js';
 
 test('folding parameters retains every executable field exactly once',()=>{
@@ -12,6 +12,15 @@ test('folding parameters retains every executable field exactly once',()=>{
   }
   const custom={id:'custom',parameters:{properties:{amount:{type:'number'},mode:{type:'string'}}}};
   assert.deepEqual(parameterSections(custom),[{id:'basic',keys:['amount','mode']}]);
+});
+test('range descriptions distinguish reducing highlights, selecting highlights and brightness bands',()=>{
+  assert.equal(rangeDescription(null),'整张照片');
+  assert.equal(rangeDescription({expression:{kind:'luminance',mode:'exclude-highlights'}}),'减少亮部调整');
+  assert.equal(rangeDescription({expression:{kind:'luminance',mode:'include-highlights'}}),'调整较亮的区域');
+  assert.equal(rangeDescription({expression:{kind:'luminance',mode:'range'}}),'按亮度选择的范围');
+  assert.deepEqual(brightnessLabels({mode:'exclude-highlights'}),['开始减弱调整','停止调整']);
+  assert.deepEqual(brightnessLabels({mode:'include-highlights'}),['开始调整','完全调整']);
+  assert.deepEqual(brightnessLabels({mode:'range'}),['范围起点','范围终点']);
 });
 
 test('collapsed curve and color controls report actual non-default adjustments',()=>{
