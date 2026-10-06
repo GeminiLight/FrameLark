@@ -57,13 +57,13 @@ Manual browser editing needs no model key. Connect a visual model in settings fo
 
 ### Find scenes · Photography Eye
 
-Attach a scene photo and describe your equipment and intent:
+Attach a scene photo and ask how to shoot:
 
-> Use FrameLark to explore this staircase and its light and shadows. Suggest different compositions and finishing directions.
+> Use FrameLark to show me how to shoot this staircase.
 
 ![Photography Eye: five staircase compositions around layered space, warm light, and handrail lines](docs/images/showcase/photography-eye.png)
 
-Explore layered space, slices of warm light, and handrail lines, with framing, camera settings, and finishing advice. This board shows AI shot goals that need a real reshoot.
+With image generation available, the skill creates a five-option reference board and shooting directions by default. This staircase example explores space, warm light, and lines; its AI shot goals need a real reshoot.
 
 <a id="photo-retouch-demo"></a>
 

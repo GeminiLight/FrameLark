@@ -6,11 +6,11 @@ Choose a workflow for the photograph you want to make. Photography Eye uses `pho
 
 ## Find scenes · Photography Eye
 
-Attach a scene photo and describe your equipment, intent, and whether you can move:
+Attach a scene photo and ask “How should I shoot here?” Add equipment or movement constraints when known:
 
-> Use $photography-eye to find photographs here. I am using a phone and can walk around. Suggest different shots: where to stand, camera height, framing, settings, and how to finish the image afterward.
+> How should I shoot here?
 
-Photography Eye offers viewpoints, angles, timing, settings, and finishing targets. A full board normally contains one recommendation and four alternatives. Choose a direction, take another photograph, and compare composition and light.
+Photography Eye first gives an immediate shooting recommendation. When the host provides usable image generation, it directly creates a board with one recommendation and four alternatives, with viewpoint, focus, and finishing advice. No second request to generate an image is needed. Text-only requests and hosts without generation receive shooting and framing guidance. Choose a direction, take another photograph, and compare composition and light.
 
 Scene-scouting guidance is currently available through the skill, rather than the website. Hand the photographs to photo-retouch for actual pixel editing. See the [Photography Eye entry point](../skills/photography-eye/SKILL.md).
 
