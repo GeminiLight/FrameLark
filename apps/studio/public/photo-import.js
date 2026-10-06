@@ -1,7 +1,7 @@
 // Read bounded headers before asking the browser to allocate a full image.
 // The browser owns EXIF orientation; we verify JPEG dimensions, never rotate twice.
 export const importLimits=Object.freeze({bytes:30*1024*1024,pixels:50_000_000,edge:16384,workspacePixels:100_000_000,photos:12,headerBytes:1024*1024,timeoutMs:30000});
-export const importAccept='image/*,.heic,.heif,.avif,.dng,.cr2,.cr3,.nef,.arw,.raf,.orf,.rw2,.tif,.tiff';
+export const importAccept='image/*,.heic,.heif,.avif,.dng,.crw,.cr2,.cr3,.nef,.nrw,.arw,.srf,.sr2,.raf,.orf,.rw2,.pef,.ptx,.srw,.x3f,.3fr,.fff,.iiq,.mos,.mrw,.kdc,.dcr,.erf,.rwl,.raw,.tif,.tiff';
 const mime={jpeg:'image/jpeg',png:'image/png',webp:'image/webp',avif:'image/avif'};
 const text=(b,p,n)=>String.fromCharCode(...b.subarray(p,p+n));
 const u32=(b,p,little=false)=>p+4<=b.length ? new DataView(b.buffer,b.byteOffset,b.byteLength).getUint32(p,little):0;
@@ -17,7 +17,7 @@ export function importProblem(error) {
     EMPTY:['文件是空的','从原照片重新下载或导出，再选择一次。'],
     SIZE:['文件超过 30 MB','导出一份小于 30 MB 的 JPEG/PNG 副本；原文件无需删除。'],
     HEIC:['HEIC / HEIF 未能转换','macOS 本地工作台可以自动转换；其他环境请先转为 JPEG/PNG。改文件后缀不能转换格式。'],
-    RAW:['暂不支持 RAW / TIFF 原始格式','在相机或照片软件中导出 JPEG/PNG 副本，再继续修片。'],
+    RAW:['RAW 未能读取',error?.detail||'请使用本机 RAW 后端，检查机型与压缩方式；其他照片和原片保留。'],
     FORMAT:['不是支持的照片格式','请选择 JPG、PNG、WebP 或 AVIF；文件内容必须是照片。'],
     HEADER:['照片头信息不完整','重新下载原文件，或从照片软件重新导出 JPEG/PNG。'],
     ANIMATED:['这是一张动态图片','导出你想编辑的那一帧为静态 JPEG/PNG，再添加。'],
@@ -186,7 +186,7 @@ export async function runImportBatch(rows,{signal,inspect=inspectPhotoFile,prepa
       if(signal?.aborted)throw new PhotoImportError('CANCELLED');
       const prepared=await boundedRead(()=>prepare(row.file,signal),signal);
       const metadata=await boundedRead(()=>inspect(prepared,{maxBytes:prepared===row.file?importLimits.bytes:220_000_000}),signal);
-      if(prepared!==row.file)metadata.convertedFrom='HEIC';
+      if(prepared!==row.file)metadata.convertedFrom=prepared.rawProject?'RAW':'HEIC';
       if(signal?.aborted)throw new PhotoImportError('CANCELLED');
       checkImportCapacity(metadata,capacity());
       row.photo=await commit(prepared,metadata,signal,row.file);

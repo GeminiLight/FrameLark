@@ -12,7 +12,7 @@ import {validateProjectDocument} from './document-state.mjs';
 import {fail} from './engine/edit-values.js';
 
 export async function exportExchange(folder,output,{version}={}){
-  const p=await loadProject(folder),bytes=await readFile(path.join(folder,'source','original.bin'));
+  const p=await loadProject(folder);if(p.source.raw)fail('RAW_EXCHANGE_UNSUPPORTED','RAW 项目暂不支持单文件交换。请保留完整项目文件夹，或导出成片。');const bytes=await readFile(path.join(folder,'source','original.bin'));
   if(hash(bytes)!==p.source.checksum)fail('SOURCE_CHANGED','原片已改变，请恢复后再交换。');
   const selected=version===undefined?null:findVersion(p,version);
   if(selected&&!p.versions.some(v=>v.id===selected.id))fail('UNACCEPTED_EXPORT','交换只包含已保存版本；请先检查并接受试片。');

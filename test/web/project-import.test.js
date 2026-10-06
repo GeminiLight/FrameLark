@@ -39,3 +39,15 @@ test('Skill studio command registers only with a loopback workspace and returns 
   const result=await openStudioProject('/tmp/example',options);assert.equal(new URL(result.url).searchParams.get('project'),'test-project');assert.equal(called,true);
   called=false;await assert.rejects(openStudioProject('/tmp/example',{...options,url:'https://example.com'}),{code:'STUDIO_URL'});assert.equal(called,false);
 });
+
+
+test('RAW import sends original bytes locally and returns only a PNG proxy to the browser',async()=>{
+ const file=new File(['RAW-original'],'camera.NEF'),png=await readFile(new URL('../../apps/studio/public/assets/vision-probe.png',import.meta.url));let calls=0;
+ const result=await preparePhotoFile(file,{fetchImpl:async(url,options)=>{calls++;if(calls===1){assert.equal(url,'/api/projects/create');assert.equal(options.body,file);assert.equal(options.headers['X-Photo-Name'],'camera.NEF');return Response.json({id:'raw-project',source:{raw:{backend:'apple'}}});}assert.equal(url,'/api/projects/raw-project/source');return new Response(png,{headers:{'Content-Type':'image/png'}});}});
+ assert.equal(result.type,'image/png');assert.equal(result.rawProject.id,'raw-project');assert.equal(calls,2);assert.deepEqual(Buffer.from(await result.arrayBuffer()),png);
+});
+test('RAW decode failure keeps existing photos and reports the backend error',async()=>{
+ let committed=false;const rows=[{file:new File(['unsupported'],'camera.CR3'),status:'waiting'}];
+ await runImportBatch(rows,{prepare:file=>preparePhotoFile(file,{fetchImpl:async()=>Response.json({error:{message:'此 RAW 压缩方式未能解码。'}},{status:422})}),capacity:()=>({count:1,pixels:100}),commit:async()=>{committed=true;}});
+ assert.equal(committed,false);assert.equal(rows[0].problem.code,'RAW');assert.match(rows[0].problem.detail,/压缩方式/);
+});

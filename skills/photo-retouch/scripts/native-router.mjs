@@ -22,6 +22,7 @@ export async function handleNativeProjectRoute(req,res,url,{folder,base='/',rend
     if(req.method==='GET'&&operation==='edit-sources'){json(res,200,await editSources(folder,url.searchParams.get('version')||'current'));return;}
     if(req.method==='GET'&&operation==='image'){
       const options={maxSide:Number(url.searchParams.get('size'))||1400,withoutText:url.searchParams.get('withoutText')==='true'};
+      if(options.maxSide>2048&&(await loadProject(folder)).source.raw)options.master=true;
       if(url.searchParams.has('maskStep')){const mode=url.searchParams.get('maskMode');if(!['overlay','bw'].includes(mode))fail('INVALID_MASK_VIEW','范围显示模式无效。');options.maskView={stepId:url.searchParams.get('maskStep'),mode};}
       if(url.searchParams.has('revision'))options.revision=Number(url.searchParams.get('revision'));
       if(url.searchParams.has('selectionHash'))options.selectionHash=url.searchParams.get('selectionHash');
@@ -33,7 +34,7 @@ export async function handleNativeProjectRoute(req,res,url,{folder,base='/',rend
     }
     if(req.method==='GET'&&operation==='download'){
       const p=await loadProject(folder),item=p.exports.find(x=>path.basename(x.path)===url.searchParams.get('file')&&path.dirname(x.path)===path.join(folder,'exports'));if(!item)fail('EXPORT_NOT_FOUND','成片未找到，请重新导出。');
-      res.writeHead(200,{'Content-Type':item.format==='png'?'image/png':'image/jpeg','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(path.basename(item.path))}`,'Cache-Control':'no-store'});res.end(await readFile(item.path));return;
+      res.writeHead(200,{'Content-Type':item.format==='tiff'?'image/tiff':item.format==='png'?'image/png':'image/jpeg','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(path.basename(item.path))}`,'Cache-Control':'no-store'});res.end(await readFile(item.path));return;
     }
     if(req.method==='POST'){
       const value=await readBody(req),methods={candidate:createCandidate,'candidate-selection':selectCandidateItems,guards:changeGuards,note:saveNote,'delete-note':deleteNote,intent:setIntent,accept:acceptCandidate,discard:discardCandidate,restore:restoreVersion,review:saveReview,handoff:handoffProject};

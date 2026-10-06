@@ -64,7 +64,7 @@ const help={name:'FrameLark · 帧好 · 本地修片',usage:'node cli.mjs <comm
   discard:'--id <candidate-id> [--revision <n>]',
   restore:'--id <version-id> [--revision <n>]',
   compare:'--a <id|original|current> --b <id|current> [--region <JSON 原片范围>]',
-  export:'[--version <id|current>] [--preset share|print|original] [--format png|jpeg] [--output <new-file>] [--max-side <px>] [--quality <60..100>] [--dpi <72..1200>] [--without-text true]',
+  export:'[--version <id|current>] [--preset share|print|original|master] [--format png|jpeg|tiff] [--output <new-file>] [--max-side <px>] [--quality <60..100>] [--dpi <72..1200>] [--without-text true]',
   studio:'[--url http://127.0.0.1:3177]；连接完整工作台，共享文件项目并返回打开地址',
   serve:'[--port 0] [--session-file <private-json-file>]；仅监听 127.0.0.1，按 Ctrl+C 停止'
 },notes:['工具只在本地处理像素；审片与对话由宿主 Agent 进行。','JPEG/PNG/WebP/AVIF 输入；macOS 可转换静态 HEIC/HEIF；8 位 sRGB，PNG/JPEG 输出，8192 px / 1600 万像素上限。','原片字节和编辑方案独立保存；已有文件不会被导出覆盖。']};
@@ -96,7 +96,7 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'collection-plan':return saveCollectionPlan(folder,await input(o.input,2*1024*1024));
     case 'collection-sheet':return collectionSheet(folder,{page:o.page?Number(o.page):1,view:o.view||'current',selected:o.selected==='true'});
     case 'collection-export':return exportCollection(folder,await input(o.input,2*1024*1024));
-    case 'init':if(!o.image)fail('IMAGE_REQUIRED','请用 --image 指定原片。');return initProject(o.image,folder,{intent:o.intent});
+    case 'init':if(!o.image)fail('IMAGE_REQUIRED','请用 --image 指定原片。');return initProject(o.image,folder,{intent:o.intent,rawBackend:o['raw-backend']||'auto'});
     case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,project:{...p,collaboration:handoffView(p),workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),versions:p.versions.map(({id,name,parentId,createdAt,acceptedBy})=>({id,name,parentId,createdAt,acceptedBy})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
     case 'handoff':return handoffProject(folder,await input(o.input));
     case 'watch':return waitForProject(folder,{afterRevision:o['after-revision']===undefined?undefined:Number(o['after-revision']),timeoutMs:o.timeout===undefined?60000:Number(o.timeout)*1000});

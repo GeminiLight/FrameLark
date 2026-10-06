@@ -14,7 +14,7 @@ export class ProjectBridge {
     try{return await import('../../../../skills/photo-retouch/scripts/project.mjs');}
     catch(error){if(error.code==='ERR_MODULE_NOT_FOUND')throw Object.assign(new Error('请在项目目录运行 npm run setup，安装本地图片处理依赖后重试。'),{code:'PROJECT_SETUP_REQUIRED'});throw error;}
   }
-  async capabilities(){try{await this.runtime();return {projects:true,heic:process.platform==='darwin'};}catch{return {projects:false,heic:process.platform==='darwin',setup:'npm run setup'};}}
+  async capabilities(){try{await this.runtime();const {rawCapabilities}=await import('../../../../skills/photo-retouch/scripts/raw/backends.mjs');return {projects:true,heic:process.platform==='darwin',raw:await rawCapabilities()};}catch{return {projects:false,heic:process.platform==='darwin',raw:{available:false},setup:'npm run setup'};}}
   async registry(){if(!this.registryLoading)this.registryLoading=(async()=>{try{this.records=JSON.parse(await readFile(this.file,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;this.records={};}return this.records;})();return this.registryLoading;}
   async persist(){const value=JSON.stringify(await this.registry());this.writes=this.writes.catch(()=>{}).then(async()=>{await mkdir(join(this.root,'.guangjian'),{recursive:true,mode:0o700});const temp=this.file+'.'+randomUUID()+'.tmp';await writeFile(temp,value,{mode:0o600});await rename(temp,this.file);});return this.writes;}
   async register(folder){
@@ -34,7 +34,7 @@ export class ProjectBridge {
   view(p,path,runtime){
     const current=p.versions.find(v=>v.id===p.currentId),limitations=runtime.workspaceLimitations(p),native=runtime.publicProject(p);
     return {id:p.id,path,name:p.source.name,source:p.source,revision:p.revision,currentId:p.currentId,intent:p.intent,notes:p.notes,current:current.state,document:current.recipe||null,documentContext:runtime.projectDocument(p),toolRuns:versionToolRuns(current),
-      supported:!limitations,limitations,editor:`/api/projects/${p.id}/editor/?embedded=1`,workflow:native.workflowStatus,collaboration:native.collaboration,
+      supported:!limitations&&!p.source.raw,limitations:p.source.raw?'RAW 使用高精度后端编辑，浏览器只接收代理预览。':limitations,editor:`/api/projects/${p.id}/editor/?embedded=1`,workflow:native.workflowStatus,collaboration:native.collaboration,
       diagnosis:p.diagnoses?.find(d=>d.id===native.workflowStatus.diagnosisId)||null,updatedAt:p.updatedAt,acceptedBy:current.acceptedBy||null,
       versions:p.versions.map((v,index)=>({id:v.id,requestId:v.requestId||null,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,toolRuns:versionToolRuns(v),state:v.state,document:v.recipe||null,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,actorId:c.actorId||null,handoffId:c.handoffId||null,document:c.recipe||null,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn,operation,execution,commands})=>({id,title,dependsOn,operation,execution,commands})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
       exports:(p.exports||[]).map(e=>({path:e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
@@ -49,12 +49,12 @@ export class ProjectBridge {
     return handleNativeProjectRoute(request,response,url,{folder:path,base,embedded:true,readBody:async req=>JSON.parse((await readBody(req,2*1024*1024)).toString('utf8')),
       render:(action,key,options)=>this.render(action,path,key,options,signal)});
   }
-  async create(bytes,name){
+  async create(bytes,name,{signal}={}){
     const runtime=await this.runtime(),scratch=await mkdtemp(join(tmpdir(),'frameyn-project-import-'));
     try{
       const safe=basename(String(name||'photo.png')).replace(/[\x00-\x1f]/g,'').slice(0,160)||'photo.png',image=join(scratch,safe);
       await writeFile(image,bytes,{mode:0o600});const parent=join(this.root,'projects');await mkdir(parent,{recursive:true,mode:0o700});
-      const folder=join(parent,randomUUID());await runtime.initProject(image,folder);return await this.register(folder);
+      const folder=join(parent,randomUUID());await runtime.initProject(image,folder,{signal});return await this.register(folder);
     }finally{await rm(scratch,{recursive:true,force:true});}
   }
   async save(id,value){const {runtime,path}=await this.resolve(id),result=await runtime.saveWorkspaceSnapshot(path,value);return this.mutationView(runtime,result.project,path);}
@@ -125,11 +125,11 @@ export class ProjectBridge {
   }
   async export(id,{versionId,options={}},signal){
     const {runtime,p,path}=await this.resolve(id);if(!p.versions.some(v=>v.id===versionId))throw new Error('请先保存当前调整再导出。');
-    const {maxSide,format,quality,dpi,includeArtwork,author,copyright}=options;
-    const output=join(path,'exports',randomUUID()+(format==='png'?'.png':'.jpg'));
+    const {maxSide,format,preset,quality,dpi,includeArtwork,author,copyright}=options;
+    const output=join(path,'exports',randomUUID()+(format==='tiff'?'.tif':format==='png'?'.png':'.jpg'));
     let result;
     try{
-      result=await this.render('export',path,versionId,{output,maxSide,format,quality:quality<=1?quality*100:quality,dpi,includeArtwork,author,copyright,title:p.source.name},signal);
+      result=await this.render('export',path,versionId,{output,maxSide,format,preset,quality:quality<=1?quality*100:quality,dpi,includeArtwork,author,copyright,title:p.source.name},signal);
       if(signal?.aborted)throw Object.assign(new Error('导出已取消。'),{code:'CANCELLED'});
       await runtime.recordExport(path,result);
     }catch(error){await rm(output,{force:true});throw error;}
