@@ -70,10 +70,10 @@ try{
   await child('click','#adjustments summary');
   await wait(`${frame}.querySelector('#parameter-exposure').disabled===false`);
   await child('focus','#parameter-exposure');await child('press','ArrowRight');
-  await wait('document.querySelector("#project-sync-status").textContent.includes("未保存输入")');
+  await wait('document.querySelector("#project-sync-status").textContent==="协作精修中的修改尚未保存"');
   await browser('frame','main');await browser('hover','.photo-tab');await browser('click','#photo-tabs button[aria-label^="移出"]');
   assert.equal(await evaluate('JSON.stringify(document.querySelectorAll(".photo-tab").length)'),1,'Unsaved native input prevents removing its photo');
-  await child('click','#manual-reset');await wait('!document.querySelector("#project-sync-status").textContent.includes("未保存输入")');
+  await child('click','#manual-reset');await wait('document.querySelector("#project-sync-status").textContent==="已保存到项目"');
   for(const [width,height] of [[1280,577],[390,844],[320,720]]){
     await browser('set','viewport',String(width),String(height));
     assert.equal(await evaluate('JSON.stringify(document.documentElement.scrollWidth>innerWidth)'),false);
