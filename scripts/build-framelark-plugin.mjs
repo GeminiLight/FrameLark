@@ -6,9 +6,9 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {deflateRawSync} from 'node:zlib';
 
 export const repositoryRoot=fileURLToPath(new URL('../',import.meta.url));
-const excluded=new Set(['node_modules','__pycache__','.DS_Store']);
+const excluded=new Set(['node_modules','.raw-venv','__pycache__','.DS_Store']);
 const payloadRoots=['plugin.json','.codex-plugin','assets','skills/photo-retouch','skills/photography-eye'];
-const privateParts=new Set(['node_modules','__pycache__','.DS_Store','.git','.guangjian','.vercel','photos','projects','exports','drafts','artifacts','coverage','dist']);
+const privateParts=new Set(['node_modules','.raw-venv','__pycache__','.DS_Store','.git','.guangjian','.vercel','photos','projects','exports','drafts','artifacts','coverage','dist']);
 function isPrivateFile(name){
   return name.split('/').some(part=>privateParts.has(part)||/^\.env(?:\.|$)/.test(part)||/\.(?:log|tmp|pyc)$/.test(part));
 }

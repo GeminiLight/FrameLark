@@ -47,7 +47,7 @@ async function install({names,all,update,destination}){
     for(const entry of entries){
       await mkdir(path.dirname(entry.target),{recursive:true});
       const source=fileURLToPath(new URL('../skills/'+entry.name+'/',import.meta.url));
-      await cp(source,entry.stage,{recursive:true,filter:src=>!src.split(path.sep).includes('node_modules')});
+      await cp(source,entry.stage,{recursive:true,filter:src=>!src.split(path.sep).some(part=>['node_modules','.raw-venv','__pycache__'].includes(part))});
       if(entry.prior&&catalog[entry.name].setup)try{await cp(path.join(entry.prior,'node_modules'),path.join(entry.stage,'node_modules'),{recursive:true});}catch(e){if(e.code!=='ENOENT')throw e;}
       if(catalog[entry.name].setup){
         const code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[path.join(entry.stage,'scripts','setup.mjs')],{stdio:'inherit'});child.once('error',reject);child.once('exit',resolve);});
