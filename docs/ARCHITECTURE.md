@@ -1,6 +1,6 @@
 # 项目结构
 
-帧好包含完整摄影工作台和两个 Agent Skill。工作台负责浏览器编辑、视觉顾问和本机项目协作；Skill 保持独立分发，使用宿主 Agent 的能力；FrameLark 插件将两套 Skill 组合为一次安装。
+帧好包含完整摄影工作台和两个 Agent Skill。工作台负责浏览器编辑、视觉顾问和本机项目协作；Skill 保持独立分发，使用宿主 Agent 的能力。独立摄影眼插件只提供现场拍法，统一 FrameLark 插件将两套 Skill 组合为一次安装。
 
 ```text
 FrameLark/
@@ -8,6 +8,7 @@ FrameLark/
 ├── .codex-plugin/             Codex 兼容清单
 ├── .agents/plugins/           仓库插件市场
 ├── assets/                    插件小帧图标
+├── plugins/framelark-eye/      独立摄影眼清单与生成的 GitHub 安装副本
 ├── apps/studio/
 │   ├── public/                 浏览器界面、资源与图片处理模块
 │   └── server/
@@ -36,6 +37,8 @@ FrameLark/
 | `api/*.mjs` | Vercel 需要的薄适配层，复用工作台请求处理，不复制业务逻辑 |
 | `npm run photo -- …` | 调用修片 Skill 的 CLI |
 | `npm run install:skill` | 安装完整 `skills/photo-retouch` 目录 |
+| `npm run plugin:install:photography-eye` | 安装只有摄影眼的独立插件，不准备修图依赖 |
+| `npm run plugin:sync:photography-eye` | 从维护来源生成完整 GitHub 插件目录；CI 比较逐文件内容 |
 | `.agents/skills/photography-eye` | 指向摄影眼 Skill，供项目内 Agent 发现 |
 
 运行配置、用户照片与项目目录按工作目录解析。浏览器静态资源、校验图和 Skill 运行时代码按源码位置解析；从其他目录启动也应正确找到资源。
@@ -61,6 +64,7 @@ flowchart LR
 - 文件项目、候选事务、保护约束和审美审核记录由修片 Skill 的项目运行时管理，Web 通过桥接访问。
 - Web 与 Skill 分发相同的像素和工具模块。`engine:check` 逐文件检查一致性，防止分发副本漂移；移动目录不能顺带改变处理结果。
 - Skill 不依赖工作台目录，因此安装后的 CLI 和独立暗房仍能单独运行。
+- `skills/photography-eye` 是摄影眼唯一维护来源；`plugins/framelark-eye/skills/photography-eye` 是为 GitHub 插件市场生成的分发副本。修改源内容后执行同步命令，不手动修改副本。独立插件清单维护于 `plugins/framelark-eye/.codex-plugin/plugin.json`。
 
 ## 状态与异步边界
 

@@ -26,9 +26,21 @@ Xiaozhen · 小帧 is FrameLark’s curious little bird and photography companio
 
 ## Get started
 
-**Install one plugin for shooting guidance, photo retouching, and series creation.**
+**For on-location shooting advice, install Photography Eye on its own. Choose the full plugin when you need pixel retouching and photo series.**
 
-### Install
+### Install Photography Eye only
+
+The standalone **FrameLark Photography Eye** plugin (`framelark-eye`) contains only the `photography-eye` skill, reference material, and Xiaozhen assets. It does not prepare local retouching dependencies. In a local Codex client with plugin support, say:
+
+> Register or refresh the plugin marketplace from https://github.com/GeminiLight/FrameLark and install only framelark-eye@framelark. Confirm that it contains only photography-eye. I will open a new chat, attach a scene photo, and ask how to shoot here.
+
+From a cloned checkout, you can also run `npm run plugin:install:photography-eye`. Open a new chat, attach a scene photo, and ask “Use FrameLark Photography Eye to show me how to shoot here.”
+
+These are local Codex installation instructions. They do not establish direct GitHub installation in an ordinary ChatGPT mobile chat. Eligible workspace admins can import the repository marketplace and make the standalone plugin available to members; account and mobile availability still need verification. [Distribution scope](docs/PLUGIN.md#chatgpt-工作区与手机) (Chinese).
+
+### Install the full plugin
+
+Install one plugin for shooting guidance, photo retouching, and series creation.
 
 Recommended: ask your local Codex agent to install it:
 
@@ -151,4 +163,3 @@ Installation and usage guides are available in English; technical and photograph
 ## Contributors
 
 Thanks to [Yijie Xu (@yeahjack)](https://github.com/yeahjack) for selective edit acceptance, parameter and local-layer locks, protected regions, and rendering and preview responsiveness improvements: [#1](https://github.com/GeminiLight/FrameLark/pull/1), [#2](https://github.com/GeminiLight/FrameLark/pull/2).
-

@@ -1,6 +1,6 @@
 # Install FrameLark
 
-For Codex, use the unified plugin. Other agents that support skills and local tools can install the skills separately. For manual browser editing, start the studio. Choose one entry point.
+For on-location advice in Codex, install Photography Eye on its own. Use the unified plugin for pixel retouching and photo series. Other agents that support skills can install them separately. For manual browser editing, start the studio. Choose one entry point.
 
 [Home](../README.en.md) · [简体中文](INSTALLATION.md) · [User guide](USAGE.en.md)
 
@@ -29,6 +29,16 @@ cd FrameLark
 ```
 
 Run the remaining commands in this repository directory.
+
+## Photography Eye plugin only
+
+```sh
+npm run plugin:install:photography-eye
+```
+
+This installs `framelark-eye` with only the `photography-eye` skill, without preparing retouching dependencies. You can also ask local Codex to register or refresh the marketplace from GeminiLight/FrameLark and install only `framelark-eye@framelark`. Open a new chat, attach a scene photo, and ask “Use FrameLark Photography Eye to show me how to shoot here.”
+
+These are local installation instructions. Eligible ChatGPT workspace admins can import the repository marketplace, but ordinary mobile GitHub installation and account availability still need verification. See [plugin distribution](PLUGIN.md#chatgpt-工作区与手机) (Chinese).
 
 ## Unified Codex plugin
 

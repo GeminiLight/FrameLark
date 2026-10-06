@@ -1,0 +1,15 @@
+{
+  "version":1,
+  "frozenAt":"2026-10-03",
+  "label":"第二组人工改写，在v3实现后创建，首次跑分后不再视为未见；同一维护者出题，不是外部独立集",
+  "cases":[
+    {"id":"n01","query":"让后排的楼变得更大，站着不挪，只拧镜头是否够了","expected":["camera-settings#1"]},
+    {"id":"n02","query":"相机自己提感光度，到了我限定值还能守住速度吗","expected":["casebook#5","camera-settings#2"]},
+    {"id":"n03","query":"一碟红瓷配金属反光，拍桌上小东西该怎么选角度","expected":["subject-playbooks#8"]},
+    {"id":"n04","query":"脸在中间，两边背影围着它，有必要让所有人看镜头吗","expected":["master-methods#2","subject-playbooks#5"]},
+    {"id":"n05","query":"天已经黑蓝了，同一条街的感觉为什么忽然变了","expected":["master-methods#5","subject-playbooks#7"]},
+    {"id":"n06","query":"玻璃映着人，只露一小块红色帽子，需要把挡住的部分去掉吗","expected":["master-methods#4"]},
+    {"id":"n07","query":"我只有16到80恒定4，能按你说的1.8拍吗","expected":["camera-settings#1"]},
+    {"id":"n08","query":"画参考的时候能把每个小格的站位和设置写上吗","expected":["reference-visuals#2"]}
+  ]
+}

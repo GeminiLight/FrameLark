@@ -1,0 +1,9 @@
+{
+  "method": "审视中新开发的问题；追加词由维护者依据用户说明构建。比较原话与有依据的任务词，不测模型自动提取，也不称未见泛化。",
+  "cases": [
+    {"id":"route-friend","user":"我正面拍朋友，人应该往哪站，我站哪","evidence":["用户说明拍朋友，正面拍摄"],"conditions":[],"terms":"人物 肖像 站位 背景轮廓","expected":["subject-playbooks#5"]},
+    {"id":"route-umbrella","user":"人站在这儿，是否等他举起伞","evidence":["用户说明有人在场"],"conditions":["举伞是用户提出的等待条件，不是已见动作"],"terms":"人物 手势 等待瞬间 当前可拍","expected":["scout-to-shot#2","scout-to-shot#4"]},
+    {"id":"route-now","user":"快，晚霞出来了，先拍哪张","evidence":["用户确认当前有晚霞，要求立即拍"],"conditions":[],"terms":"光线正在变化 即时动作 当前晚霞","expected":["field-format#5","subject-playbooks#7","scout-to-shot#4"]},
+    {"id":"route-frame","user":"手机横拿还是竖拿，你的框跟这个一致吗","evidence":["用户追问框与画幅的对应"],"conditions":[],"terms":"原片边界 源图像素 宽高比 横竖幅","expected":["scout-to-shot#3"]}
+  ]
+}

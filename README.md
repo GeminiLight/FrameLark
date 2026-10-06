@@ -26,9 +26,21 @@ FrameLark 提供 Codex 插件、独立 Skill 和浏览器工作台，陪你从�
 
 ## 开始使用
 
-**一次安装统一插件，获得找画面、修照片和做组图三种能力。**
+**现场问「这里咋拍」：只安装摄影眼插件。需要实际修片和组图时，再选择统一插件。**
 
-### 安装
+### 只安装摄影眼
+
+独立插件名是 **FrameLark 摄影眼**（`framelark-eye`），只包含 `photography-eye` Skill、参考资料与小帧素材，摄影指导无需准备本地修图依赖。在支持插件的本地 Codex 中发送：
+
+> 帮我从 https://github.com/GeminiLight/FrameLark 注册或更新插件市场，只安装 FrameLark 摄影眼插件 framelark-eye@framelark。确认只包含 photography-eye；开启新对话后，我会发一张现场照问「这里咋拍？」。
+
+也可在克隆的仓库中运行 `npm run plugin:install:photography-eye`。新对话附照片，说「用 FrameLark 摄影眼看这里咋拍？」；继续问「喜欢 P3，具体站在哪里？」或发复拍照。
+
+以上是本地 Codex 安装入口，不能当作普通手机 ChatGPT 从 GitHub 直接安装的教程。ChatGPT 工作区可由有权限的管理员导入这个仓库市场，再选择独立摄影眼插件；手机使用需在实际账号中验证。[插件入口与分发范围](docs/PLUGIN.md#chatgpt-工作区与手机)。
+
+### 安装统一插件
+
+一次安装统一插件，获得找画面、修照片和做组图三种能力。
 
 推荐让本地 Codex 代装，直接发送：
 
@@ -149,4 +161,3 @@ npm run plugin:install
 ## 贡献者
 
 感谢 [Yijie Xu（@yeahjack）](https://github.com/yeahjack) 贡献逐项调整采纳、参数与局部层锁定、画面区域保护，以及渲染和预览响应优化：[#1](https://github.com/GeminiLight/FrameLark/pull/1)、[#2](https://github.com/GeminiLight/FrameLark/pull/2)。
-
