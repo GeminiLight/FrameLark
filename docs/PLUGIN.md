@@ -4,6 +4,8 @@
 
 ## 独立摄影眼插件
 
+[快速安装页](https://tianfuwang.tech/FrameLark/install.html)提供本地 Codex 预填请求、无需克隆的终端命令，以及已添加市场后的插件页入口。详见[快速安装](INSTALLATION.md#终端快速安装无需克隆)。公共目录发布步骤见[发布流程](PUBLISHING.md)；完成实际发布前不提供假定的公共安装卡。
+
 只需要现场拍法时，选择 **FrameLark 摄影眼**（`framelark-eye`）。它只有 `photography-eye`、拍摄与后期方向参考、小帧素材及无额外依赖的辅助脚本，不包含照片精修、组图工具或它们的图片处理依赖。看图和可选生图使用当前宿主能力。
 
 让支持插件的本地 Codex 代装：

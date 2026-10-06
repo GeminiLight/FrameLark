@@ -1,8 +1,8 @@
 import {execFileSync,spawn} from 'node:child_process';
-import {readFile} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {buildPlugin} from './build-framelark-plugin.mjs';
 import {installationGuide} from './installation-guide.mjs';
+import {verifyInstalledPlugin} from './install-photography-eye.mjs';
 
 function codex(args){
   try{return JSON.parse(execFileSync('codex',[...args,'--json'],{encoding:'utf8',maxBuffer:2_000_000,stdio:['ignore','pipe','inherit']}));}
@@ -17,19 +17,17 @@ const current=codex(['plugin','marketplace','list']).marketplaces.find(item=>ite
 if(current&&(!current.root||resolve(current.root)!==resolve(built.marketplaceRoot)))codex(['plugin','marketplace','remove',built.marketplaceName]);
 codex(['plugin','marketplace','add',built.marketplaceRoot]);
 const installed=codex(['plugin','add',built.name+'@'+built.marketplaceName]);
-if(!installed.installedPath)throw Error('Codex did not report the installed plugin path.');
-const manifest=JSON.parse(await readFile(join(installed.installedPath,'.codex-plugin/plugin.json'),'utf8'));
-if(manifest.name!==built.name||manifest.version!==built.version)throw Error('Installed plugin identity differs from the package.');
 const names=built.skills;
+const verified=await verifyInstalledPlugin({pluginId:built.name+'@'+built.marketplaceName,installedPath:installed.installedPath,skills:names,version:built.version,codex});
 let code=0;
 if(names.includes('photo-retouch')){
   const setup=join(installed.installedPath,'skills/photo-retouch/scripts/setup.mjs');
   code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[setup],{stdio:'inherit'});child.once('error',reject);child.once('exit',resolve);});
 }
-const guide=installationGuide({names,retouchReady:names.includes('photo-retouch')&&code===0,version:manifest.version});
+const guide=installationGuide({names,retouchReady:names.includes('photo-retouch')&&code===0,version:verified.version});
 if(code!==0){
   console.error(guide.message);
   throw Error('插件已安装，但本地修图依赖未就绪。请检查 Node.js 与网络后重新运行 npm run plugin:install，或请当前 Agent 准备照片精修依赖。');
 }
-console.log(JSON.stringify({ok:true,pluginId:installed.pluginId,version:installed.version,installedPath:installed.installedPath,skills:names,retouchDependencies:names.includes('photo-retouch')?'ready':'not-required',next:'Open a new Codex chat to load the installed plugin.',gettingStarted:guide},null,2));
+console.log(JSON.stringify({ok:true,...verified,retouchDependencies:names.includes('photo-retouch')?'ready':'not-required',next:'Open a new Codex chat to load the installed plugin.',gettingStarted:guide},null,2));
 console.error(guide.message);

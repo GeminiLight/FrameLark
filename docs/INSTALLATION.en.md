@@ -21,22 +21,38 @@ If `codex` or plugin support is missing, follow the [official CLI setup](https:/
 
 The plugin and skills use the host agent for vision and conversation, without another model API key. Retouching also requires local tool execution and access to the selected photos. Optional image generation and editing depend on the host’s available tools.
 
-Download the repository:
+Photography Eye has a no-checkout installer below. Download the repository for a local build, the full plugin, standalone skills, or the local studio:
 
 ```sh
 git clone https://github.com/GeminiLight/FrameLark.git
 cd FrameLark
 ```
 
-Run the remaining commands in this repository directory.
+Run the remaining npm commands in this repository directory.
 
 ## Photography Eye plugin only
+
+Open the [Photography Eye installation page](https://tianfuwang.tech/FrameLark/install.html) (Chinese) to start a local Codex chat with a prefilled installation request. Send the request to begin; the button does not send it automatically.
+
+For a no-checkout terminal installation, Node.js 20.9+, Git, and a plugin-capable Codex CLI are required. Download and execute the [standalone installer](../scripts/install-photography-eye.mjs):
+
+```sh
+node --input-type=module -e "const r=await fetch('https://raw.githubusercontent.com/GeminiLight/FrameLark/main/scripts/install-photography-eye.mjs');if(!r.ok)throw Error('Download failed: '+r.status);await import('data:text/javascript;base64,'+Buffer.from(await r.text()).toString('base64'))"
+```
+
+It registers or refreshes the GitHub marketplace and installs only `framelark-eye@framelark`. Success requires exactly the `photography-eye` skill and an installed, enabled plugin. A same-name marketplace with another source is preserved rather than silently replaced. No npm or image-processing dependencies are installed.
+
+From a checkout, `npm run plugin:install:photography-eye:github` runs the same installer. Installation applies to the Codex environment running the command, not other devices or your ChatGPT mobile account.
+
+For a local development build instead:
 
 ```sh
 npm run plugin:install:photography-eye
 ```
 
 This installs `framelark-eye` with only the `photography-eye` skill, without preparing retouching dependencies. You can also ask local Codex to register or refresh the marketplace from GeminiLight/FrameLark and install only `framelark-eye@framelark`. Open a new chat, attach a scene photo, and ask “Use FrameLark Photography Eye to show me how to shoot here.”
+
+The local build uses its own `framelark-eye` marketplace. Both installers check installed contents and enabled state before reporting success.
 
 These are local installation instructions. Eligible ChatGPT workspace admins can import the repository marketplace, but ordinary mobile GitHub installation and account availability still need verification. See [plugin distribution](PLUGIN.md#chatgpt-工作区与手机) (Chinese).
 
