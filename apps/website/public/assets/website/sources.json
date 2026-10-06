@@ -20,6 +20,14 @@
       "page": "https://www.pexels.com/photo/reflection-of-cafe-in-window-9473089/",
       "license": "Pexels License",
       "license_url": "https://www.pexels.com/license/"
+    },
+    {
+      "id": "lakeside-input",
+      "author": "Alina Matveycheva",
+      "page": "https://www.pexels.com/photo/people-on-park-by-the-lakeside-12311020/",
+      "license": "Pexels License",
+      "license_url": "https://www.pexels.com/license/",
+      "asset": "/assets/website/lakeside-original.jpg"
     }
   ],
   "hero": "Existing FrameLark sample image: public/assets/alpine-demo.png. Illustrative image, not a recorded user result.",
@@ -42,6 +50,7 @@
   "caseReferences": {
     "arcade": "Approved existing warm-paper AI shooting reference; input retained in assets/cases.",
     "cafe": "Existing AI shooting reference optimized as WebP; complete source and limitations in examples.html#cafe.",
-    "series": "Cat and coffee CC0 public samples; actual two-photo workspace screenshot in examples.html#series."
+    "series": "Cat and coffee CC0 public samples; actual two-photo workspace screenshot in examples.html#series.",
+    "lakeside": "New AI shooting and light/color reference based on the licensed lakeside input and fixed Xiaozhen mascot; five suggestions, not an actual retouched input. Complete case and source in lakeside-case.html."
   }
 }
