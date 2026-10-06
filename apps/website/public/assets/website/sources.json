@@ -15,9 +15,9 @@
       "license_url": "https://unsplash.com/license"
     },
     {
-      "id": "arcade-input",
-      "author": "Moises Caro",
-      "page": "https://www.pexels.com/photo/people-walking-on-the-hallway-13304171/",
+      "id": "cafe-input",
+      "author": "David Yu",
+      "page": "https://www.pexels.com/photo/reflection-of-cafe-in-window-9473089/",
       "license": "Pexels License",
       "license_url": "https://www.pexels.com/license/"
     }
@@ -38,5 +38,10 @@
         "shadows": 8
       }
     }
-  ]
+  ],
+  "caseReferences": {
+    "arcade": "Approved existing warm-paper AI shooting reference; input retained in assets/cases.",
+    "cafe": "Existing AI shooting reference optimized as WebP; complete source and limitations in examples.html#cafe.",
+    "series": "Cat and coffee CC0 public samples; actual two-photo workspace screenshot in examples.html#series."
+  }
 }

@@ -4,6 +4,13 @@ const examples = {
   portrait: {assetPrefix:'portrait-generated',sourceLabel:'AI 生成示例 / imagegen',alt:'AI 生成的林间自然光人像示例，保留柔光与肌肤纹理',quote:'“这张示例的柔光值得保留。试着轻收亮部、稍开暗部，比较后再决定要不要这点变化。”',adjustments:[['高光','−12'],['阴影','+8'],['曝光','+0.06 EV']],keep:'保留柔和侧光与自然的光色关系，轻量试修由你决定。'}
 };
 
+const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+function arrive(element,{distance=18,duration=550,delay=0}={}){
+  if(!element||reducedMotion.matches||typeof element.animate!=='function')return;
+  element.getAnimations().forEach(animation=>animation.cancel());
+  element.animate([{opacity:0,transform:`translateY(${distance}px)`},{opacity:1,transform:'translateY(0)'}],{duration,delay,easing:'cubic-bezier(.2,.65,.3,1)'});
+}
+
 const header = document.querySelector('.site-header');
 const menuToggle = document.querySelector('.menu-toggle');
 const mobileMenu = document.querySelector('#mobile-menu');
@@ -12,8 +19,9 @@ menuToggle.addEventListener('click',()=>{const open=menuToggle.getAttribute('ari
 mobileMenu.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMenu));
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!mobileMenu.hidden){closeMenu();menuToggle.focus();}});
 window.matchMedia('(min-width:681px)').addEventListener('change',event=>{if(event.matches)closeMenu();});
-const updateHeader=()=>header.classList.toggle('scrolled',window.scrollY>12);
+const updateHeader=()=>{header.classList.toggle('scrolled',window.scrollY>12);const total=document.documentElement.scrollHeight-window.innerHeight;header.style.setProperty('--read-progress',total>0?String(Math.min(1,window.scrollY/total)):'0');};
 window.addEventListener('scroll',updateHeader,{passive:true});updateHeader();
+window.addEventListener('resize',updateHeader,{passive:true});
 
 const range=document.querySelector('#compare-range');
 const comparison=document.querySelector('.comparison');
@@ -47,6 +55,9 @@ async function selectExample(tab){
     document.querySelector('#demo-quote').textContent=example.quote;
     document.querySelector('#demo-keep').textContent=example.keep;
     const list=document.querySelector('#demo-adjustments');list.replaceChildren(...example.adjustments.map(([label,value])=>{const li=document.createElement('li');const name=document.createElement('span');const number=document.createElement('strong');name.textContent=label;number.textContent=value;li.append(name,number);return li;}));
+    arrive(comparison,{distance:6,duration:450});
+    arrive(document.querySelector('#demo-quote'),{distance:10,duration:450,delay:60});
+    arrive(list,{distance:10,duration:450,delay:100});
   }catch{
     if(thisRequest===requestId)document.querySelector('.compare-instruction').textContent='图片暂未加载完成，请再点一次样张重试。';
   }finally{if(thisRequest===requestId)comparison.setAttribute('aria-busy','false');}
@@ -63,8 +74,73 @@ tabs.forEach((tab,index)=>{
   });
 });
 
+const eyeScenes={
+  arcade:{title:'光影拱廊',board:'/assets/website/photography-board.webp',original:'/assets/cases/arcade-reference.png',alt:'拱廊现场的五种机位与拍法参考'},
+  cafe:{title:'玻璃倒影',board:'/assets/website/cafe-board.webp',original:'/assets/cases/cafe-reference.png',alt:'咖啡馆玻璃倒影的五种机位与拍法参考'}
+};
+const eyeTabs=[...document.querySelectorAll('[data-eye-case]')];
+const eyeArt=document.querySelector('.eye-art');
+let eyeIndex=0,eyeRequest=0;
+async function selectEye(index){
+  index=(index+eyeTabs.length)%eyeTabs.length;
+  const request=++eyeRequest;
+  if(index===eyeIndex){eyeArt.setAttribute('aria-busy','false');return;}
+  const tab=eyeTabs[index],panel=document.getElementById(tab.getAttribute('aria-controls'));
+  eyeArt.setAttribute('aria-busy','true');
+  try{
+    await Promise.all([...panel.querySelectorAll('img')].map(img=>loadImage(img.src)));
+    if(request!==eyeRequest)return;
+    eyeIndex=index;
+    eyeTabs.forEach((item,i)=>{item.setAttribute('aria-selected',String(i===index));item.tabIndex=i===index?0:-1;document.getElementById(item.getAttribute('aria-controls')).hidden=i!==index;});
+    document.querySelector('#eye-current').textContent=String(index+1).padStart(2,'0');
+    document.querySelector('#eye-announcement').textContent=`已切换到${eyeScenes[tab.dataset.eyeCase].title}，现场输入与五种拍法参考。`;
+    arrive(panel.querySelector('.scene-input'),{distance:14,duration:450});
+    arrive(panel.querySelector('.scene-output'),{distance:14,duration:550,delay:60});
+  }catch{
+    if(request===eyeRequest)document.querySelector('#eye-announcement').textContent='案例图片暂未加载完成，请再次点击重试。';
+  }finally{if(request===eyeRequest)eyeArt.setAttribute('aria-busy','false');}
+}
+function bindTabKeys(items,select){
+  items.forEach((tab,index)=>tab.addEventListener('keydown',event=>{
+    let next;
+    if(event.key==='ArrowRight')next=(index+1)%items.length;
+    if(event.key==='ArrowLeft')next=(index-1+items.length)%items.length;
+    if(event.key==='Home')next=0;
+    if(event.key==='End')next=items.length-1;
+    if(next!==undefined){event.preventDefault();items[next].focus();select(next);}
+  }));
+}
+eyeTabs.forEach((tab,index)=>tab.addEventListener('click',()=>selectEye(index)));
+bindTabKeys(eyeTabs,selectEye);
+document.querySelectorAll('[data-eye-direction]').forEach(button=>button.addEventListener('click',()=>selectEye(eyeIndex+Number(button.dataset.eyeDirection))));
+let touchStart,lastSwipe=0;
+eyeArt.addEventListener('pointerdown',event=>{if(event.pointerType==='touch')touchStart={x:event.clientX,y:event.clientY};});
+eyeArt.addEventListener('pointercancel',()=>{touchStart=undefined;});
+eyeArt.addEventListener('pointerup',event=>{if(!touchStart)return;const dx=event.clientX-touchStart.x,dy=event.clientY-touchStart.y;touchStart=undefined;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.5){lastSwipe=Date.now();selectEye(eyeIndex+(dx<0?1:-1));}});
+eyeArt.addEventListener('click',event=>{if(Date.now()-lastSwipe<400){event.preventDefault();event.stopImmediatePropagation();}},true);
+
+const seriesSteps={
+  theme:{title:'先找到，它们共有的气氛。',description:'猫的目光、木桌上的咖啡。让「安静日常」成为选择和取舍的线索。'},
+  order:{title:'让目光，顺着故事走。',description:'先用猫的目光让人停下来，再接一杯咖啡。试试这个顺序，让两张照片彼此呼应。'},
+  edit:{title:'气氛连在一起，细节各自保留。',description:'逐张比较光色，再决定调整的幅度。保留猫的毛发、白瓷与暖木各自的质感。'}
+};
+const seriesTabs=[...document.querySelectorAll('[data-series-step]')];
+function selectSeries(index){
+  const tab=seriesTabs[index];if(tab.getAttribute('aria-selected')==='true')return;
+  const step=tab.dataset.seriesStep,content=seriesSteps[step],panel=document.querySelector('#series-step-panel');
+  seriesTabs.forEach(item=>{item.setAttribute('aria-selected',String(item===tab));item.tabIndex=item===tab?0:-1;});
+  panel.setAttribute('aria-labelledby',tab.id);
+  panel.querySelector('.series-step-title').textContent=content.title;
+  panel.querySelector('.series-step-description').textContent=content.description;
+  document.querySelector('.series-case').dataset.step=step;
+  arrive(panel,{distance:10,duration:420});
+}
+seriesTabs.forEach((tab,index)=>tab.addEventListener('click',()=>selectSeries(index)));
+bindTabKeys(seriesTabs,selectSeries);
+
 document.querySelectorAll('[data-open]').forEach(button=>button.addEventListener('click',()=>{
   const dialog=document.getElementById(button.dataset.open);if(!dialog)return;
+  if(button.dataset.board){const scene=eyeScenes[button.dataset.board];dialog.querySelector('#board-dialog-title').textContent=`${scene.title} · 五种拍法`;dialog.querySelector('img').src=scene.board;dialog.querySelector('img').alt=scene.alt;dialog.querySelector('.original-board-link').href=scene.original;}
   closeMenu();dialog.showModal();document.body.classList.add('has-dialog');
 }));
 document.querySelectorAll('.site-dialog').forEach(dialog=>{
@@ -72,3 +148,56 @@ document.querySelectorAll('.site-dialog').forEach(dialog=>{
   dialog.addEventListener('close',()=>document.body.classList.remove('has-dialog'));
   dialog.addEventListener('click',event=>{const rect=dialog.getBoundingClientRect();if(event.target===dialog&&(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom))dialog.close();});
 });
+
+// Content is visible without JavaScript; entrance animations run only in view.
+if('IntersectionObserver' in window){
+  const entrances=new IntersectionObserver(entries=>entries.forEach(entry=>{
+    if(!entry.isIntersecting)return;
+    entrances.unobserve(entry.target);
+    arrive(entry.target,{distance:entry.target.matches('h1,h2')?24:18,duration:700,delay:Number(entry.target.dataset.motionDelay||0)});
+  }),{threshold:.12});
+  document.querySelectorAll('.hero-copy>.eyebrow,.hero-copy>h1,.hero-description,.hero-actions,.hero-main-photo,.hero-small-photo,.journey>p,.journey li,.section-heading h2,.section-heading .section-description,.eye-art,.eye-points li,.atelier-demo,.chapter-case,.craft-principles p,.series-photos,.series-story,.expression-features article,.companion-portrait,.companion-copy,.faq-intro,.faq-list details,.start-inner>h2,.start-actions').forEach((element,index)=>{element.dataset.motionDelay=String((index%3)*65);entrances.observe(element);});
+  const links=[...document.querySelectorAll('.desktop-nav a,.mobile-menu a')];
+  const sections=[...document.querySelectorAll('#eye,#craft,#series,#companion')];
+  let chapterFrame=0;
+  const updateChapter=()=>{
+    chapterFrame=0;
+    const readingLine=innerHeight*.4;
+    const active=sections.find(section=>{const rect=section.getBoundingClientRect();return rect.top<=readingLine&&rect.bottom>readingLine;});
+    links.forEach(link=>{if(active&&link.getAttribute('href')===`#${active.id}`)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');});
+  };
+  const scheduleChapter=()=>{if(!chapterFrame)chapterFrame=requestAnimationFrame(updateChapter);};
+  window.addEventListener('scroll',scheduleChapter,{passive:true});window.addEventListener('resize',scheduleChapter,{passive:true});scheduleChapter();
+  const ambient=new IntersectionObserver(entries=>entries.forEach(entry=>{entry.target.dataset.inView=String(entry.isIntersecting);}),{threshold:.1});
+  ambient.observe(document.querySelector('.hero-gallery'));
+}
+
+// A single short sweep makes the comparison understandable; user input wins.
+let sweepFrame=0,sweepStopped=false;
+function stopSweep(){sweepStopped=true;cancelAnimationFrame(sweepFrame);}
+['pointerdown','keydown','input'].forEach(type=>range.addEventListener(type,stopSweep));
+tabs.forEach(tab=>{tab.addEventListener('click',stopSweep);tab.addEventListener('keydown',stopSweep);});
+if('IntersectionObserver' in window){
+  let sweepTimer;
+  const comparisonEntrance=new IntersectionObserver(entries=>{
+    clearTimeout(sweepTimer);
+    if(!entries.some(entry=>entry.isIntersecting)||reducedMotion.matches||sweepStopped)return;
+    sweepTimer=setTimeout(()=>{
+      if(reducedMotion.matches||sweepStopped)return;
+      comparisonEntrance.disconnect();
+      const start=performance.now(),initial=Number(range.value),points=[initial,70,34,initial];
+      function sweep(now){
+        if(sweepStopped||reducedMotion.matches)return;
+        const rect=comparison.getBoundingClientRect();
+        if(rect.bottom<80||rect.top>innerHeight){range.value=String(initial);updateComparison();return;}
+        const progress=Math.min(1,(now-start)/2100),segment=Math.min(2,Math.floor(progress*3)),fraction=Math.min(1,progress*3-segment),ease=(1-Math.cos(fraction*Math.PI))/2;
+        range.value=String(Math.round(points[segment]+(points[segment+1]-points[segment])*ease));updateComparison();
+        if(progress<1)sweepFrame=requestAnimationFrame(sweep);else{range.value=String(initial);updateComparison();}
+      }
+      sweepFrame=requestAnimationFrame(sweep);
+    },500);
+  },{threshold:.55});comparisonEntrance.observe(comparison);
+}
+reducedMotion.addEventListener('change',event=>{if(event.matches){stopSweep();document.getAnimations().forEach(animation=>animation.cancel());}});
+// Old shared links now land at the case switcher in the first chapter.
+if(location.hash==='#cases'){history.replaceState(null,'','#eye');document.querySelector('#eye').scrollIntoView();}
