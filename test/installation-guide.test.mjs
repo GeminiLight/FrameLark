@@ -17,13 +17,13 @@ test('eye-only installation offers shooting guidance without claiming retouch to
 
 test('installed retouch workflows remain pending until their actual dependencies are ready', () => {
   const result = guide({names: ['photo-retouch'], retouchReady: false});
-  assert.deepEqual(result.tasks.map(task => task.id), ['retouch', 'series']);
+  assert.deepEqual(result.tasks.map(task => task.id), ['retouch']);
   assert.equal(result.retouchState, 'needs-setup');
   assert.ok(result.tasks.every(task => task.localState === 'needs-setup'));
 });
 
-test('both installed skills provide three natural entry points and a new-chat next step', () => {
-  const result = guide({names: ['photography-eye', 'photo-retouch'], retouchReady: true, version: '0.1.6'});
+test('three installed skills provide three natural entry points and a new-chat next step', () => {
+  const result = guide({names: ['photography-eye', 'photo-retouch', 'photo-series'], retouchReady: true, version: '0.1.10'});
   assert.deepEqual(result.tasks.map(task => task.id), ['scout', 'retouch', 'series']);
   assert.equal(result.retouchState, 'ready');
   assert.equal(result.nextAction, 'new-chat');
@@ -33,6 +33,12 @@ test('both installed skills provide three natural entry points and a new-chat ne
   assert.ok(result.message.includes(result.tasks[0].prompt));
   assert.ok(result.message.includes(result.tasks[1].prompt));
   assert.ok(result.message.includes(result.tasks[2].prompt));
+});
+
+test('series is not ready without the shared retouch runtime',()=>{
+  const result=guide({names:['photo-series'],retouchReady:true});
+  assert.deepEqual(result.tasks.map(task=>task.id),['series']);
+  assert.equal(result.tasks[0].localState,'needs-retouch');
 });
 
 test('unknown or duplicate installed names cannot advertise extra workflows', () => {

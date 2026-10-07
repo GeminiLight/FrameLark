@@ -18,6 +18,7 @@ async function fixture(t){
   ]}));
   await put('assets/framelark-avatar.png','full plugin icon');
   await put('skills/photo-retouch/SKILL.md','---\nname: photo-retouch\n---\nFull retouch workflow.');
+  await put('skills/photo-series/SKILL.md','---\nname: photo-series\n---\nSeries workflow using the bundled retouch runtime.');
   await put('skills/photo-retouch/package.json','{"dependencies":{"sharp":"0.35.4"}}');
   await put('skills/photo-retouch/scripts/setup.mjs',"import {writeFileSync} from 'node:fs'; writeFileSync("+JSON.stringify(join(root,'retouch-setup-ran'))+",'ran');");
   await put('skills/photography-eye/SKILL.md','---\nname: photography-eye\n---\nSee [guide](references/guide.md) and [bird](assets/xiaozhen.png).');
@@ -49,6 +50,25 @@ test('standalone photography plugin preserves the maintained skill and excludes 
   for(const f of files)assert.deepEqual(archive.find(a=>a.name==='framelark-eye/'+f.name).data,f.data);
   const catalog=JSON.parse(await readFile(built.marketplacePath));assert.equal(catalog.name,'framelark-eye');assert.equal(catalog.plugins.length,1);assert.equal(catalog.plugins[0].source.path,'./framelark-eye');
   const full=await buildPlugin({root});assert.ok((await packageFiles(full.folder)).some(f=>f.name==='skills/photo-retouch/SKILL.md'));await access(built.zipPath);
+});
+
+test('full plugin includes three independent skill entries',async t=>{
+  const {root}=await fixture(t),built=await buildPlugin({root});
+  assert.deepEqual([...built.skills].sort(),['photo-retouch','photo-series','photography-eye']);
+  const files=await packageFiles(built.folder);
+  for(const name of built.skills)await access(join(built.folder,'skills',name,'SKILL.md'));
+  assert.deepEqual(files.filter(file=>file.name.endsWith('/SKILL.md')).map(file=>file.name).sort(),built.skills.map(name=>'skills/'+name+'/SKILL.md').sort());
+});
+
+test('standalone series installation includes its retouch dependency but leaves photography eye out',async t=>{
+  const {root,put}=await fixture(t);
+  for(const name of ['install-photo-skill.mjs','installation-guide.mjs'])await put('scripts/'+name,await readFile(join(repositoryRoot,'scripts',name)));
+  const target=join(root,'installed-skills');
+  const result=spawnSync(process.execPath,[join(root,'scripts/install-photo-skill.mjs'),'--skill','photo-series',target],{cwd:root,encoding:'utf8'});
+  assert.equal(result.status,0,result.stderr);
+  await access(join(target,'photo-series/SKILL.md'));await access(join(target,'photo-retouch/SKILL.md'));
+  await access(join(root,'retouch-setup-ran'));
+  await assert.rejects(access(join(target,'photography-eye')));
 });
 
 test('eye-only build never reads tracked retouch configuration',async t=>{

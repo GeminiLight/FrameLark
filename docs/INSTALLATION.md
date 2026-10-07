@@ -74,7 +74,7 @@ npm run plugin:install:photography-eye
 npm run plugin:install
 ```
 
-安装器会构建插件、注册 FrameLark 市场、安装 `framelark@framelark`，再准备本地修图依赖。首次准备依赖需要联网。成功时输出 `ok: true`、两套 Skill 名称和 `retouchDependencies: ready`。 成功后还会给出三种任务的起手句和继续追问的例子；只装一套 Skill 时只展示相应入口。看图和可选生图仍需在当前会话确认，不因安装成功就称生图已就绪。
+安装器会构建插件、注册 FrameLark 市场、安装 `framelark@framelark`，再准备本地修图依赖。首次准备依赖需要联网。成功时输出 `ok: true`、三个 Skill 名称和 `retouchDependencies: ready`。 成功后还会给出三种任务的起手句和继续追问的例子；只装一套 Skill 时只展示相应入口。看图和可选生图仍需在当前会话确认，不因安装成功就称生图已就绪。
 
 **开启一个新对话**，确认插件已启用，附上照片开始：
 
@@ -84,7 +84,7 @@ npm run plugin:install
 
 也可以在已有 Codex 对话中直接说：
 
-> 从 GeminiLight/FrameLark 注册 FrameLark 插件市场，安装 framelark@framelark，确认摄影眼和照片精修两套 Skill 都已包含。
+> 从 GeminiLight/FrameLark 注册 FrameLark 插件市场，安装 framelark@framelark，确认摄影眼、精修台和组图册三个 Skill 都已包含。
 
 Agent 会按当前环境安装。直接市场命令、启用状态检查、ZIP 分发和发布范围见 [插件说明](PLUGIN.md)。当前通过仓库插件市场安装，尚未上架 OpenAI 官方通用目录。
 
@@ -101,21 +101,24 @@ npm run plugin:install
 
 ## 独立安装 Skill
 
-统一插件已经包含两套 Skill。想独立使用，或宿主不支持插件时，再选择此方式。
+统一插件已经包含三个 Skill。想独立使用，或宿主不支持插件时，再选择此方式。
 
 | 安装内容 | 命令 |
 | --- | --- |
-| 摄影眼与照片精修 | `npm run install:skills` |
+| 摄影眼、精修台与组图册 | `npm run install:skills` |
+| 组图册与精修引擎 | `node scripts/install-photo-skill.mjs --skill photo-series` |
 | 仅照片精修 | `npm run install:skill` |
 | 仅摄影眼 | `npm run install:photography-eye` |
 
-默认分别安装到 `~/.codex/skills/photography-eye` 和 `~/.codex/skills/photo-retouch`。摄影眼无需额外图片依赖；照片精修会准备固定版本的图片依赖。
+默认安装到 `~/.codex/skills/` 下的 `photography-eye`、`photo-retouch` 和 `photo-series`。摄影眼无需本地图片依赖；组图册共享精修台的引擎，单独选择组图册也会一起安装精修台。已有安装时加 `--update`，更新前保留备份。
 
 安装后刷新 Skill 列表或开启新对话，附图使用：
 
 > 用 $photography-eye 看这里有哪些值得拍的画面，告诉我站哪、怎么取景和设置参数。
 
 > 用 $photo-retouch 修这张照片。先说明值得保留的关系，再给可预览的调整方案。
+
+> 用 $photo-series 从这个目录做朋友圈九宫格，先定主题、选片和逐张精修，保留原片。
 
 ### 更新与旧版迁移
 
@@ -139,6 +142,12 @@ npm run install:skills -- /你的/agent/skills
 ```sh
 node scripts/install-photo-skill.mjs /你的/agent/skills/photo-retouch
 node scripts/install-photo-skill.mjs --skill photography-eye /你的/agent/skills/photography-eye
+```
+
+组图册需要精修引擎，指定的是 **skills 根目录**：
+
+```sh
+node scripts/install-photo-skill.mjs --skill photo-series /你的/agent/skills
 ```
 
 其他宿主如何发现、启用 Skill，以宿主说明为准。

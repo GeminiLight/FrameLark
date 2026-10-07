@@ -18,7 +18,7 @@ FrameLark offers a Codex plugin, standalone skills, and a browser studio to help
 | **[Refine photos · Retouch Desk](#photo-retouch-demo)** | Work on light, color, cropping, and local details; customize a look and compare candidates before accepting. |
 | **[Curate a series · Series Album](#photo-series-demo)** | Define a theme, select varied images, refine each one, and arrange a sequence that holds together. |
 
-People, wider scenes, and small details can belong in the same set. Photography Eye uses the `photography-eye` skill; Retouch Desk and Series Album use `photo-retouch`.
+People, wider scenes, and small details can belong in the same set. Each has its own skill: `photography-eye`, `photo-retouch`, and `photo-series`. Series Album coordinates individual retouching through Retouch Desk and supports nine-image grids or other requested counts.
 
 Xiaozhen · 小帧 is FrameLark’s curious little bird and photography companion. [Meet Xiaozhen](docs/WEB_DESIGN.md#品牌与小帧) (Chinese)
 

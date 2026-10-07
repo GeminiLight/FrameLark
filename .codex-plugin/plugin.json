@@ -1,7 +1,7 @@
 {
   "name": "framelark",
-  "version": "0.1.9",
-  "description": "Photography guidance, theme-led selection and photo retouching in one plugin.",
+  "version": "0.1.10",
+  "description": "Photography guidance, original photo retouching and curated series in three skills.",
   "author": {
     "name": "GeminiLight",
     "url": "https://github.com/GeminiLight"
@@ -19,7 +19,7 @@
   "interface": {
     "displayName": "FrameLark · 帧好",
     "shortDescription": "From scene to finished image",
-    "longDescription": "FrameLark bundles two photography workflows: photography-eye helps find viewpoints, timing and finishing targets; photo-retouch reviews, selects and refines existing photographs with portable local tools. Your current agent provides visual reasoning. Image generation is optional and uses the tools available in the host. Photo retouching requires Node.js 20.9+ and the bundled dependency setup.",
+    "longDescription": "FrameLark bundles three photography skills: photography-eye finds viewpoints, timing and finishing targets; photo-retouch refines original photographs with local tools; photo-series defines a theme, selects and sequences images, and coordinates individual retouching. Your current agent provides visual reasoning. Image generation is optional and uses available host tools. Local photo processing requires Node.js 20.9+ and the bundled dependency setup.",
     "developerName": "GeminiLight",
     "category": "Creativity",
     "websiteURL": "https://github.com/GeminiLight/FrameLark",

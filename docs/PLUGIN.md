@@ -66,7 +66,7 @@ codex plugin add framelark@framelark
 
 用 `codex plugin list --marketplace framelark --json` 检查 `installed` 与 `enabled` 均为 `true`。安装后开启新对话；插件中的修图 Skill 在第一次需要像素处理时会检查并准备自身依赖。可直接对 Agent 说：
 
-> 从 GeminiLight/FrameLark 注册 FrameLark 插件市场，安装 framelark@framelark，确认摄影眼和照片精修两套 Skill 都已包含。
+> 从 GeminiLight/FrameLark 注册 FrameLark 插件市场，安装 framelark@framelark，确认摄影眼、精修台和组图册三个 Skill 都已包含。
 
 在支持插件的桌面端，也可在插件目录中选择 FrameLark 来源、打开插件详情并安装。仓库市场首次添加后若尚未出现在界面，按宿主要求刷新或重启应用。不同客户端的入口和本地执行能力以其实际支持为准。
 
@@ -85,7 +85,7 @@ npm run plugin:check
 npm run plugin:build
 ```
 
-发布 ZIP 位于 `dist/framelark/framelark-0.1.7.zip`。包中只有两套 Skill、插件清单和小帧图标，不包含本机配置、密钥、照片项目、草稿、导出文件或原生 `node_modules`。图像依赖在用户的执行环境中准备，不把 macOS 的二进制依赖分发到其他系统。
+发布 ZIP 位于 `dist/framelark/framelark-0.1.10.zip`。包中包含三个 Skill、插件清单和小帧图标，不包含本机配置、密钥、照片项目、草稿、导出文件或原生 `node_modules`。图像依赖在用户的执行环境中准备，不把 macOS 的二进制依赖分发到其他系统。
 
 `skills/` 是唯一维护来源；构建只读取 Git 已跟踪的 Skill、图标和清单，校验发布副本与工作区源码。未跟踪的本地文件不会进入发布包；误跟踪的配置、照片项目或符号链接会在生成 ZIP 前报错，保留上一次有效包。新增发布资源需先加入 Git。根目录 `plugin.json` 提供 portable 格式，`.codex-plugin/plugin.json` 提供 Codex 兼容格式，`.agents/plugins/marketplace.json` 提供仓库安装入口。二者使用同一名称、版本与展示信息。
 
@@ -95,7 +95,7 @@ npm run plugin:build
 
 ## 0.1.5：可编辑配方的同步升级
 
-完整工作台、CLI 和两套 Skill 必须使用同一份新代码。新项目在首次写入可编辑配方时升级到 schema 3，升级前会保存逐字节的旧项目备份。旧客户端拒绝打开 schema 3，避免把新步骤丢掉后覆盖项目。
+完整工作台、CLI 和三个 Skill 必须使用同一份新代码。新项目在首次写入可编辑配方时升级到 schema 3，升级前会保存逐字节的旧项目备份。旧客户端拒绝打开 schema 3，避免把新步骤丢掉后覆盖项目。
 
 更新仓库后重新运行 `npm run plugin:install`，并开启新对话；独立 Skill 使用原来的安装命令更新。正在运行的本地工作台也需要重启。只更新网页不会更新已经安装到 Agent 中的 Skill。
 

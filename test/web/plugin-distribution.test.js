@@ -13,7 +13,7 @@ async function fixture(t){
   const put=async(name,data)=>{await mkdir(dirname(join(root,name)),{recursive:true});await writeFile(join(root,name),data);};
   for(const name of ['plugin.json','.codex-plugin/plugin.json','.agents/plugins/marketplace.json'])await put(name,await readFile(join(repositoryRoot,name)));
   await put('assets/framelark-avatar.png',Buffer.from('public test icon'));
-  for(const skill of ['photo-retouch','photography-eye'])await put(`skills/${skill}/SKILL.md`,`---\nname: ${skill}\n---\nPublic test skill.\n`);
+  for(const skill of ['photo-retouch','photography-eye','photo-series'])await put(`skills/${skill}/SKILL.md`,`---\nname: ${skill}\n---\nPublic test skill.\n`);
   execFileSync('git',['init','--quiet'],{cwd:root});
   execFileSync('git',['add','.'],{cwd:root});
   return {root,put};
@@ -36,7 +36,7 @@ test('plugin folder and ZIP include only maintained source, even in a used check
   for(const name of ['skills/photo-retouch/.env.local','skills/photo-retouch/projects/personal/project.json','skills/photo-retouch/node_modules/secret.js','assets/private-settings.json'])await put(name,'SYNTHETIC_PRIVATE_REVIEW_DATA');
   const built=await buildPlugin({root});
   const payload=await packageFiles(built.folder),archive=archiveEntries(await readFile(built.zipPath));
-  assert.equal(payload.length,5);assert.equal(archive.length,payload.length);
+  assert.equal(payload.length,6);assert.equal(archive.length,payload.length);
   for(const file of payload){assert.ok(!file.data.includes('SYNTHETIC_PRIVATE_REVIEW_DATA'));assert.deepEqual(archive.find(item=>item.name==='framelark/'+file.name)?.data,file.data);}
   assert.ok(!payload.some(file=>file.name==='assets/private-settings.json'));
 });
@@ -47,7 +47,7 @@ test('an accidentally tracked local configuration fails before replacing the las
   execFileSync('git',['add','--force','skills/photo-retouch/.env.local'],{cwd:root});
   await assert.rejects(buildPlugin({root}),/Local runtime data cannot be distributed/);
   assert.deepEqual(await readFile(built.zipPath),prior);
-  assert.equal((await packageFiles(built.folder)).length,5);
+  assert.equal((await packageFiles(built.folder)).length,6);
 });
 
 test('tracked links cannot pull external files into a distribution',async t=>{
@@ -79,5 +79,5 @@ test('plugin build actually runs when its CLI is launched through a linked path'
   await put('scripts/build-framelark-plugin.mjs',await readFile(join(repositoryRoot,'scripts/build-framelark-plugin.mjs')));
   const entry=join(root,'build-linked.mjs');await symlink(join(root,'scripts/build-framelark-plugin.mjs'),entry);
   const built=JSON.parse(execFileSync(process.execPath,[entry],{cwd:root,encoding:'utf8',timeout:10000}));
-  assert.equal(built.version,JSON.parse(await readFile(join(root,'plugin.json'))).version);assert.equal(built.files,5);assert.ok((await readFile(built.zipPath)).length>0);
+  assert.equal(built.version,JSON.parse(await readFile(join(root,'plugin.json'))).version);assert.equal(built.files,6);assert.ok((await readFile(built.zipPath)).length>0);
 });

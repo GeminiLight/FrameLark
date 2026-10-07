@@ -1,0 +1,4 @@
+interface:
+  display_name: "FrameLark 组图册 · 小帧"
+  short_description: "从照片目录确定主题、精选和排序，协调逐张精修，交付完整组图与朋友圈九宫格"
+  default_prompt: "使用 $photo-series 从这个照片目录做朋友圈九宫格，先定主题、精选和逐张精修，保留原片与可继续调整的项目。"
