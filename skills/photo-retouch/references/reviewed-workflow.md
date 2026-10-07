@@ -2,6 +2,8 @@
 
 用于自动精修、返修、独立复审、图层重建及跨工作空间继续编辑。工具只保存有证据的声明与版本身份；不验证宿主真的看图，也不提供模型或审美评分。
 
+审核记录与编辑协议是两条独立约束。先 inspect 看当前 editProtocol；新栈按 [可编辑操作栈](editable-stack.md) 读取权威文档身份并提交命令，旧配方才使用 settings、compose、rebuild 和参数 probe。两种协议都仍需当前诊断与同组合审核。
+
 ## 结构化诊断
 
 先实际看当前图，调用 `diagnosis`，填写当前完整 `preview` 的 versionId/maxSide/pixelHash/frameSpecHash、最新 revision，以及 actorId、goal、preserve、checked、findings。findings 可为空，不为覆盖维度而凑问题。
@@ -34,9 +36,9 @@ reviewed 模式下新修片候选需要当前诊断，并绑定 diagnosisId 和 
 
 ## 调整来源与显式重建
 
-`edit-sources --version <id>` 展示手动值、风格贡献、合并后的有效值、局部顺序、蒙版、裁剪、文字和约束。贡献可能受参数范围限制；它不是照片像素的线性解释，也不反推色彩成因。Agent 暗房中可展开「调整来源」查看。
+`edit-sources --version <id>` 展示旧配方的手动值、风格贡献、合并后的有效值、局部顺序、蒙版、裁剪、文字和约束；新栈的后续步骤读取 document。贡献可能受参数范围限制；它不是照片像素的线性解释，也不反推色彩成因。Agent 暗房中可展开「调整来源」查看。
 
-旧方案的局部未指定参数会继承。需要重做时使用 `rebuild --input`：
+旧配方的局部未指定参数会继承。需要重做时使用 `rebuild --input`；新栈改用文档命令修改获准步骤，不能用此兼容入口覆盖：
 
 ```json
 {"revision":12,"baseVersion":"真实当前版本ID","name":"重新定调","goal":"清理旧偏色，保留船与岸的关系","tradeoff":"复看天空、船舱与树叶","reset":{"manual":true,"style":true,"localIds":["明确要重建的局部ID"]},"settings":{"warmth":8},"locals":[{"annotationId":"相同局部ID","settings":{"exposure":0.1},"maskType":"radial","feather":0.7}]}
@@ -46,7 +48,7 @@ manual:true 从全局中性目标重建；style:true 清空旧风格，再应用
 
 ## 实际照片参数试条
 
-`probe --input {revision,versionId,parameter,values:[-20,0,20],maxSide:1000}` 固定基础版、构图和所有其他层，只改变一个手动绝对目标，生成真实照片试条和帧身份。接受 2～7 个不同值，查看尺寸 512～1600，数值使用 controls 中的真实范围。不会增加候选、接受记录或偏好，锁定参数的冲突会拒绝。
+旧配方用 `probe --input {revision,versionId,parameter,values:[-20,0,20],maxSide:1000}` 固定基础版、构图和所有其他层，只改变一个手动绝对目标，生成真实照片试条和帧身份。接受 2～7 个不同值，查看尺寸 512～1600，数值使用 controls 中的真实范围。不会增加候选、接受记录或偏好，锁定参数的冲突会拒绝。新栈需通过文档命令调整真实节点并比较候选，不能把旧手动层试条当作节点响应。
 
 用它校验曝光、白平衡、颜色、锐化与降噪的实际响应，先看方向，再打开完整候选及输出尺寸细节。用两到三档有效强度校准，不把试条最中间一档当默认最佳。当前 HSL 只有橙、绿、蓝加权控制；其它颜色可能响应不足，不能盲目加强或声称拥有完整 Lightroom 色域控制。统计只作处理强度参照，不能判断肤色、叙事或美感。
 

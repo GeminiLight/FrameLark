@@ -2,6 +2,8 @@ import {handlePhotoToolRoutes} from './tools/routes.mjs';
 import {photoTools} from '../public/photo-tools/registry.js';
 import {ProjectBridge} from './projects/bridge.mjs';
 import {handleProjectRoutes} from './projects/routes.mjs';
+import {CollectionBridge} from './projects/collection-bridge.mjs';
+import {handleCollectionRoutes} from './projects/collection-routes.mjs';
 import {responseLanguage} from '../public/response-language.js';
 import { readFile, stat } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
@@ -27,6 +29,7 @@ const publicDir = fileURLToPath(new URL('../public/',import.meta.url)).replace(/
 const cloudDeployment=process.env.VERCEL==='1';
 const vision = await createVisionService();
 const projects = new ProjectBridge();
+const collections = new CollectionBridge({projects});
 const analysisPromptVersion = 'photo-review-2026-10-03-color-v4';
 const mime = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml'};
 
@@ -244,6 +247,7 @@ async function routeRequest(request, response) {
     return sendJson(response,403,{error:{code:'FORBIDDEN_ORIGIN',message:'请从本机工作台发起视觉请求。',retryable:false}});
   }
   if(await handlePhotoToolRoutes(request,response,url,{readBody,allowed:canAccessLocalFiles,cloud:cloudDeployment}))return;
+  if(await handleCollectionRoutes(request,response,url,{collections,readBody,allowed:canAccessLocalFiles,cloud:cloudDeployment}))return;
   if(await handleProjectRoutes(request,response,url,{bridge:projects,readBody,allowed:canAccessLocalFiles,cloud:cloudDeployment}))return;
   if(url.pathname==='/api/codex-status' && request.method==='POST'){
     if(!canConfigureVision(request))return sendJson(response,403,{error:{code:'FORBIDDEN_ORIGIN',message:'请在本机工作台中检查 Codex 登录。'}});
@@ -376,4 +380,4 @@ async function routeRequest(request, response) {
   } catch { sendJson(response, 404, {error:'NOT_FOUND'}); }
 }
 
-export function closeServices(){vision.close();projects.close();}
+export function closeServices(){vision.close();projects.close();collections.close();}

@@ -81,3 +81,11 @@ test('plugin build actually runs when its CLI is launched through a linked path'
   const built=JSON.parse(execFileSync(process.execPath,[entry],{cwd:root,encoding:'utf8',timeout:10000}));
   assert.equal(built.version,JSON.parse(await readFile(join(root,'plugin.json'))).version);assert.equal(built.files,6);assert.ok((await readFile(built.zipPath)).length>0);
 });
+
+test('a packaged Markdown link cannot depend on repository-only files',async t=>{
+ const {root,put}=await fixture(t);await put('docs/local-guide.md','Repository-only guide.');await put('skills/photo-retouch/references/guide.md','Read [architecture](../../../docs/local-guide.md).');execFileSync('git',['add','.'],{cwd:root});
+ await assert.rejects(buildPlugin({root}),/packaged.*link|distribution.*link/i);
+});
+test('packaged cross-skill links resolve inside the full skill bundle',async t=>{
+ const {root,put}=await fixture(t);await put('skills/photo-series/SKILL.md','---\nname: photo-series\n---\nUse [retouch](../photo-retouch/SKILL.md).');execFileSync('git',['add','.'],{cwd:root});await buildPlugin({root});
+});

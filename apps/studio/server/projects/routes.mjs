@@ -34,9 +34,15 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
     if(operation==='original'&&request.method==='GET'){const bytes=await bridge.original(id);response.writeHead(200,{'Content-Type':'application/octet-stream','Cache-Control':'no-store'});response.end(bytes);return true;}
     if(operation==='source'&&request.method==='GET') {const png=await bridge.source(id);response.writeHead(200,{'Content-Type':'image/png','Cache-Control':'no-store'});response.end(png);return true;}
     if(operation==='events'&&request.method==='GET') {
-      const data=await bridge.get(id),send=value=>{if(!response.destroyed&&!response.writableEnded)response.write('data: '+JSON.stringify(value)+'\n\n');};
+      let sent=0;
+      const data=await bridge.get(id),send=value=>{if(value.revision!==undefined){if(value.revision<=sent)return;sent=value.revision;}if(!response.destroyed&&!response.writableEnded)response.write('data: '+JSON.stringify(value)+'\n\n');};
       response.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-store','X-Accel-Buffering':'no'});send({revision:data.revision});
-      const close=await bridge.subscribe(id,send);response.once('close',close);if(response.destroyed)close();return true;
+      const close=await bridge.subscribe(id,send);response.once('close',close);
+      if(response.destroyed){close();return true;}
+      // Catch a write between the initial snapshot and filesystem subscription.
+      // The watcher is already active, and send never moves a client backwards.
+      try{send({revision:(await bridge.get(id)).revision});}catch(error){close();throw error;}
+      return true;
     }
     if(operation==='save'&&request.method==='POST'){json(response,200,await bridge.save(id,await body(4*1024*1024)));return true;}
     if(operation==='handoff'&&request.method==='POST'){

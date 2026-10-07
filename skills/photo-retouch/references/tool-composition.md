@@ -1,6 +1,6 @@
 # 工具组合
 
-先 `inspect` 当前项目，再读取动态目录。目录包含工具版本、支持的目标与严格参数 Schema；不要凭旧示例假设目录只有固定几个工具。
+先 `inspect` 当前项目。本页是 editProtocol.mode=legacy 的工具组合；document 模式或当前版本有 recipe 时，改读 [可编辑操作栈](editable-stack.md)，用 document-tools 和文档命令。目录包含工具版本、支持的目标与严格参数 Schema；不要凭旧示例假设目录只有固定几个工具。
 
 ```sh
 node <skill>/scripts/cli.mjs photo-tools
@@ -39,4 +39,4 @@ node <skill>/scripts/cli.mjs compose --project <project> --input <plan.json>
 
 `select`、`accept`、`discard`、审核、保护和导出沿用 [工具参考](tools.md)。选择必须包含依赖；接受仍核对最新 revision 和 selectionHash。reviewed 项目仍需对应组合的审核。接受版本保存规范化工具配方与执行记录，供重开或项目交换读取；历史不是绕过校验的执行授权。
 
-扩展方式与运行限制见 [架构说明](../../../docs/PHOTO_TOOLS_ARCHITECTURE.md)。
+扩展方式与运行限制见插件内的 [工具运行契约](photo-tools-architecture.md)。

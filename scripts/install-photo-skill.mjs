@@ -1,10 +1,10 @@
-import {cp,access,mkdir,readFile,rename,rm} from 'node:fs/promises';
+import {cp,access,mkdir,readFile,rename,rm,writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import {spawn} from 'node:child_process';
 import {randomUUID} from 'node:crypto';
-import {fileURLToPath} from 'node:url';
 import {installationGuide} from './installation-guide.mjs';
+import {maintainedPluginFiles,validatePackagedLinks,repositoryRoot} from './build-framelark-plugin.mjs';
 
 const catalog={
   'photo-retouch':{label:'照片精修',setup:true,legacy:'guangjian-retouch'},
@@ -44,11 +44,14 @@ async function install({names,all,update,destination}){
     }
     entries.push({name,target,prior,stage:path.join(path.dirname(target),'.framelark-install-'+randomUUID())});
   }
+  const files=await maintainedPluginFiles(repositoryRoot,names.map(name=>'skills/'+name+'/'));
+  for(const name of names)if(!files.some(file=>file.name==='skills/'+name+'/SKILL.md'))throw Error('Missing maintained Skill: '+name);
+  validatePackagedLinks(files);
   try{
     for(const entry of entries){
       await mkdir(path.dirname(entry.target),{recursive:true});
-      const source=fileURLToPath(new URL('../skills/'+entry.name+'/',import.meta.url));
-      await cp(source,entry.stage,{recursive:true,filter:src=>!src.split(path.sep).some(part=>['node_modules','.raw-venv','__pycache__'].includes(part))});
+      const prefix='skills/'+entry.name+'/';
+      for(const file of files.filter(file=>file.name.startsWith(prefix))){const target=path.join(entry.stage,file.name.slice(prefix.length));await mkdir(path.dirname(target),{recursive:true});await writeFile(target,file.data,{mode:0o600});}
       if(entry.prior&&catalog[entry.name].setup)try{await cp(path.join(entry.prior,'node_modules'),path.join(entry.stage,'node_modules'),{recursive:true});}catch(e){if(e.code!=='ENOENT')throw e;}
       if(catalog[entry.name].setup){
         const code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[path.join(entry.stage,'scripts','setup.mjs')],{stdio:'inherit'});child.once('error',reject);child.once('exit',resolve);});

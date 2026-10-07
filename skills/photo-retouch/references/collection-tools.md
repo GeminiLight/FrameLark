@@ -32,7 +32,7 @@ node <skill>/scripts/cli.mjs collection-sheet --project <collection> --page 1 --
 
 decision 只有 select/reserve/exclude。取舍必须包含可见观察和理由；未看照片不填，inspect 的 unreviewed 明确列出。order 恰好包含全部 select，各一次；必留图不能被排除。数量不符只提示，不自动补图。anchorId 可为空。方案不改变单图像素、不接受修片候选、不删除文件。最近 5 个方案保留在记录中；更早方案在 plans 目录可查。
 
-`collection-sheet --selected true --view planned` 按方案顺序看已选版本；过期方案不能生成该视图。精修使用每张的 `photos/P0002` 项目路径，遵循单图候选、批注、保护与接受流程。接受新版本后重看最终组图，更新取舍方案，再导出：
+`collection-sheet --selected true --view planned` 按方案顺序看已选版本；过期方案不能生成该视图。该联系表固定四列，用于初选，不能称为最终三行三列。精修使用每张的 `photos/P0002` 项目路径，先 inspect，按 editProtocol 选择旧候选或文档命令，遵循批注、保护与接受流程。接受新版本后重看最终组图，更新取舍方案，再导出：
 
 ```json
 {"revision":3,"snapshotHash":"最新 inspect hash","preset":"share","format":"jpeg"}
@@ -44,6 +44,24 @@ node <skill>/scripts/cli.mjs collection-export --project <collection> --input <e
 
 每次新任务写到 exports 下的独立目录，用 `001-P0002.jpg` 等顺序名，manifest.json 记录主题、顺序、具体版本、尺寸、文件 hash 和每张状态。原片也是已保存版本，可保留原片直接交付；未接受候选不能导出。成功文件不覆盖。失败项恢复后，用最新 revision、同一 snapshotHash、原 preset/format 加 `retryJob` 任务 ID 重试。版本或主题变了，先重新检查和保存组图方案，再发起新任务。导出期间中断可从已保存队列继续；已写出但尚未登记的文件不会被自动覆盖，应另起新任务。
 
-宿主结构化工具：`tool-schema` 增加六个 frameyn_collection_* 函数，通过 `tool --project <collection> --input <call.json>` 执行。原来的三个修片函数仍使用单图目录；九个函数不自动注册模型、不执行模型生成的代码。
+### 实际版本的三行三列预览
 
-Web UI 的组图空间用于 2–12 张已选照片的整组审片、试片和顺序导出；这套 Skill 工具负责更大的导入与选片清单。两者项目记录目前不自动同步，不能把 Skill 的 500 张批次限制描述成浏览器组图限制。
+最终九格使用真实版本，沿用方案或导出 manifest 的顺序。无需生图工具：
+
+1. 导出前，按当前方案 `plan.order` 读取每张的单图项目，对应 `plan.decisions[].versionId` 运行 `preview --project <单图项目> --version <已保存版本ID> --max-side 2048`。将各返回的真实 path 按该顺序写入下面的 `images`。未接受候选、原始输入路径或 AI 板不能替代准备交付的版本。
+2. 保存 `preview-images.json`：`{"images":[{"id":"P0002","path":"/实际版本的预览.png"},{"id":"P0001","path":"/另一实际版本的预览.png"}]}`。九格必须恰好九条，ID 与顺序和方案一致，示例两条不代表九格已齐。
+3. 输出目录须是新目录，运行：
+
+```text
+node <skill>/scripts/image-input-board.mjs --input <preview-images.json> --output <new-grid-directory> --columns 3 --cell-size 768
+```
+
+返回 contact.jpg 和来源对应表。九张时为 2304×2304、三行三列；它按原始画幅完整缩小放格，留白不是平台实际方格裁切，也不加字、不裁剪、不放大。实际打开这张预览并深看单张；再 collection-inspect 核对 snapshotHash，图像版本或取舍变化时重做方案和排列。脚本本身的 retouched:false 表示它只制作缩略表，没有再次修图，不否定输入所对应的已保存精修版本。
+
+导出后仅在 `job.status=done` 且 `job.stale=false` 时，按 `job.items` 的 position/order 将每张 `result.path` 写成同样的 images 列表，在另一个新目录重做排列；核对版本、实际格式和编码后观感，再交付这些独立照片。partial 或过期任务不能冒充完整九格，保留成功文件并先恢复未完成项。排列预览不是九张高清单图，独立成片仍使用各自导出文件。
+
+宿主结构化工具：`tool-schema` 中 frameyn_collection_* 函数通过 `tool --project <collection> --input <call.json>` 执行；修片、文档命令和审核函数使用单图目录。函数目录以当前 tool-schema 为准，不自动注册模型、不执行模型生成的代码。
+
+浏览器本地“组图”用于 2–12 张已选照片的视觉审片、试片和顺序导出，使用浏览器草稿。完整本机工作台新增“共享组图”：打开已有含 collection.json 的真实目录，或从原片目录建立新组图；其主题、取舍、顺序和导出任务与这里的 Skill 工具共用同一份磁盘记录。共享界面分页浏览批次；进入单图精修时沿用 photos/P0002 的真实版本和批注。CLI 接受新版后旧选片会过期，重新看图再保存。未保存网页输入与远端变更冲突时先保留草稿备份，不覆盖另一处更新。
+
+只安装独立 Skill、未运行完整工作台时，继续使用 CLI、联系表与真实三列预览；不声称插件自带完整 Studio 或云端能访问本机目录。浏览器本地组图的 12 张限制不外推到 Skill/共享文件批次的 500 张上限。

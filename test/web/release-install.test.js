@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync,spawnSync} from 'node:child_process';
-import {mkdirSync,readFileSync,cpSync,writeFileSync,existsSync} from 'node:fs';
-import {mkdtemp,mkdir,writeFile,readFile,rm,chmod,stat} from 'node:fs/promises';
+import {mkdirSync,readFileSync,cpSync,writeFileSync,existsSync,rmSync} from 'node:fs';
+import {mkdtemp,mkdir,writeFile,readFile,rm,chmod,stat,cp,realpath} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,dirname,delimiter} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -35,6 +35,7 @@ async function fixture(t){
    mkdirSync(dirname(installedPath),{recursive:true});cpSync(join(marketplaceRoot,entry.source.path),installedPath,{recursive:true});active=true;
    return {pluginId:args[2],installedPath};
   }
+  if(args[1]==='remove'){active=false;return {};}
   if(args[1]==='list')return {installed:active?[{pluginId:calls.findLast(a=>a[1]==='add')[2],installed:true,enabled}]:[]};
   throw Error('Unexpected operation');
  };
@@ -126,4 +127,94 @@ test('a failed release build preserves the previously verified assets',async t=>
 });
 test('release labels are bound to the full plugin version',async t=>{
  const f=await fixture(t);assert.throws(()=>validateReleaseManifest({...f.manifest,tag:'v0.9.0'},'v0.9.0'),/版本与发布标签/);
+});
+
+async function transactionFixture(t,{prior=true}={}){
+ const f=await fixture(t),oldRoot=f.source,oldFull=join(oldRoot,'plugins/previous-framelark'),oldEye=join(oldRoot,'plugins/framelark-eye');
+ const put=async(root,path,text)=>{await mkdir(dirname(join(root,path)),{recursive:true});await writeFile(join(root,path),text);};
+ for(const [root,name,version,skills] of [[oldFull,'framelark','0.1.8',['photo-retouch','photography-eye']],[oldEye,'framelark-eye','0.1.0',['photography-eye']]]){
+  await put(root,'.codex-plugin/plugin.json',JSON.stringify({name,version,skills:'./skills/'}));
+  for(const skill of skills)await put(root,'skills/'+skill+'/SKILL.md','---\nname: '+skill+'\n---\nPrevious '+name+' knowledge.');
+ }
+ await put(oldFull,'skills/photo-retouch/node_modules/ready','original native runtime');
+ const oldCatalog={name:'framelark',plugins:[{name:'framelark',source:{source:'local',path:'./plugins/previous-framelark'}},{name:'framelark-eye',source:{source:'local',path:'./plugins/framelark-eye'}}]};
+ await put(oldRoot,'.agents/plugins/marketplace.json',JSON.stringify(oldCatalog));execFileSync('git',['remote','add','origin','https://github.com/GeminiLight/FrameLark.git'],{cwd:oldRoot});
+ let current=prior?{name:'framelark',root:oldRoot,marketplaceSource:{sourceType:'git',source:'https://github.com/GeminiLight/FrameLark.git'}}:null;
+ const states=new Map(),paths=new Map(),calls=[];let failure;
+ if(prior)for(const name of ['framelark','framelark-eye']){const installedPath=join(f.root,'cache',name),source=name==='framelark'?oldFull:oldEye;await cp(source,installedPath,{recursive:true});paths.set(name,installedPath);states.set(name+'@framelark',{pluginId:name+'@framelark',installed:true,enabled:true,version:name==='framelark'?'0.1.8':'0.1.0'});}
+ const codex=args=>{
+  calls.push(args);const op=args[1];
+  if(op==='marketplace'&&args[2]==='list')return {marketplaces:current?[current]:[]};
+  if(op==='marketplace'&&args[2]==='remove'){current=null;return {};}
+  if(op==='marketplace'&&args[2]==='add'){
+   if(failure==='registration'){failure=null;throw Error('registration failed');}
+   const git=args[3].startsWith('https://github.com/');current=git?{name:'framelark',root:oldRoot,marketplaceSource:{sourceType:'git',source:args[3],...(args.includes('--ref')?{ref:args[args.indexOf('--ref')+1]}:{})}}:{name:'framelark',root:args[3],marketplaceSource:{sourceType:'local',source:args[3]}};return {};
+  }
+  if(op==='list')return {installed:[...states.values()]};
+  if(op==='remove'){states.delete(args[2]);const name=args[2].split('@')[0];if(paths.has(name))rmSync(paths.get(name),{recursive:true,force:true});return {};}
+  if(op==='add'){
+   if(failure==='plugin-add'){failure=null;throw Error('plugin cache is read-only');}
+   if(failure==='restore'){throw Error('original plugin restoration failed');}
+   const name=args[2].split('@')[0],catalog=JSON.parse(readFileSync(join(current.root,'.agents/plugins/marketplace.json'))),entry=catalog.plugins.find(p=>p.name===name);if(!entry)throw Error('plugin source is absent');
+   const source=join(current.root,entry.source.path),installedPath=paths.get(name)||join(f.root,'cache',name);paths.set(name,installedPath);rmSync(installedPath,{recursive:true,force:true});mkdirSync(dirname(installedPath),{recursive:true});cpSync(source,installedPath,{recursive:true});
+   const manifest=JSON.parse(readFileSync(join(installedPath,'.codex-plugin/plugin.json'))),enabled=failure!=='disabled';states.set(args[2],{pluginId:args[2],version:manifest.version,installed:true,enabled});if(failure==='disabled')failure=null;
+   if(failure==='hash'){failure=null;writeFileSync(join(installedPath,'skills/photography-eye/SKILL.md'),'bad installed bytes');}
+   return {pluginId:args[2],installedPath};
+  }
+  throw Error('Unexpected operation '+args.join(' '));
+ };
+ return {...f,oldRoot,oldFull,oldEye,oldCatalog,codex,calls,states,paths,current:()=>current,fail:mode=>failure=mode};
+}
+test('first Git-to-release migration retains both existing plugin sources without preparing the other runtime',async t=>{
+ const f=await transactionFixture(t),result=await installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl,prepareRuntime:f.prepareRuntime});
+ assert.equal(result.ok,true);const catalog=JSON.parse(await readFile(join(f.marketplaceRoot,'.agents/plugins/marketplace.json')));assert.deepEqual(catalog.plugins.map(p=>p.name).sort(),['framelark','framelark-eye']);
+ for(const entry of catalog.plugins)await stat(join(f.marketplaceRoot,entry.source.path,'.codex-plugin/plugin.json'));assert.equal(f.prepared.length,0);assert.equal(f.states.get('framelark@framelark').version,'0.1.8');
+});
+for(const mode of ['plugin-add','hash','disabled','installed-setup'])test('release migration restores the original source and plugin after '+mode+' failure',async t=>{
+ const f=await transactionFixture(t);f.fail(mode);let count=0;
+ const prepareRuntime=async folder=>{if(mode==='installed-setup'&&++count===2)throw Error('installed setup failed');return f.prepareRuntime(folder);};
+ await assert.rejects(installFrameLarkRelease({photographyEye:mode!=='installed-setup',root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl,prepareRuntime}));
+ assert.equal(f.current().root,f.oldRoot);assert.equal(f.current().marketplaceSource.sourceType,'git');assert.deepEqual([...f.states.keys()].sort(),['framelark-eye@framelark','framelark@framelark'].sort());
+ assert.equal(f.states.get('framelark@framelark').version,'0.1.8');assert.equal(f.states.get('framelark-eye@framelark').enabled,true);
+ for(const name of ['framelark','framelark-eye'])assert.match(await readFile(join(f.paths.get(name),'skills/photography-eye/SKILL.md'),'utf8'),/Previous/);
+ await assert.rejects(stat(join(f.marketplaceRoot,'.agents/plugins/marketplace.json')));
+});
+test('failed first installation removes its registration and partially installed plugin',async t=>{
+ const f=await transactionFixture(t,{prior:false});f.fail('hash');await assert.rejects(installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl}));
+ assert.equal(f.current(),null);assert.equal(f.states.size,0);await assert.rejects(stat(join(f.marketplaceRoot,'.agents/plugins/marketplace.json')));
+});
+test('rollback restores an earlier release catalog and installation after a later package fails verification',async t=>{
+ const f=await transactionFixture(t,{prior:false});await installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl});const path=join(f.marketplaceRoot,'.agents/plugins/marketplace.json'),before=await readFile(path);f.fail('hash');
+ await assert.rejects(installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl}));assert.deepEqual(await readFile(path),before);assert.equal(f.current().root,f.marketplaceRoot);assert.match(await readFile(join(f.paths.get('framelark-eye'),'skills/photography-eye/SKILL.md'),'utf8'),/All source content/);
+});
+test('original restoration failure is reported separately with the installation cause',async t=>{
+ const f=await transactionFixture(t),codex=args=>{if(args[1]==='add'&&f.current()?.root===f.marketplaceRoot){f.fail('restore');throw Error('primary install failure');}return f.codex(args);};
+ await assert.rejects(installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex,fetchImpl:f.fetchImpl}),error=>/恢复.*未完成/.test(error.message)&&error.message.includes('primary install failure'));
+});
+test('an already disabled plugin is preserved before a CLI update that cannot restore disabled state',async t=>{
+ const f=await transactionFixture(t);f.states.get('framelark-eye@framelark').enabled=false;
+ await assert.rejects(installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl}),/停用|未启用/);assert.equal(f.current().root,f.oldRoot);assert.equal(f.states.get('framelark-eye@framelark').enabled,false);assert.ok(!f.calls.some(args=>args[1]==='add'));
+});
+
+test('registration that takes effect before returning an error still removes a failed fresh source',async t=>{
+ const f=await transactionFixture(t,{prior:false});let failed=false;
+ const codex=args=>{const result=f.codex(args);if(!failed&&args[1]==='marketplace'&&args[2]==='add'){failed=true;throw Error('registration response lost');}return result;};
+ await assert.rejects(installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex,fetchImpl:f.fetchImpl}),/registration response lost/);assert.equal(f.current(),null);await assert.rejects(stat(join(f.marketplaceRoot,'.agents/plugins/marketplace.json')));
+});
+test('Git rollback retains the previously visible ref and selected original version',async t=>{
+ const f=await transactionFixture(t);f.current().marketplaceSource.ref='stable-original';f.fail('hash');
+ await assert.rejects(installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl}));assert.equal(f.current().marketplaceSource.ref,'stable-original');assert.equal(f.states.get('framelark-eye@framelark').version,'0.1.0');
+});
+
+test('repeat installation recognizes the same release root after Codex canonicalizes its path',async t=>{
+ const f=await fixture(t);await installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl});
+ const canonical=await realpath(f.marketplaceRoot);f.setExisting([{name:'framelark',root:canonical,marketplaceSource:{sourceType:'local',source:canonical}}]);
+ assert.equal((await installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl})).ok,true);
+});
+
+test('rollback verifies restored plugin assets instead of claiming recovery after a bad copy',async t=>{
+ const f=await transactionFixture(t);await mkdir(join(f.oldFull,'assets'));await writeFile(join(f.oldFull,'assets/logo.png'),'original logo');
+ let count=0;const prepareRuntime=async folder=>{if(++count===2)throw Error('installed setup failed');return f.prepareRuntime(folder);};
+ const codex=args=>{const result=f.codex(args);if(args[1]==='add'&&f.current()?.root===f.oldRoot)writeFileSync(join(result.installedPath,'assets/logo.png'),'incorrect recovery bytes');return result;};
+ await assert.rejects(installFrameLarkRelease({root:f.installRoot,codex,fetchImpl:f.fetchImpl,prepareRuntime}),error=>/恢复未完成/.test(error.message)&&error.message.includes('原插件内容未恢复'));
 });

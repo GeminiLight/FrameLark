@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-06",
+  "reviewedAt": "2026-10-07",
   "retrieval": "keyword-only; relevance is not aesthetic quality",
   "adjustmentKeys": [
     "exposure",
@@ -36,6 +36,19 @@
     "denoise"
   ],
   "entries": [
+    {
+      "id": "tool-runtime-contract",
+      "kind": "tool",
+      "file": "photo-tools-architecture.md",
+      "section": "本地运行与扩展",
+      "tags": [
+        "工具运行契约",
+        "扩展工具",
+        "进程限制",
+        "documentRevision",
+        "baseHash"
+      ]
+    },
     {
       "id": "judgment-order",
       "kind": "judgment",

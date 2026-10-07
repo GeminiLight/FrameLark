@@ -19,8 +19,10 @@ import {adjustmentKeys} from './engine/editor-engine.js';
 import {presets} from './engine/presets.js';
 import {letteringCapabilities} from './text-overlays.mjs';
 import {initCollection,inspectCollection,updateCollectionBrief,saveCollectionPlan,collectionSheet,exportCollection} from './collection.mjs';
+import {projectDocument} from './document-state.mjs';
+import {documentHash} from './engine/edit-stack/identity.js';
 const help={name:'FrameLark · 帧好 · 本地修片',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
-  init:'--image <photo> --project <new-folder> [--intent <表达目标>]',
+  init:'--image <photo> --project <new-folder> [--intent <表达目标>] [--raw-backend auto|apple|rawpy]',
   'collection-init':'--project <new-collection-folder> --input <JSON|->；images 列表或 directory，最多 500 张，保留原片',
   'collection-inspect':'--project <collection-folder>；主题、稳定照片 ID、单图项目、取舍、版本、新鲜度和导出队列',
   'collection-brief':'--project <collection-folder> --input <JSON|->；用途、主题、目标数量、必留照片和约束',
@@ -40,12 +42,12 @@ const help={name:'FrameLark · 帧好 · 本地修片',usage:'node cli.mjs <comm
   'review-packet':'--input <JSON> 准备独立复审材料，省略旧结论和参数解释',
   'edit-sources':'[--version <id>] 查看手动、风格、局部及选中项目来源',
   rebuild:'--input <JSON> 显式重建指定调整层，生成可撤回试片并保留约束',
-  inspect:'读取当前版本、最新批注、意图、候选和真实预览路径；不调用视觉模型',
+  inspect:'读取当前版本、编辑协议与权威文档身份、最新批注、意图、候选和真实预览路径；不调用视觉模型',
   handoff:'--input <JSON|->；request/claim/progress/complete/fail/cancel，接续需最新 revision；Agent 接手声明 actorId',
   watch:'[--after-revision <n>] [--timeout 60]；等待接续请求或项目变化，返回后由宿主 Agent 处理；最多等待 600 秒',
   'photo-tools':'工具目录、版本、目标类型与参数 Schema；不调用模型',
   'document-tools':'顺序像素工具目录、参数、版本与资源上限；不调用模型',
-  'document':'读取当前可编辑文档或固定兼容基础；--input <plan.json|-> 以文档命令生成候选',
+  'document':'读取项目 revision/baseVersion、文档 documentRevision/baseHash 与当前可编辑文档；--input <plan.json|-> 以文档命令生成候选',
   'compose':'--input <tool-plan.json|->；独立子进程执行工具组合，产生逐项候选与实际中间预览',
   controls:'实际参数范围、灰卡响应与风格目录',
   preview:'[--version <id|current|original>] [--max-side 1400] [--region <JSON 原片范围>] [--without-text true]',
@@ -69,9 +71,14 @@ const help={name:'FrameLark · 帧好 · 本地修片',usage:'node cli.mjs <comm
   export:'[--version <id|current>] [--preset share|print|original|master] [--format png|jpeg|tiff] [--output <new-file>] [--max-side <px>] [--quality <60..100>] [--dpi <72..1200>] [--without-text true]',
   studio:'[--url http://127.0.0.1:3177]；连接完整工作台，共享文件项目并返回打开地址',
   serve:'[--port 0] [--session-file <private-json-file>]；仅监听 127.0.0.1，按 Ctrl+C 停止'
-},notes:['工具只在本地处理像素；审片与对话由宿主 Agent 进行。','JPEG/PNG/WebP/AVIF 输入；macOS 可转换静态 HEIC/HEIF；8 位 sRGB，PNG/JPEG 输出，8192 px / 1600 万像素上限。','原片字节和编辑方案独立保存；已有文件不会被导出覆盖。']};
+},notes:['工具只在本地处理像素；审片与对话由宿主 Agent 进行。','普通 JPEG/PNG/WebP/AVIF 为 8 位 sRGB 工作图；macOS 可转换静态 HEIC/HEIF。PNG/JPEG 显示输出上限 8192 px / 1600 万像素。','RAW 由实际后端解码并直接使用 document 协议；master 从高精度数据导出当前裁剪的原尺寸 16 位 sRGB TIFF。机型和压缩方式以实际解码为准，普通 TIFF 输入不支持。','原片字节和编辑方案独立保存；已有文件不会被导出覆盖。']};
 function args(values){const opts={};for(let i=0;i<values.length;i++){if(!values[i].startsWith('--')||values[i+1]===undefined||values[i+1].startsWith('--'))fail('ARGUMENT','每个选项需要一个值；运行 help 查看用法。');opts[values[i].slice(2)]=values[++i];}return opts;}
 async function inspectPreview(session,key,options){try{return await session.previewPhoto(key,options);}catch(error){if(!error.code)throw error;return {error:localFailure(error),available:false};}}
+function documentContext(project){
+  const document=projectDocument(project),active=Boolean(currentVersion(project).recipe),baseHash=documentHash(document);
+  return {revision:project.revision,baseVersion:project.currentId,documentRevision:document.revision,baseHash,documentHash:baseHash,active,
+    editProtocol:active?{mode:'document',capabilityCommand:'document-tools',proposalCommand:'document',reference:'references/editable-stack.md'}:{mode:'legacy',capabilityCommand:'photo-tools',proposalCommand:'candidate',reference:'references/tools.md'}};
+}
 async function input(file,limit=65536){if(!file)fail('INPUT_REQUIRED','请用 --input 提供 JSON 文件，或 - 从标准输入读取。');let bytes='';if(file==='-'){for await(const part of process.stdin){bytes+=part;if(Buffer.byteLength(bytes)>limit)fail('INPUT_SIZE','方案 JSON 超过读取上限，请分批提交。');}}else bytes=await readFile(path.resolve(file),'utf8');if(Buffer.byteLength(bytes)>limit)fail('INPUT_SIZE','方案 JSON 超过读取上限，请分批提交。');try{return JSON.parse(bytes);}catch{fail('INVALID_JSON','JSON 无法读取，请检查格式后重试。');}}
 export async function runCLI(values=process.argv.slice(2)) {
   const [command='help',...rest]=values;if(['help','--help','-h'].includes(command))return help;
@@ -99,13 +106,13 @@ export async function runCLI(values=process.argv.slice(2)) {
     case 'collection-sheet':return collectionSheet(folder,{page:o.page?Number(o.page):1,view:o.view||'current',selected:o.selected==='true'});
     case 'collection-export':return exportCollection(folder,await input(o.input,2*1024*1024));
     case 'init':if(!o.image)fail('IMAGE_REQUIRED','请用 --image 指定原片。');return initProject(o.image,folder,{intent:o.intent,rawBackend:o['raw-backend']||'auto'});
-    case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,project:{...p,collaboration:handoffView(p),workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),versions:p.versions.map(({id,name,parentId,createdAt,acceptedBy})=>({id,name,parentId,createdAt,acceptedBy})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
+    case 'inspect':{const session=await createRenderSession(folder),p=session.project,preview=await inspectPreview(session,'current'),original=await inspectPreview(session,'original',{showNotes:true}),regions=[];for(const note of p.notes){regions.push({id:note.id,number:note.number,note:note.note,original:await inspectPreview(session,'original',{region:note.rect}),current:await inspectPreview(session,'current',{region:note.rect})});}return {folder,...documentContext(p),project:{...p,collaboration:handoffView(p),workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),versions:p.versions.map(({id,name,parentId,createdAt,acceptedBy})=>({id,name,parentId,createdAt,acceptedBy})),candidates:publicProject(p).candidates.map(({state,...c})=>c)},currentVersion:currentVersion(p),preview,original,annotationPreviews:regions,source:'local-pixel-measurement',visualAnalysis:'由宿主 Agent 读取预览判断；本命令未调用视觉模型'};}
     case 'handoff':return handoffProject(folder,await input(o.input));
     case 'watch':return waitForProject(folder,{afterRevision:o['after-revision']===undefined?undefined:Number(o['after-revision']),timeoutMs:o.timeout===undefined?60000:Number(o.timeout)*1000});
     case 'preview':return previewPhoto(folder,o.version||'current',{maxSide:o['max-side']?Number(o['max-side']):1400,region:o.region?JSON.parse(o.region):undefined,withoutText:o['without-text']==='true'});
     case 'lettering':{const plan=await input(o.input);if(plan.mode!=='lettering'||!Array.isArray(plan.textOverlays)||['settings','style','crop','locals'].some(k=>plan[k]!==undefined))fail('LETTERING_PLAN','文字模式需 mode: lettering 和 textOverlays；光色、局部和裁剪请在修片候选中调整。');const result=await createCandidate(folder,plan);return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'compose':{const {createToolCandidate}=await import('./tool-candidates.mjs');return createToolCandidate(folder,await input(o.input,2*1024*1024));}
-    case 'document':{if(!o.input){const p=await loadProject(folder),{projectDocument}=await import('./document-state.mjs');return {revision:p.revision,baseVersion:p.currentId,document:projectDocument(p),active:Boolean(currentVersion(p).recipe)};}const result=await createCandidate(folder,await input(o.input,2*1024*1024));return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
+    case 'document':{if(!o.input){const p=await loadProject(folder);return {...documentContext(p),document:projectDocument(p)};}const result=await createCandidate(folder,await input(o.input,2*1024*1024));return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'candidate':{const result=await createCandidate(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id)};}
     case 'select':{const result=await selectCandidateItems(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate.id,{selectionHash:result.candidate.selectionHash,revision:result.project.revision})};}
     case 'guards':{const result=await changeGuards(folder,await input(o.input));return {...result,preview:await previewPhoto(folder,result.candidate?.id||result.version.id)};}

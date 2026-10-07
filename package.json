@@ -43,6 +43,7 @@
     "plugin:install:local:photography-eye": "node scripts/install-framelark-plugin.mjs --photography-eye",
     "plugin:install:photography-eye:github": "node scripts/install-photography-eye.mjs",
     "install:skills": "node scripts/install-photo-skill.mjs --all",
-    "install:photography-eye": "node scripts/install-photo-skill.mjs --skill photography-eye"
+    "install:photography-eye": "node scripts/install-photo-skill.mjs --skill photography-eye",
+    "test:collections": "node scripts/check-shared-collections.mjs"
   }
 }

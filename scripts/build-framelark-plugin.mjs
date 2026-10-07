@@ -1,7 +1,7 @@
 import {lstat,mkdir,readFile,readdir,writeFile,rm,realpath} from 'node:fs/promises';
 import {realpathSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
-import {resolve,relative,join,sep} from 'node:path';
+import {resolve,relative,join,sep,posix} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {deflateRawSync} from 'node:zlib';
 
@@ -25,6 +25,18 @@ export async function maintainedPluginFiles(root=repositoryRoot,roots=payloadRoo
     files.push({name,data:await readFile(source)});
   }
   return files;
+}
+export function validatePackagedLinks(files){
+  const names=new Set(files.map(file=>file.name));
+  for(const file of files.filter(file=>file.name.endsWith('.md'))){
+    for(const match of file.data.toString('utf8').matchAll(/!?\[[^\]\n]*\]\(([^)\n]+)\)/g)){
+      const target=match[1].split(/\s+["']/)[0].split('#')[0];
+      if(!target||/^[a-z][a-z0-9+.-]*:/i.test(target))continue;
+      let decoded;try{decoded=decodeURIComponent(target);}catch{throw Error('Invalid packaged Markdown link: '+file.name+' -> '+target);}
+      const destination=posix.normalize(posix.join(posix.dirname(file.name),decoded));
+      if(decoded.startsWith('/')||destination.startsWith('../')||!names.has(destination))throw Error('Missing packaged Markdown link: '+file.name+' -> '+target);
+    }
+  }
 }
 export async function packageFiles(folder,prefix=''){
   const files=[];
@@ -77,6 +89,7 @@ export async function buildPlugin({root=repositoryRoot,output,archive=true,varia
   }
   if(manifest?.name!==name||!/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(manifest.version)||codex?.name!==manifest.name||codex.version!==manifest.version)throw Error('Plugin manifests must declare the same valid FrameLark release.');
   for(const skill of skills)if(!files.some(file=>file.name===`skills/${skill}/SKILL.md`))throw Error('Missing maintained Skill: '+skill);
+  validatePackagedLinks(files);
   const marketplace=JSON.parse(await readFile(resolve(root,'.agents/plugins/marketplace.json'),'utf8'));
   const entry=marketplace.plugins.find(plugin=>plugin.name===name);
   if(!entry)throw Error('Missing plugin marketplace entry: '+name);
