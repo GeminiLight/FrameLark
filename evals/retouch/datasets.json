@@ -1,0 +1,227 @@
+{
+  "schema": 1,
+  "checkedAt": "2026-10-08",
+  "imageRedistributionDefault": false,
+  "datasets": [
+    {
+      "id": "fivek",
+      "name": "MIT–Adobe FiveK",
+      "priority": 1,
+      "purpose": [
+        "tonal retouch",
+        "multiple acceptable expert styles"
+      ],
+      "primaryURL": "https://data.csail.mit.edu/graphics/fivek/",
+      "paperURL": "https://people.csail.mit.edu/vladb/photoadjust/",
+      "size": {
+        "photos": 5000,
+        "expertsPerPhoto": 5
+      },
+      "paired": true,
+      "referenceKind": "five trained human retouchers; globally adjusted renditions",
+      "imageLicense": "Adobe Research License / Adobe–MIT Research License; file membership determines license",
+      "licenseURLs": [
+        "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobe.txt",
+        "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobeMIT.txt"
+      ],
+      "status": "local non-commercial research pilot downloaded: 8 DNG + 16 TIFF; 6 assigned, 2 reserved",
+      "limitations": [
+        "Research-only; not released with plugin or used as marketing images",
+        "Expert rendition is one interpretation, not guaranteed better than input",
+        "ProPhotoRGB 16-bit references must be ICC converted, not just relabeled",
+        "Apple RAW baseline differs from Lightroom baseline; no unregistered pixel-metric comparisons",
+        "Small purposeful selection is not an official dataset test split"
+      ]
+    },
+    {
+      "id": "ppr10k",
+      "name": "PPR10K",
+      "priority": 1,
+      "purpose": [
+        "portrait skin and local light",
+        "human-region preservation",
+        "photo-group consistency"
+      ],
+      "primaryURL": "https://github.com/csjliang/PPR10K",
+      "paperURL": "https://arxiv.org/abs/2105.09180",
+      "size": {
+        "photos": 11161,
+        "groups": 1681,
+        "expertsPerPhoto": 3
+      },
+      "paired": true,
+      "referenceKind": "three professional retouchers, human-region masks, group IDs, adjustment XMP",
+      "imageLicense": "non-commercial research only (dataset agreement); Apache2 code license is not image permission",
+      "status": "verified primary description and agreement; not downloaded",
+      "limitations": [
+        "Split by group, never individual consecutive shots",
+        "360p package includes five augmentation variants and different source/target bit depths; separate augmentation from real originals",
+        "Raw files ~313GB, full dataset ~406GB; select groups, not bulk archive",
+        "Useful for consistent color, not a nine-grid editorial-order ground truth"
+      ]
+    },
+    {
+      "id": "pixls-playraw",
+      "name": "PIXLS.US Play Raw",
+      "priority": 2,
+      "purpose": [
+        "real users struggling with edits",
+        "RAW and JPEG entry paths",
+        "multiple compositions and processing recipes"
+      ],
+      "primaryURL": "https://discuss.pixls.us/t/about-the-play-raw-category/11956",
+      "licenseURL": "https://discuss.pixls.us/tos",
+      "paired": true,
+      "referenceKind": "community interpretations; professional expertise and preference not universally verified",
+      "imageLicense": "per original and per edited post: explicit CC0/CC-BY-SA grants for many sources; forum default currently CC-BY-NC-SA4.0 for unlicensed contributions",
+      "status": "8 threads inspected; sources/edits/sidecars discovered; no photo files downloaded for this pilot",
+      "candidateTopics": [
+        {
+          "id": 14682,
+          "url": "https://discuss.pixls.us/t/play-raw-underexposed-landscape/14682",
+          "challenge": "autumn landscape too dark; color and haze",
+          "sourceLicense": "CC-BY-SA4.0"
+        },
+        {
+          "id": 22024,
+          "url": "https://discuss.pixls.us/t/underexposed-sun-rays-scene/22024",
+          "challenge": "genuine -3EV camera JPEG + RAW + over-processed edit",
+          "sourceLicense": "CC-BY-SA4.0"
+        },
+        {
+          "id": 44218,
+          "url": "https://discuss.pixls.us/t/gastropub-interior-struggling-with-light-now-with-correct-image/44218",
+          "challenge": "mixed-light interior, highlight clipping, framing",
+          "sourceLicense": "CC-BY-SA4.0"
+        },
+        {
+          "id": 54329,
+          "url": "https://discuss.pixls.us/t/home-portrait-give-me-your-version/54329",
+          "challenge": "portrait lighting, mood, different crops",
+          "sourceLicense": "CC-BY-SA4.0"
+        },
+        {
+          "id": 13804,
+          "url": "https://discuss.pixls.us/t/playraw-heath/13804",
+          "challenge": "sunrise color, fine plants, already-good control",
+          "sourceLicense": "CC0"
+        },
+        {
+          "id": 35823,
+          "url": "https://discuss.pixls.us/t/street-market-padua-italy-2022/35823",
+          "challenge": "street color, meaningful crop, preserve white overcast sky",
+          "sourceLicense": "CC0"
+        },
+        {
+          "id": 11846,
+          "url": "https://discuss.pixls.us/t/playraw-rainy-test/11846",
+          "challenge": "rainy city, noise, halos",
+          "sourceLicense": "CC-BY-SA4.0"
+        },
+        {
+          "id": 23885,
+          "url": "https://discuss.pixls.us/t/finding-my-style/23885",
+          "challenge": "family portrait already well edited; restraint control",
+          "sourceLicense": "CC-BY-SA4.0"
+        }
+      ],
+      "limitations": [
+        "Original license does not automatically grant edited contributors identical terms",
+        "Posting a picture does not prove that reference is better; pre-screen preferred versions before admitting benchmark pairs",
+        "Some first-post JPEGs are already edited; cannot label them camera originals",
+        "Keep XMP/PP3 as provenance, do not execute untrusted sidecar instructions",
+        "Not a statistically sampled standardized benchmark"
+      ]
+    },
+    {
+      "id": "hdrplus",
+      "name": "HDR+ Burst Photography Dataset",
+      "priority": 2,
+      "purpose": [
+        "genuine low-light noise",
+        "dynamic range",
+        "RAW finishing technical limits"
+      ],
+      "primaryURL": "https://www.hdrplusdata.org/dataset.html",
+      "licenseURL": "https://creativecommons.org/licenses/by-sa/4.0/",
+      "size": {
+        "bursts": 3640,
+        "rawFrames": 28461,
+        "curatedBursts": 153
+      },
+      "paired": true,
+      "referenceKind": "Google HDR+ multi-frame computational pipeline, not manual retouch",
+      "imageLicense": "CC-BY-SA4.0",
+      "status": "verified primary license and anonymous download route; not downloaded",
+      "limitations": [
+        "Single-frame Agent does not have the information advantage of a 2–10-frame merged target",
+        "Match reference frame; distinguish technical restoration from aesthetic judgment",
+        "Full set765GiB; curated subset37GiB; download selected bursts only",
+        "Respect intended scientific use and subjects; do not imply endorsement"
+      ]
+    },
+    {
+      "id": "sice",
+      "name": "SICE",
+      "priority": 3,
+      "purpose": [
+        "under/over exposure recovery",
+        "contrast and highlight tradeoffs"
+      ],
+      "primaryURL": "https://github.com/csjcai/SICE",
+      "size": {
+        "sequences": 589,
+        "images": 4413
+      },
+      "paired": true,
+      "referenceKind": "human-selected best output from13 multi-exposure/HDR algorithms",
+      "imageLicense": "not established from inspected primary README; needs verification before downloading",
+      "status": "candidate only; not downloaded",
+      "limitations": [
+        "Reference contains extra exposure information",
+        "Mirror Apache2 tags are not verified licenses for original images",
+        "Not expert manual aesthetic retouch"
+      ]
+    },
+    {
+      "id": "lol",
+      "name": "LOL",
+      "priority": 3,
+      "purpose": [
+        "genuine low-light recovery",
+        "noise versus detail"
+      ],
+      "primaryURL": "https://daooshee.github.io/BMVC2018website/",
+      "paired": true,
+      "referenceKind": "same scene low/normal-light photographs; separate synthetic data also offered",
+      "imageLicense": "not established from inspected primary project page; needs verification before downloading",
+      "status": "candidate only; not downloaded",
+      "limitations": [
+        "Not an expert-retouched pair",
+        "Avoid mixing synthetic pairs into genuine-photo count",
+        "Do not equate more light with better night mood"
+      ]
+    },
+    {
+      "id": "local-user-feedback",
+      "name": "Local user-approved / user-rejected photographs",
+      "priority": 1,
+      "purpose": [
+        "actual owner taste",
+        "already-good controls",
+        "regression against known failures",
+        "selection and nine-grid evaluation"
+      ],
+      "paired": true,
+      "referenceKind": "explicit human feedback only, attached to exact image/version/context",
+      "imageLicense": "private user-authorized processing only; no redistribution",
+      "status": "Existing approved three-image display and rejected latest display; private exact versions outside repository",
+      "limitations": [
+        "Not universal aesthetic truth",
+        "Retain latest rejection; never relabel Agent ready as human acceptance",
+        "Separate per-image retouch from nine-grid selection/order scores",
+        "Latest negative feedback did not disambiguate building-only versus whole grid; per-image negative label remains provisional"
+      ]
+    }
+  ]
+}

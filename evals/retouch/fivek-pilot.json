@@ -1,0 +1,260 @@
+{
+  "schema": 1,
+  "dataset": "fivek",
+  "selectionDate": "2026-10-08",
+  "sourceCommit": "50597e26ed638abd97735482981cb0994bf02687",
+  "usage": "offline non-commercial research only",
+  "imageRedistribution": false,
+  "cases": [
+    {
+      "id": "a0001",
+      "sourceName": "a0001-jmac_DSC1459.dng",
+      "metadata": "0001 input DNG Expert&nbsp;A TIFF16 Expert&nbsp;B TIFF16 Expert&nbsp;C TIFF16 Expert&nbsp;D TIFF16 Expert&nbsp;E TIFF16 Subject: nature Light: sun or sky Location: outdoors Time: day EXIF: NIKON D70 30mm F/10.0 1/400 ISO200 6.0MP",
+      "split": "development-pilot",
+      "input": {
+        "url": "https://data.csail.mit.edu/graphics/fivek/img/dng/a0001-jmac_DSC1459.dng",
+        "sha256": "1278ecfc122f08a26943cf57b6aea32dd889af5a8d59378ed1ed0730387cab1f",
+        "bytes": 5248022
+      },
+      "licenseURL": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobe.txt",
+      "references": [
+        {
+          "expert": "C",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_c/a0001-jmac_DSC1459.tif",
+          "sha256": "15d3befa4eccd5563b4637964a7c92005824a9391b162d104cbb85ab149c7255",
+          "bytes": 31609888,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        },
+        {
+          "expert": "E",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_e/a0001-jmac_DSC1459.tif",
+          "sha256": "024bc123ce6a164a0b75b50e9503815febcfab83c1c5b02b96dbd3649c4396a2",
+          "bytes": 32095782,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        }
+      ]
+    },
+    {
+      "id": "a0002",
+      "sourceName": "a0002-dgw_005.dng",
+      "metadata": "0002 input DNG Expert&nbsp;A TIFF16 Expert&nbsp;B TIFF16 Expert&nbsp;C TIFF16 Expert&nbsp;D TIFF16 Expert&nbsp;E TIFF16 Subject: person(s) Light: mixed Location: indoors Time: day EXIF: NIKON D700 50mm F/2.8 1/25 ISO2000 12.1MP",
+      "split": "development-pilot",
+      "input": {
+        "url": "https://data.csail.mit.edu/graphics/fivek/img/dng/a0002-dgw_005.dng",
+        "sha256": "c35b85c7ec7acede39e51cd72a349740a04d37d9f7a244e2f27b2ac6bc15b15c",
+        "bytes": 13293308
+      },
+      "licenseURL": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobe.txt",
+      "references": [
+        {
+          "expert": "C",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_c/a0002-dgw_005.tif",
+          "sha256": "af310af9a2296cdd70f50b041ec09ab69162d35b0a93855675102944647c6cf1",
+          "bytes": 61231392,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        },
+        {
+          "expert": "E",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_e/a0002-dgw_005.tif",
+          "sha256": "309345ded16622ae703d72ee2d134dd963b24b96d902216df123b7eced672e2d",
+          "bytes": 62259436,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        }
+      ]
+    },
+    {
+      "id": "a0006",
+      "sourceName": "a0006-IMG_2787.dng",
+      "metadata": "0006 input DNG Expert&nbsp;A TIFF16 Expert&nbsp;B TIFF16 Expert&nbsp;C TIFF16 Expert&nbsp;D TIFF16 Expert&nbsp;E TIFF16 Subject: animal(s) Light: sun or sky Location: outdoors Time: day EXIF: Canon EOS DIGITAL REBEL XSi F/5.6 1/200 ISO320 12.2MP",
+      "split": "development-pilot",
+      "input": {
+        "url": "https://data.csail.mit.edu/graphics/fivek/img/dng/a0006-IMG_2787.dng",
+        "sha256": "33d09d58db182cb1124397c9634e08d6a294018a4d0597d8b8304a8db6abc3e9",
+        "bytes": 13705542
+      },
+      "licenseURL": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobeMIT.txt",
+      "references": [
+        {
+          "expert": "C",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_c/a0006-IMG_2787.tif",
+          "sha256": "60fdc66c3591a4ca7bfd66887ba008412686a223df59859a32e9bf2938eae59d",
+          "bytes": 59034036,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        },
+        {
+          "expert": "E",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_e/a0006-IMG_2787.tif",
+          "sha256": "d6f8b57f3c220a08693cd135cc5b4d092431ad842cfaedd30bfecc05a6a6927d",
+          "bytes": 60188150,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        }
+      ]
+    },
+    {
+      "id": "a0019",
+      "sourceName": "a0019-jmac_MG_0653.dng",
+      "metadata": "0019 input DNG Expert&nbsp;A TIFF16 Expert&nbsp;B TIFF16 Expert&nbsp;C TIFF16 Expert&nbsp;D TIFF16 Expert&nbsp;E TIFF16 Subject: man-made object Light: artificial Location: indoors Time: unknown EXIF: Canon EOS 5D F/2.8 1/6 ISO800 12.7MP",
+      "split": "development-pilot",
+      "input": {
+        "url": "https://data.csail.mit.edu/graphics/fivek/img/dng/a0019-jmac_MG_0653.dng",
+        "sha256": "98c5a3e6cca23e87e422d8f327491cfe1be9e15d568fc70ec03594ba35337282",
+        "bytes": 10692120
+      },
+      "licenseURL": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobe.txt",
+      "references": [
+        {
+          "expert": "C",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_c/a0019-jmac_MG_0653.tif",
+          "sha256": "4802060b78f5758006ae886dbc15b7177576fdf80d282d6ee2ab9d9fceb0b4ff",
+          "bytes": 64826026,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        },
+        {
+          "expert": "E",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_e/a0019-jmac_MG_0653.tif",
+          "sha256": "aac817c8e655bc1af7e419ef48774fe7c290d1f72cd09a06b7d5ea8d06ee1ef6",
+          "bytes": 66667578,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        }
+      ]
+    },
+    {
+      "id": "a0008",
+      "sourceName": "a0008-WP_CRW_3959.dng",
+      "metadata": "0008 input DNG Expert&nbsp;A TIFF16 Expert&nbsp;B TIFF16 Expert&nbsp;C TIFF16 Expert&nbsp;D TIFF16 Expert&nbsp;E TIFF16 Subject: person(s) Light: artificial Location: indoors Time: unknown EXIF: Canon EOS DIGITAL REBEL F/4.0 1/60 ISO400 6.3MP",
+      "split": "development-pilot",
+      "input": {
+        "url": "https://data.csail.mit.edu/graphics/fivek/img/dng/a0008-WP_CRW_3959.dng",
+        "sha256": "72222a4a8b37e24d16570fe750cc55ff4a00a00a02598646106154812514db19",
+        "bytes": 5562588
+      },
+      "licenseURL": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobe.txt",
+      "references": [
+        {
+          "expert": "C",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_c/a0008-WP_CRW_3959.tif",
+          "sha256": "69d6235df21cbaab8d909c8acb05ea18c4f2324e7273dcaa2f27388b76d68d10",
+          "bytes": 32788620,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        },
+        {
+          "expert": "E",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_e/a0008-WP_CRW_3959.tif",
+          "sha256": "f7154d34036783c56a25444acc6e6a3a266708f5002de63a7bb52477fc4f9664",
+          "bytes": 32941070,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        }
+      ]
+    },
+    {
+      "id": "a0013",
+      "sourceName": "a0013-MB_20030906_001.dng",
+      "metadata": "0013 input DNG Expert&nbsp;A TIFF16 Expert&nbsp;B TIFF16 Expert&nbsp;C TIFF16 Expert&nbsp;D TIFF16 Expert&nbsp;E TIFF16 Subject: person(s) Light: sun or sky Location: outdoors Time: day EXIF: Canon EOS D60 F/4.5 1/125 ISO100 6.3MP",
+      "split": "reserved-not-edited",
+      "input": {
+        "url": "https://data.csail.mit.edu/graphics/fivek/img/dng/a0013-MB_20030906_001.dng",
+        "sha256": "1942e3aaf2bdeafdced4d34989c5fcc6c24bdad3fb45c4b5cb832be792d39b44",
+        "bytes": 6478302
+      },
+      "licenseURL": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobe.txt",
+      "references": [
+        {
+          "expert": "C",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_c/a0013-MB_20030906_001.tif",
+          "sha256": "1b7a15e0a2a51b41e1263b42744797495c126d01d6c851b31f3adab8bc3e1232",
+          "bytes": 29728854,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        },
+        {
+          "expert": "E",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_e/a0013-MB_20030906_001.tif",
+          "sha256": "91e784252ce22d9ce276c4a7c338a8410b8b7a9a72ab33c01e11ecde71641289",
+          "bytes": 29918930,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        }
+      ]
+    },
+    {
+      "id": "a0026",
+      "sourceName": "a0026-kme_391.dng",
+      "metadata": "0026 input DNG Expert&nbsp;A TIFF16 Expert&nbsp;B TIFF16 Expert&nbsp;C TIFF16 Expert&nbsp;D TIFF16 Expert&nbsp;E TIFF16 Subject: man-made object Light: mixed Location: outdoors Time: unknown EXIF: Canon EOS 20D F/2.8 1/10 ISO100 8.2MP",
+      "split": "reserved-not-edited",
+      "input": {
+        "url": "https://data.csail.mit.edu/graphics/fivek/img/dng/a0026-kme_391.dng",
+        "sha256": "8f74bf84ea871188ca8630070258664d1ba0ef1120078eaef791dccd8aef0954",
+        "bytes": 6280108
+      },
+      "licenseURL": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobe.txt",
+      "references": [
+        {
+          "expert": "C",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_c/a0026-kme_391.tif",
+          "sha256": "15a28fbee71041b6bab79d4046f11e5117d2abb954922be61fdcde6190e69d8f",
+          "bytes": 39044888,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        },
+        {
+          "expert": "E",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_e/a0026-kme_391.tif",
+          "sha256": "7394f63ee434c93e3e7c60c432a72545d5ab682d786f474fa8d4344b159d711f",
+          "bytes": 40983820,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        }
+      ]
+    },
+    {
+      "id": "a0032",
+      "sourceName": "a0032-jmac_MG_0266.dng",
+      "metadata": "0032 input DNG Expert&nbsp;A TIFF16 Expert&nbsp;B TIFF16 Expert&nbsp;C TIFF16 Expert&nbsp;D TIFF16 Expert&nbsp;E TIFF16 Subject: man-made object Light: sun or sky Location: outdoors Time: dawn or dusk EXIF: Canon EOS 5D F/10.0 1/400 ISO320 12.7MP",
+      "split": "development-pilot",
+      "input": {
+        "url": "https://data.csail.mit.edu/graphics/fivek/img/dng/a0032-jmac_MG_0266.dng",
+        "sha256": "eaa1bb9331e2e54fa44609b860b9516e9eaec6aa59757e4563df24281ea005e5",
+        "bytes": 10635956
+      },
+      "licenseURL": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobe.txt",
+      "references": [
+        {
+          "expert": "C",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_c/a0032-jmac_MG_0266.tif",
+          "sha256": "de0f1af3f31b2f02802062f8b487b5e3b5a4a95d4af3bf53469bd753c929a952",
+          "bytes": 65306178,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        },
+        {
+          "expert": "E",
+          "url": "https://data.csail.mit.edu/graphics/fivek/img/tiff16_e/a0032-jmac_MG_0266.tif",
+          "sha256": "e9828a1b2dfea5f0b8651b067e7568b80e6aea17c2a1039e409315e07b77a504",
+          "bytes": 64817642,
+          "format": "TIFF16 ProPhotoRGB with embedded ICC"
+        }
+      ]
+    }
+  ],
+  "legalFiles": [
+    {
+      "name": "LicenseAdobe.txt",
+      "url": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobe.txt",
+      "sha256": "8121ecfcf743d850d6b6dbd0744cfb517c4cec189387aa010bf378077de84fcf",
+      "bytes": 1841
+    },
+    {
+      "name": "LicenseAdobeMIT.txt",
+      "url": "https://data.csail.mit.edu/graphics/fivek/legal/LicenseAdobeMIT.txt",
+      "sha256": "69f73c481140c40d3a02a15a739da76073de35646108a70bb1dfffadb182af3d",
+      "bytes": 1994
+    },
+    {
+      "name": "filesAdobe.txt",
+      "url": "https://data.csail.mit.edu/graphics/fivek/legal/filesAdobe.txt",
+      "sha256": "9f4f262b25522d93f97a5b40f48f42de357ae0b14ef7098a576c912c546e8383",
+      "bytes": 45282
+    },
+    {
+      "name": "filesAdobeMIT.txt",
+      "url": "https://data.csail.mit.edu/graphics/fivek/legal/filesAdobeMIT.txt",
+      "sha256": "c4cc6ef8cc9e519466ac130b977cd4292ffe9405f94d04227d0e2aee38aa5475",
+      "bytes": 46936
+    }
+  ]
+}
