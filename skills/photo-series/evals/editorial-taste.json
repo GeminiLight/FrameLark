@@ -1,0 +1,36 @@
+{
+  "purpose": "Real-image behavioural comparisons for selection and sequencing; no automatic taste score or claim of unseen holdout.",
+  "method": "Give the executing agent the skill, user prompt and raw images only. Preserve actual previews and compare decisions. Keep previous judgments and expected checks out of its packet. Private photos and copyrighted references stay outside the plugin.",
+  "cases": [
+    {
+      "id": "mixed-travel-selection",
+      "user": "从这次外出照片选9张发朋友圈，内容多样，每张值得看，整组也有变化。",
+      "imageRoles": [
+        "raw contact sheets",
+        "similar original frames",
+        "actual three-by-three candidate layout"
+      ],
+      "checks": [
+        "Reads candidate images and compares concrete moments/space/colour relationships",
+        "Preserves requested count and subject variety while keeping weak goals explicit",
+        "Does not reserve one slot per subject category",
+        "Checks repeated view/edge/density patterns across different subjects",
+        "Uses a truly different alternative only when there is a visible competing relationship",
+        "Does not claim a raw-image layout is retouched or user accepted"
+      ]
+    },
+    {
+      "id": "accepted-photos-stay-accepted",
+      "user": "这些单张我已经认可，只优化组图的顺序与节奏，不再修照片。",
+      "imageRoles": [
+        "accepted finished photos with different aspect ratios"
+      ],
+      "checks": [
+        "Preserves accepted colour and composition",
+        "Uses the selected actual versions in the group preview",
+        "Separates arrangement judgments from new pixel edits",
+        "Does not force every frame into one aspect or generate replacement scenes"
+      ]
+    }
+  ]
+}

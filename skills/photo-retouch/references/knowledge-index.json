@@ -2441,6 +2441,157 @@
         "弱片",
         "目标未达到"
       ]
+    },
+    {
+      "id": "expert-space-gesture",
+      "kind": "judgment",
+      "file": "expert-visual-studies.md",
+      "section": "滨田英明：距离、动作和环境一起表达亲近",
+      "tags": [
+        "专家",
+        "taste",
+        "滨田英明",
+        "动作",
+        "距离",
+        "留白",
+        "人物"
+      ]
+    },
+    {
+      "id": "expert-small-discovery",
+      "kind": "judgment",
+      "file": "expert-visual-studies.md",
+      "section": "川内伦子：一个具体发现可以撑起安静画面",
+      "tags": [
+        "川内伦子",
+        "微小主体",
+        "发现",
+        "光",
+        "环境尺度",
+        "留白"
+      ]
+    },
+    {
+      "id": "expert-color-structure",
+      "kind": "judgment",
+      "file": "expert-visual-studies.md",
+      "section": "William Eggleston：颜色是画面的结构",
+      "tags": [
+        "Eggleston",
+        "专家",
+        "颜色面积",
+        "材料",
+        "浓彩",
+        "色彩分量"
+      ]
+    },
+    {
+      "id": "expert-layered-complexity",
+      "kind": "judgment",
+      "file": "expert-visual-studies.md",
+      "section": "Alex Webb：复杂画面需要层次之间的联系",
+      "tags": [
+        "Alex Webb",
+        "复杂画面",
+        "层次",
+        "暗区",
+        "间隔",
+        "多主体"
+      ]
+    },
+    {
+      "id": "expert-editing-tension",
+      "kind": "judgment",
+      "file": "expert-visual-studies.md",
+      "section": "Stephen Shore：完整信息与严格选编的张力",
+      "tags": [
+        "Stephen Shore",
+        "选编",
+        "日常",
+        "完整信息",
+        "个人记忆"
+      ]
+    },
+    {
+      "id": "intentional-photo-look",
+      "kind": "craft",
+      "file": "deliberate-finishing.md",
+      "section": "先选这张照片真正需要的观感",
+      "tags": [
+        "观感",
+        "专家",
+        "taste",
+        "亲近",
+        "材料",
+        "浓郁",
+        "原片"
+      ]
+    },
+    {
+      "id": "color-versus-crop-gain",
+      "kind": "craft",
+      "file": "deliberate-finishing.md",
+      "section": "构图收益不能代替调色收益",
+      "tags": [
+        "同构图",
+        "调色收益",
+        "裁剪收益",
+        "参考匹配",
+        "真实变化"
+      ]
+    },
+    {
+      "id": "expert-reference-match",
+      "kind": "craft",
+      "file": "expert-visual-studies.md",
+      "section": "参考选择与迁移记录",
+      "tags": [
+        "专家",
+        "参考匹配",
+        "光线",
+        "距离",
+        "材料",
+        "条件"
+      ]
+    },
+    {
+      "id": "finishing-color-area",
+      "kind": "craft",
+      "file": "deliberate-finishing.md",
+      "section": "将颜色面积与材料分开处理",
+      "tags": [
+        "颜色面积",
+        "主辅色",
+        "竞争色",
+        "材料",
+        "局部"
+      ]
+    },
+    {
+      "id": "finishing-light-model",
+      "kind": "craft",
+      "file": "deliberate-finishing.md",
+      "section": "用光塑造体积和观看路径",
+      "tags": [
+        "体积",
+        "材料",
+        "局部光",
+        "阴影重量",
+        "观看路径"
+      ]
+    },
+    {
+      "id": "finishing-output-match",
+      "kind": "craft",
+      "file": "deliberate-finishing.md",
+      "section": "原片、生成目标与最终文件各自检查",
+      "tags": [
+        "原片",
+        "生成参考",
+        "新栈",
+        "实际输出",
+        "图像对应"
+      ]
     }
   ]
 }
