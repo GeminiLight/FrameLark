@@ -35,6 +35,13 @@ for(const prefix of ['', '/FrameLark'])test(`published cases work at ${prefix||'
   }
   assert.ok(homepage.includes(`src="${prefix}/assets/website/photography-board.webp"`),'the arcade reference is visible in its chapter');
   assert.ok(homepage.includes(`src="${prefix}/assets/website/cafe-board.webp"`),'the cafe reference is visible in its chapter');
+  assert.deepEqual([...homepage.matchAll(/data-eye-case="([^"]+)"/g)].map(match=>match[1]),['lakeside','arcade','cafe'],'the requested lakeside scene leads the switcher');
+  assert.match(homepage,/<div class="eye-case-panel" id="eye-panel-lakeside"[^>]*aria-labelledby="eye-tab-lakeside"\s*>/,'the lakeside panel is the visible initial HTML state');
+  const styles=await readFile(join(output,'website.css'),'utf8');
+  for(const name of ['framelark-ui-cn.woff2','framelark-ui-cn-medium.woff2','framelark-ui-latin.woff2']){
+    assert.ok(styles.includes(`${prefix}/assets/website/fonts/${name}`),'font URLs honor the deployment prefix');
+    assert.deepEqual(await readFile(join(output,'assets/website/fonts',name)),await readFile(join(root,'apps/website/public/assets/website/fonts',name)),'font bytes survive publication');
+  }
   const script=await readFile(join(output,'website.js'),'utf8');
   for(const scene of ['arcade','cafe'])assert.ok(script.includes(`${prefix}/assets/cases/${scene}-reference.png`),scene+' retains the full-resolution board action');
   assert.ok(links.includes(`${prefix}/lakeside-case.html`),'the new lakeside example keeps its complete case page');

@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {realpathSync} from 'node:fs';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {initProject,loadProject,publicProject,preferenceChoices,currentVersion,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,saveResultAudit,saveFeedback,recordExport,fail,localFailure} from './project.mjs';
+import {initProject,loadProject,publicProject,preferenceChoices,currentVersion,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,saveResultAudit,saveFeedback,recordExport,fail,localFailure,settingsBounds} from './project.mjs';
 import {configureWorkflow,recordDiagnosis,prepareReview,editSources,rebuildEdits} from './workflow.mjs';
 import {initProfile,inspectProfile,learnProfile,editProfile} from './profile.mjs';
 import {visualExamples} from './examples.mjs';
@@ -15,6 +15,8 @@ import {handoffView} from './handoff-state.mjs';
 import {renderLookSheet} from './look-sheet.mjs';
 import {previewPhoto,exportPhoto,createRenderSession} from './render.mjs';
 import {editorControlReference} from './engine/control-reference.js';
+import {adjustmentKeys} from './engine/editor-engine.js';
+import {presets} from './engine/presets.js';
 import {letteringCapabilities} from './text-overlays.mjs';
 import {initCollection,inspectCollection,updateCollectionBrief,saveCollectionPlan,collectionSheet,exportCollection} from './collection.mjs';
 const help={name:'FrameLark · 帧好 · 本地修片',usage:'node cli.mjs <command> --project <folder> [options]',commands:{
@@ -74,7 +76,7 @@ async function input(file,limit=65536){if(!file)fail('INPUT_REQUIRED','请用 --
 export async function runCLI(values=process.argv.slice(2)) {
   const [command='help',...rest]=values;if(['help','--help','-h'].includes(command))return help;
   const o=args(rest),folder=o.project&&path.resolve(o.project),revision=o.revision===undefined?undefined:Number(o.revision);
-  if(command==='controls')return {parameters:publicProject({candidates:[],source:{},versions:[]}).parameters,styles:publicProject({candidates:[],source:{},versions:[]}).styles,grayCardReference:editorControlReference(),directions:{warmth:'正值更暖，负值更冷',tint:'正值减绿／向洋红，负值减洋红／向绿'},semantics:'曝光为 EV；其余数值是本编辑器相对控制，不是 Lightroom 开尔文或通用单位。settings 设为目标值；style 独立叠加。'};
+  if(command==='controls')return {parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),grayCardReference:editorControlReference(),directions:{warmth:'正值更暖，负值更冷',tint:'正值减绿／向洋红，负值减洋红／向绿'},semantics:'曝光为 EV；其余数值是本编辑器相对控制，不是 Lightroom 开尔文或通用单位。settings 设为目标值；style 独立叠加。'};
   if(command==='photo-tools'){const {photoTools}=await import('./engine/photo-tools/registry.js');return {tools:photoTools.describe(),execution:'subprocess'};}
   if(command==='document-tools'){const {pixelCapabilities}=await import('./engine/edit-stack/tools.js');return pixelCapabilities();}
   if(command==='lettering'&&!o.input)return letteringCapabilities();

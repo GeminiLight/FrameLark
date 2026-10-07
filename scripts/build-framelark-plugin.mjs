@@ -7,7 +7,7 @@ import {deflateRawSync} from 'node:zlib';
 
 export const repositoryRoot=fileURLToPath(new URL('../',import.meta.url));
 const excluded=new Set(['node_modules','.raw-venv','__pycache__','.DS_Store']);
-const payloadRoots=['plugin.json','.codex-plugin','assets','skills/photo-retouch','skills/photography-eye'];
+const payloadRoots=['plugin.json','.codex-plugin','assets','skills/photo-retouch','skills/photography-eye','skills/photo-series'];
 const privateParts=new Set(['node_modules','.raw-venv','__pycache__','.DS_Store','.git','.guangjian','.vercel','photos','projects','exports','drafts','artifacts','coverage','dist']);
 function isPrivateFile(name){
   return name.split('/').some(part=>privateParts.has(part)||/^\.env(?:\.|$)/.test(part)||/\.(?:log|tmp|pyc)$/.test(part));
@@ -52,7 +52,7 @@ function zip(files,prefix='framelark'){
 export async function buildPlugin({root=repositoryRoot,output,archive=true,variant='full'}={}){
   if(!['full','photography-eye'].includes(variant))throw Error('Unknown plugin variant: '+variant);
   const eyeOnly=variant==='photography-eye',name=eyeOnly?'framelark-eye':'framelark';
-  const skills=eyeOnly?['photography-eye']:['photo-retouch','photography-eye'];
+  const skills=eyeOnly?['photography-eye']:['photo-retouch','photography-eye','photo-series'];
   root=resolve(root);
   output=resolve(output||resolve(root,'dist',name));
   const relation=relative(root,output);

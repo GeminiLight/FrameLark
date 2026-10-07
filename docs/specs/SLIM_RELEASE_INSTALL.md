@@ -32,4 +32,8 @@ Public release availability is reported separately from code/artifact readiness.
 - Fresh macOS arm64 setup: 43.927 MiB native dependencies, down from 53.172 MiB. No package versions changed. PNG/text/geometry and 16-bit TIFF with ICC passed.
 - A real Codex QA marketplace installed version 0.1.8 and reported installed/enabled. All 181 source files matched release hashes; all 11 visual-case PNGs remained present. Installed size was 53.181 MiB, without Git or WASM. The temporary QA plugin and marketplace were removed afterward.
 - Release ZIPs were parsed and verified by the actual installer: full 8.506 MiB; Photography Eye 0.882 MiB. Runtime modules are not duplicated in the persistent release source cache.
-- The website command and prefilled request now select Release assets. The repository had no public Release during validation; live availability requires publishing the first verified version.
+- The website command and prefilled request now select Release assets. The initial validation preceded publication; v0.1.8 is now public. The main branch adds photo-series in v0.1.10, which needs its own verified release.
+
+## Merge review follow-up (2026-10-07)
+
+The release installer validates all three skills for v0.1.10 and newer, retaining the two-skill contract for older pinned releases. A local development marketplace nested inside the official checkout is preserved. Cached release content must match the entire file allowlist, including rejecting added files and links. Release builds validate installer bounds before promotion and replace the complete asset set so stale ZIPs cannot enter a later publication.

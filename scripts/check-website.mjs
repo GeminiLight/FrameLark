@@ -17,7 +17,7 @@ let server;
 const cafeReady=()=>browser('wait','--fn','!document.querySelector("#eye-panel-cafe").hidden&&document.querySelector(".eye-art").getAttribute("aria-busy")==="false"');
 async function click(selector){
   await evaluate(`document.querySelector(${JSON.stringify(selector)}).scrollIntoView({block:'center',behavior:'instant'});JSON.stringify(true)`);
-  await browser('wait','--fn',`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return r.width>0&&r.height>0&&e.contains(hit)&&!e.closest('section,dialog')?.getAnimations({subtree:true}).some(a=>a.playState==='running');})()`);
+  await browser('wait','--fn',`(()=>{const e=document.querySelector(${JSON.stringify(selector)}),r=e.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return document.fonts.status==='loaded'&&r.width>0&&r.height>0&&e.contains(hit)&&!e.closest('section,dialog')?.getAnimations({subtree:true}).some(a=>a.playState==='running');})()`);
   await browser('click',selector);
 }
 
@@ -35,21 +35,21 @@ try{
   const base='http://127.0.0.1:'+server.address().port+'/FrameLark/';
   await browser('open',base);await browser('set','viewport','1366','900');
   await browser('wait','--fn','!document.querySelector("#compare-range").disabled');
-  // Only the preloader fails once; the real image and all subsequent retries
-  // still come from the built site. This reproduces a recoverable load failure.
-  await evaluate(`(()=>{const NativeImage=window.Image,src=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');let fail=true;window.Image=function(...args){const image=new NativeImage(...args);Object.defineProperty(image,'src',{get(){return src.get.call(image);},set(value){if(fail&&value.endsWith('/cafe-board.webp')){fail=false;queueMicrotask(()=>image.dispatchEvent(new Event('error')));}else src.set.call(image,value);}});return image;};return JSON.stringify(true);})()`);
-  await browser('click','[data-eye-case=cafe]');await browser('wait','--fn','document.querySelector("#eye-announcement").textContent.includes("重试")');
-  const notice=await evaluate(`(()=>{const node=document.querySelector('#eye-announcement'),r=node.getBoundingClientRect(),style=getComputedStyle(node);return JSON.stringify({text:node.textContent,height:r.height,clip:style.clip,arcadeKept:!document.querySelector('#eye-panel-arcade').hidden});})()`);
-  assert.ok(notice.height>12&&notice.clip==='auto','An image-load failure needs a visible recovery message');assert.equal(notice.arcadeKept,true);
-  await browser('click','[data-eye-case=cafe]');await cafeReady();
-  assert.equal(await evaluate('JSON.stringify(document.querySelector("#eye-announcement").classList.contains("is-error"))'),false);
+  // The preloader remains unavailable until the test explicitly restores it; the real image and all subsequent retries
+  // still come from the built site. Background warming cannot consume the fixture.
+  await evaluate(`(()=>{const NativeImage=window.Image,src=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');window.failCafe=true;window.Image=function(...args){const image=new NativeImage(...args);Object.defineProperty(image,'src',{get(){return src.get.call(image);},set(value){if(window.failCafe&&value.endsWith('/cafe-board.webp')){queueMicrotask(()=>image.dispatchEvent(new Event('error')));}else src.set.call(image,value);}});return image;};return JSON.stringify(true);})()`);
+  await click('[data-eye-case=cafe]');await browser('wait','--fn','document.querySelector("#scene-status").textContent.includes("重试")');
+  const notice=await evaluate(`(()=>{const node=document.querySelector('#scene-status'),r=node.getBoundingClientRect(),style=getComputedStyle(node);return JSON.stringify({text:node.textContent,height:r.height,clip:style.clip,lakesideKept:!document.querySelector('#eye-panel-lakeside').hidden});})()`);
+  assert.ok(notice.height>12&&notice.clip==='auto','An image-load failure needs a visible recovery message');assert.equal(notice.lakesideKept,true);
+  await evaluate('window.failCafe=false;JSON.stringify(true)');await click('[data-eye-case=cafe]');await cafeReady();
+  assert.equal(await evaluate('JSON.stringify(document.querySelector(".eye-art").classList.contains("has-error"))'),false);
   console.log('PASS visible image error, preserved old scene and successful retry');
 
   await click('#eye-panel-cafe [data-board=cafe]');await browser('wait','--fn','document.querySelector("#board-dialog").open');
   assert.ok((await evaluate('JSON.stringify(document.querySelector("#board-dialog-title").textContent)')).includes('玻璃'));
   assert.ok((await evaluate('JSON.stringify(document.querySelector("#board-dialog .original-board-link").href)')).endsWith('/assets/cases/cafe-reference.png'));
   await browser('click','#board-dialog [data-close]');await browser('focus','[data-eye-case=cafe]');await browser('press','Home');
-  await browser('wait','--fn','!document.querySelector("#eye-panel-arcade").hidden');
+  await browser('wait','--fn','!document.querySelector("#eye-panel-lakeside").hidden');
   console.log('PASS keyboard case selection and the selected full-board action');
   await click('[data-eye-case=lakeside]');await browser('wait','--fn','!document.querySelector("#eye-panel-lakeside").hidden');
   assert.equal(await evaluate('JSON.stringify(Number(document.querySelector("#eye-total").textContent))'),await evaluate('JSON.stringify(document.querySelectorAll("[data-eye-case]").length)'));
@@ -61,7 +61,7 @@ try{
   await browser('open',base);
   await evaluate(`(()=>{const NativeImage=window.Image,src=Object.getOwnPropertyDescriptor(HTMLImageElement.prototype,'src');window.Image=function(...args){const image=new NativeImage(...args);Object.defineProperty(image,'src',{get(){return src.get.call(image);},set(value){if(value.endsWith('/cafe-board.webp')){window.releaseCafe=()=>{image.addEventListener('load',()=>window.cafeLoaded=true,{once:true});src.set.call(image,value);};}else src.set.call(image,value);}});return image;};return JSON.stringify(true);})()`);
   await browser('click','[data-eye-case=cafe]');await browser('wait','--fn','typeof window.releaseCafe==="function"');
-  await browser('click','[data-eye-case=arcade]');await evaluate('window.releaseCafe();JSON.stringify(true)');await browser('wait','--fn','window.cafeLoaded===true');
+  await click('[data-eye-case=arcade]');await browser('wait','--fn','!document.querySelector("#eye-panel-arcade").hidden');await evaluate('window.releaseCafe();JSON.stringify(true)');await browser('wait','--fn','window.cafeLoaded===true');
   assert.equal(await evaluate('JSON.stringify(document.querySelector("#eye-panel-arcade").hidden)'),false);
   assert.equal(await evaluate('JSON.stringify(document.querySelector("[data-eye-case=cafe]").getAttribute("aria-selected"))'),'false');
   console.log('PASS a late case image cannot replace the newer selection');
@@ -81,7 +81,7 @@ try{
     await click('.menu-toggle');assert.equal(await evaluate('JSON.stringify(document.querySelector(".menu-toggle").getAttribute("aria-expanded"))'),'true');
     await click('#mobile-menu a[href="#eye"]');assert.equal(await evaluate('JSON.stringify(document.querySelector("#mobile-menu").hidden)'),true);
     assert.equal(await evaluate('JSON.stringify(document.documentElement.scrollWidth>innerWidth)'),false,'No horizontal loss at '+width);
-    await click('[data-eye-direction="1"]');await cafeReady();
+    await click('[data-eye-direction="1"]');await browser('wait','--fn','!document.querySelector("#eye-panel-arcade").hidden');
   }
   await browser('set','media','light','reduced-motion');await browser('open',base+'#cases');
   await browser('wait','--fn','location.hash==="#eye"');await browser('click','[data-eye-case=cafe]');await cafeReady();

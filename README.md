@@ -18,7 +18,7 @@ FrameLark 提供 Codex 插件、独立 Skill 和浏览器工作台，陪你从�
 | **[修照片 · 精修台](#photo-retouch-demo)** | 打磨光色、裁剪和局部细节，自定义风格，比较试片后再接受。 |
 | **[做组图 · 组图册](#photo-series-demo)** | 先确定主题，再精选照片、逐张精修、安排顺序，让整组互相呼应。 |
 
-人物、大场景和细节都可以放进同一组，靠主题与节奏联系起来。摄影眼由 `photography-eye` Skill 提供；精修台和组图册由 `photo-retouch` Skill 提供。
+人物、大场景和细节都可以放进同一组，靠主题与节奏联系起来。三个能力对应三个独立 Skill：`photography-eye` 摄影眼、`photo-retouch` 精修台、`photo-series` 组图册。组图册调用精修台逐张打磨，支持九宫格，也支持其他数量的组图。
 
 小帧是一只有「摄影眼」的观察小鸟，也是帧好的摄影伙伴。[认识小帧](docs/WEB_DESIGN.md#品牌与小帧)
 
@@ -44,7 +44,7 @@ FrameLark 提供 Codex 插件、独立 Skill 和浏览器工作台，陪你从�
 
 独立插件名是 **FrameLark 摄影眼**（`framelark-eye`），只包含 `photography-eye` Skill、参考资料与小帧素材，摄影指导无需准备本地修图依赖。在支持插件的本地 Codex 中发送：
 
-> 帮我从 https://github.com/GeminiLight/FrameLark 注册或更新插件市场，只安装 FrameLark 摄影眼插件 framelark-eye@framelark。确认只包含 photography-eye；开启新对话后，我会发一张现场照问「这里咋拍？」。
+> 帮我从 https://github.com/GeminiLight/FrameLark/releases 下载并校验最新正式版本包，注册本地插件市场，不克隆仓库，只安装 FrameLark 摄影眼插件 framelark-eye@framelark。确认只包含 photography-eye；开启新对话后，我会发一张现场照问「这里咋拍？」。
 
 已有仓库时，运行 `npm run plugin:install:photography-eye` 从正式 Release 安装并验证 `framelark-eye@framelark`。开发时用 `npm run plugin:install:local:photography-eye` 安装本地构建；两种安装器都会检查实际 Skill 内容及启用状态，不准备修图依赖。新对话附照片，直接问「这里咋拍？」；继续问「喜欢 P3，具体站在哪里？」或发复拍照。
 
@@ -52,7 +52,7 @@ FrameLark 提供 Codex 插件、独立 Skill 和浏览器工作台，陪你从�
 
 ### 安装统一插件
 
-一次安装统一插件，获得找画面、修照片和做组图三种能力。
+一次安装统一插件，获得摄影眼、精修台和组图册三个 Skill。
 
 推荐让本地 Codex 代装，直接发送：
 
@@ -76,7 +76,7 @@ node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight
 
 下一轮直接说「喜欢 P3，站哪里？」「把背景调柔一点」或「就这版，导出」。看图与可选生图使用当前 Agent 的能力，无需另填模型 Key；没有生图工具时先给文字拍法。
 
-默认从 GitHub Release 下载版本包，并在首次安装时准备修图依赖与全部案例图。正式版本包不可用时明确报错；源码开发可使用 `npm run plugin:install:local`。[安装准备与更新](docs/INSTALLATION.md) · [完整用法](docs/USAGE.md) · [公共目录发布流程](docs/PUBLISHING.md) · [效果示例](#使用示例)
+默认从 GitHub Release 下载版本包，并在首次安装时准备修图依赖与全部案例图。第三个 Skill 从 v0.1.10 起提供；该版本正式发布前可使用源码开发入口安装三个 Skill。正式版本包不可用时明确报错；源码开发可使用 `npm run plugin:install:local`。[安装准备与更新](docs/INSTALLATION.md) · [完整用法](docs/USAGE.md) · [公共目录发布流程](docs/PUBLISHING.md) · [效果示例](#使用示例)
 
 ### 其他入口
 

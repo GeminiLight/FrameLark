@@ -18,7 +18,7 @@ async function fixture(t){
  for(const path of ['plugin.json','.codex-plugin/plugin.json','.agents/plugins/marketplace.json','plugins/framelark-eye/.codex-plugin/plugin.json'])await put(path,await readFile(join(repositoryRoot,path)));
  await put('scripts/install-framelark-release.mjs',await readFile(join(repositoryRoot,'scripts/install-framelark-release.mjs')));
  await put('assets/framelark-avatar.png','icon');
- for(const skill of ['photography-eye','photo-retouch'])await put('skills/'+skill+'/SKILL.md','---\nname: '+skill+'\n---\nAll source content.');
+ for(const skill of ['photography-eye','photo-retouch','photo-series'])await put('skills/'+skill+'/SKILL.md','---\nname: '+skill+'\n---\nAll source content.');
  await put('skills/photography-eye/assets/xiaozhen.png','eye');
  await put('skills/photo-retouch/assets/visual-cases/example.png','full example');
  await put('skills/photo-retouch/scripts/setup.mjs','console.error("runtime ready");');
@@ -44,6 +44,7 @@ async function fixture(t){
 }
 test('release artifacts contain all examples and no checkout, and full setup is eager',async t=>{
  const f=await fixture(t),result=await installFrameLarkRelease({root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl,prepareRuntime:f.prepareRuntime});
+ assert.deepEqual(result.skills,['photo-retouch','photography-eye','photo-series']);assert.equal(await readFile(join(result.installedPath,'skills/photo-series/SKILL.md'),'utf8'),'---\nname: photo-series\n---\nAll source content.');
  assert.equal(result.source,'github-release');assert.equal(result.retouchDependencies,'ready');assert.equal(f.prepared.length,2);assert.ok(f.prepared[0].includes('.install-'));assert.equal(f.prepared[1],result.installedPath);
  assert.equal(await readFile(join(result.installedPath,'skills/photo-retouch/assets/visual-cases/example.png'),'utf8'),'full example');
  await stat(join(result.installedPath,'skills/photo-retouch/node_modules/ready'));assert.ok(!await stat(join(f.marketplaceRoot,'releases',f.built.tag,'framelark/skills/photo-retouch/node_modules')).catch(()=>null),'Source cache never keeps a duplicate native runtime');
@@ -95,4 +96,34 @@ else if(args[1]==='list')console.log('{"installed":[{"pluginId":"framelark@frame
  const code=await readFile(join(repositoryRoot,'scripts/install-framelark-release.mjs'),'utf8'),result=spawnSync(process.execPath,['--input-type=module'],{cwd:f.root,input:prelude+code,encoding:'utf8',env:{...process.env,FRAMELARK_INSTALL_ROOT:f.installRoot,PATH:bin+delimiter+process.env.PATH}});
  assert.equal(result.status,0,result.stderr);assert.equal(JSON.parse(result.stdout).retouchDependencies,'ready');assert.match(result.stderr,/runtime ready/);
  const inline=prelude+'await import('+JSON.stringify('data:text/javascript;base64,'+Buffer.from(code).toString('base64'))+');';const eye=spawnSync(process.execPath,['--input-type=module','-e',inline,'--','--photography-eye'],{cwd:f.root,encoding:'utf8',env:{...process.env,FRAMELARK_INSTALL_ROOT:f.installRoot,PATH:bin+delimiter+process.env.PATH}});assert.equal(eye.status,0,eye.stderr);assert.equal(JSON.parse(eye.stdout).pluginId,'framelark-eye@framelark');assert.equal(JSON.parse(eye.stdout).retouchDependencies,'not-required');
+});
+
+test('a local development marketplace inside the official checkout is preserved',async t=>{
+ const f=await fixture(t);execFileSync('git',['remote','add','origin','https://github.com/GeminiLight/FrameLark.git'],{cwd:f.source});
+ const development=join(f.source,'dist/framelark/marketplace');await mkdir(development,{recursive:true});
+ f.setExisting([{name:'framelark',root:development,marketplaceSource:{sourceType:'local',source:development}}]);
+ await assert.rejects(installFrameLarkRelease({root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl,prepareRuntime:f.prepareRuntime}),/已保留原配置/);
+ assert.equal(f.fetches.length,0);assert.equal(f.calls.length,1);
+});
+test('release construction removes obsolete assets on a repeat build',async t=>{
+ const f=await fixture(t);await writeFile(join(f.built.output,'framelark-0.0.1.zip'),'obsolete package');
+ await buildRelease({root:f.source});
+ assert.ok(!existsSync(join(f.built.output,'framelark-0.0.1.zip')));
+});
+
+test('unexpected files in an immutable release cache are preserved and block reuse',async t=>{
+ const f=await fixture(t);await installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl});
+ const added=join(f.marketplaceRoot,'releases',f.built.tag,'framelark-eye/skills/photography-eye/extra.mjs');await writeFile(added,'local edit');
+ const calls=f.calls.length;
+ await assert.rejects(installFrameLarkRelease({photographyEye:true,root:f.installRoot,codex:f.codex,fetchImpl:f.fetchImpl}),/缓存发生变化/);
+ assert.equal(await readFile(added,'utf8'),'local edit');assert.equal(f.calls.length,calls+1);
+});
+test('a failed release build preserves the previously verified assets',async t=>{
+ const f=await fixture(t),previous=await readFile(join(f.built.output,'framelark-release.json'));
+ await writeFile(join(f.source,'skills/photo-series/SKILL.md'),Buffer.alloc(33*1024*1024));
+ await assert.rejects(buildRelease({root:f.source}),/展开大小超过限制/);
+ assert.deepEqual(await readFile(join(f.built.output,'framelark-release.json')),previous);
+});
+test('release labels are bound to the full plugin version',async t=>{
+ const f=await fixture(t);assert.throws(()=>validateReleaseManifest({...f.manifest,tag:'v0.9.0'},'v0.9.0'),/版本与发布标签/);
 });

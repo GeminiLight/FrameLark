@@ -20,11 +20,15 @@ function arrive(element,{duration=260,startOpacity=.88}={}){
 const header = document.querySelector('.site-header');
 const menuToggle = document.querySelector('.menu-toggle');
 const mobileMenu = document.querySelector('#mobile-menu');
-function closeMenu(){ menuToggle.setAttribute('aria-expanded','false'); menuToggle.setAttribute('aria-label','打开导航'); mobileMenu.hidden=true; }
-menuToggle.addEventListener('click',()=>{const open=menuToggle.getAttribute('aria-expanded')!=='true'; menuToggle.setAttribute('aria-expanded',String(open));menuToggle.setAttribute('aria-label',open?'关闭导航':'打开导航');mobileMenu.hidden=!open;});
+const mainContent=document.querySelector('main');
+const footerContent=document.querySelector('.site-footer');
+function setMenu(open){menuToggle.setAttribute('aria-expanded',String(open));menuToggle.setAttribute('aria-label',open?'关闭导航':'打开导航');mobileMenu.hidden=!open;document.body.classList.toggle('has-menu',open);if(mainContent)mainContent.inert=open;if(footerContent)footerContent.inert=open;}
+function closeMenu(){setMenu(false);}
+menuToggle.addEventListener('click',event=>{const open=menuToggle.getAttribute('aria-expanded')!=='true';setMenu(open);if(open&&event.detail===0)mobileMenu.querySelector('a')?.focus();});
 mobileMenu.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMenu));
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!mobileMenu.hidden){closeMenu();menuToggle.focus();}});
-window.matchMedia('(min-width:681px)').addEventListener('change',event=>{if(event.matches)closeMenu();});
+document.addEventListener('click',event=>{if(!mobileMenu.hidden&&!header.contains(event.target))closeMenu();});
+window.matchMedia('(min-width:761px)').addEventListener('change',event=>{if(event.matches)closeMenu();});
 const updateHeader=()=>{header.classList.toggle('scrolled',window.scrollY>12);const total=document.documentElement.scrollHeight-window.innerHeight;header.style.setProperty('--read-progress',total>0?String(Math.min(1,window.scrollY/total)):'0');};
 window.addEventListener('scroll',updateHeader,{passive:true});updateHeader();
 window.addEventListener('resize',updateHeader,{passive:true});
@@ -40,12 +44,14 @@ const afterImage=document.querySelector('.compare-after');
 const beforeImage=document.querySelector('.compare-before');
 let requestId=0;
 const imageCache=new Map();
-function loadImage(url){if(!imageCache.has(url)){const task=new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('图片暂未加载完成'));img.src=url;});imageCache.set(url,task);task.catch(()=>imageCache.delete(url));}return imageCache.get(url);}
+function loadImage(url){if(!imageCache.has(url)){const task=new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>{if(img.decode)img.decode().then(()=>resolve(img),reject);else resolve(img);};img.onerror=()=>reject(new Error('图片暂未加载完成'));img.src=url;});imageCache.set(url,task);task.catch(()=>imageCache.delete(url));}return imageCache.get(url);}
 async function selectExample(tab){
   const id=tab.dataset.demo;
+  tabs.forEach(item=>item.removeAttribute('data-pending'));
   if(tab.getAttribute('aria-selected')==='true'){if(comparison.getAttribute('aria-busy')==='true'){++requestId;comparison.setAttribute('aria-busy','false');}return;}
   const thisRequest=++requestId;
   comparison.setAttribute('aria-busy','true');
+  tab.dataset.pending='true';
   const assetPrefix=examples[id].assetPrefix||id;
   const before=`/assets/website/${assetPrefix}-before.webp`;const after=`/assets/website/${assetPrefix}-gentle.webp`;
   try{
@@ -66,7 +72,7 @@ async function selectExample(tab){
     arrive(list);
   }catch{
     if(thisRequest===requestId)document.querySelector('.compare-instruction').textContent='图片暂未加载完成，请再点一次样张重试。';
-  }finally{if(thisRequest===requestId)comparison.setAttribute('aria-busy','false');}
+  }finally{if(thisRequest===requestId){comparison.setAttribute('aria-busy','false');tab.removeAttribute('data-pending');}}
 }
 tabs.forEach((tab,index)=>{
   tab.addEventListener('click',()=>selectExample(tab));
@@ -90,14 +96,22 @@ const eyeArt=document.querySelector('.eye-art');
 const eyeStatus=document.querySelector('#eye-announcement');
 const eyeTotal=document.querySelector('#eye-total');
 if(eyeTotal)eyeTotal.textContent=String(eyeTabs.length).padStart(2,'0');
-let eyeIndex=0,eyeRequest=0;
+const sceneStatus=document.querySelector('#scene-status');
+const sceneStatusDefault=sceneStatus?.textContent||'换个现场，看看更多可能';
+function updateSceneStatus(text){if(sceneStatus)sceneStatus.textContent=text;}
+let eyeIndex=Math.max(0,eyeTabs.findIndex(tab=>tab.getAttribute('aria-selected')==='true')),eyeRequest=0;
+let requestedEyeIndex=eyeIndex;
 async function selectEye(index){
   index=(index+eyeTabs.length)%eyeTabs.length;
   const request=++eyeRequest;
+  requestedEyeIndex=index;
+  eyeArt.classList.remove('has-error');
   eyeStatus.classList.remove('is-error');
-  if(index===eyeIndex){eyeArt.setAttribute('aria-busy','false');eyeStatus.textContent=`已显示${eyeScenes[eyeTabs[index].dataset.eyeCase].title}`;return;}
+  eyeTabs.forEach(item=>item.removeAttribute('data-pending'));
+  if(index===eyeIndex){eyeArt.setAttribute('aria-busy','false');updateSceneStatus(sceneStatusDefault);eyeStatus.textContent=`已显示${eyeScenes[eyeTabs[index].dataset.eyeCase].title}`;return;}
   const tab=eyeTabs[index],panel=document.getElementById(tab.getAttribute('aria-controls'));
   eyeArt.setAttribute('aria-busy','true');
+  tab.dataset.pending='true';updateSceneStatus('正在加载新案例…');
   eyeStatus.textContent='正在加载案例';
   try{
     await Promise.all([...panel.querySelectorAll('img')].map(img=>loadImage(img.src)));
@@ -106,11 +120,12 @@ async function selectEye(index){
     eyeTabs.forEach((item,i)=>{item.setAttribute('aria-selected',String(i===index));item.tabIndex=i===index?0:-1;document.getElementById(item.getAttribute('aria-controls')).hidden=i!==index;});
     document.querySelector('#eye-current').textContent=String(index+1).padStart(2,'0');
     eyeStatus.textContent=`已切换到${eyeScenes[tab.dataset.eyeCase].title}，现场输入与五种拍法参考。`;
+    updateSceneStatus(sceneStatusDefault);
     arrive(panel.querySelector('.scene-input'));
     arrive(panel.querySelector('.scene-output'));
   }catch{
-    if(request===eyeRequest){eyeStatus.textContent='案例图片暂未加载完成，当前案例已保留。请再次点击想看的案例重试。';eyeStatus.classList.add('is-error');}
-  }finally{if(request===eyeRequest)eyeArt.setAttribute('aria-busy','false');}
+    if(request===eyeRequest){requestedEyeIndex=eyeIndex;eyeArt.classList.add('has-error');updateSceneStatus('图片未加载，点选重试。');eyeStatus.textContent='案例图片暂未加载完成，当前案例已保留。请再次点击想看的案例重试。';eyeStatus.classList.add('is-error');}
+  }finally{if(request===eyeRequest){eyeArt.setAttribute('aria-busy','false');tab.removeAttribute('data-pending');}}
 }
 function bindTabKeys(items,select){
   items.forEach((tab,index)=>tab.addEventListener('keydown',event=>{
@@ -124,12 +139,15 @@ function bindTabKeys(items,select){
 }
 eyeTabs.forEach((tab,index)=>tab.addEventListener('click',()=>selectEye(index)));
 bindTabKeys(eyeTabs,selectEye);
-document.querySelectorAll('[data-eye-direction]').forEach(button=>button.addEventListener('click',()=>selectEye(eyeIndex+Number(button.dataset.eyeDirection))));
+document.querySelectorAll('[data-eye-direction]').forEach(button=>button.addEventListener('click',()=>selectEye(requestedEyeIndex+Number(button.dataset.eyeDirection))));
 let touchStart,lastSwipe=0;
 eyeArt.addEventListener('pointerdown',event=>{if(event.pointerType==='touch')touchStart={x:event.clientX,y:event.clientY};});
 eyeArt.addEventListener('pointercancel',()=>{touchStart=undefined;});
-eyeArt.addEventListener('pointerup',event=>{if(!touchStart)return;const dx=event.clientX-touchStart.x,dy=event.clientY-touchStart.y;touchStart=undefined;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.5){lastSwipe=Date.now();selectEye(eyeIndex+(dx<0?1:-1));}});
+eyeArt.addEventListener('pointerup',event=>{if(!touchStart)return;const dx=event.clientX-touchStart.x,dy=event.clientY-touchStart.y;touchStart=undefined;if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)*1.5){lastSwipe=Date.now();selectEye(requestedEyeIndex+(dx<0?1:-1));}});
 eyeArt.addEventListener('click',event=>{if(Date.now()-lastSwipe<400){event.preventDefault();event.stopImmediatePropagation();}},true);
+if('IntersectionObserver' in window&&!navigator.connection?.saveData&&!/2g/.test(navigator.connection?.effectiveType||'')){
+  const warmCases=new IntersectionObserver(entries=>{if(!entries.some(entry=>entry.isIntersecting))return;warmCases.disconnect();document.querySelectorAll('.eye-case-panel img').forEach(img=>loadImage(img.src));},{rootMargin:'300px 0px'});warmCases.observe(eyeArt);
+}
 
 const seriesSteps={
   theme:{title:'先找到，它们共有的气氛。',description:'猫的目光、木桌上的咖啡。让「安静日常」成为选择和取舍的线索。'},
@@ -168,7 +186,7 @@ if('IntersectionObserver' in window){
     entrances.unobserve(entry.target);
     arrive(entry.target,{startOpacity:.96});
   }),{threshold:.12});
-  document.querySelectorAll('.hero-copy,.hero-main-photo,.hero-small-photo,.journey,.section-heading,.eye-art,.eye-points,.atelier-demo,.chapter-case,.craft-principles,.series-photos,.series-story,.expression-features,.companion-portrait,.companion-copy,.faq-intro,.faq-list,.start-inner').forEach(element=>entrances.observe(element));
+  document.querySelectorAll('.hero-copy,.hero-main-photo,.journey,.section-heading,.eye-art,.eye-points,.atelier-demo,.chapter-case,.craft-principles,.series-photos,.series-story,.expression-features,.companion-portrait,.companion-copy,.faq-intro,.faq-list,.start-inner').forEach(element=>entrances.observe(element));
   const links=[...document.querySelectorAll('.desktop-nav a,.mobile-menu a')];
   const sections=[...document.querySelectorAll('#eye,#craft,#series,#companion')];
   let chapterFrame=0;

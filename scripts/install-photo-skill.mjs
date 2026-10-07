@@ -8,9 +8,10 @@ import {installationGuide} from './installation-guide.mjs';
 
 const catalog={
   'photo-retouch':{label:'照片精修',setup:true,legacy:'guangjian-retouch'},
-  'photography-eye':{label:'摄影眼',setup:false}
+  'photography-eye':{label:'摄影眼',setup:false},
+  'photo-series':{label:'组图册',setup:false}
 };
-const help=`FrameLark 独立 Skill 安装\n\n默认：node scripts/install-photo-skill.mjs [目标目录] [--update]\n单独摄影眼：node scripts/install-photo-skill.mjs --skill photography-eye [目标目录] [--update]\n两套一起：node scripts/install-photo-skill.mjs --all [宿主的 skills 根目录] [--update]\n\n不指定目录时安装到 ~/.codex/skills/；更新前保存旧版备份。`;
+const help=`FrameLark 独立 Skill 安装\n\n默认精修台：node scripts/install-photo-skill.mjs [目标目录] [--update]\n单独摄影眼：node scripts/install-photo-skill.mjs --skill photography-eye [目标目录] [--update]\n组图册与精修引擎：node scripts/install-photo-skill.mjs --skill photo-series [宿主的 skills 根目录] [--update]\n三套一起：node scripts/install-photo-skill.mjs --all [宿主的 skills 根目录] [--update]\n\n组图册共享 photo-retouch 引擎，因此一起安装；不指定目录时安装到 ~/.codex/skills/，更新前保存旧版备份。`;
 async function exists(folder){try{await access(folder);return true;}catch(e){if(e.code!=='ENOENT')throw e;return false;}}
 function options(args){
   let skill='photo-retouch',all=false,update=false,destination,selected=false;
@@ -18,13 +19,13 @@ function options(args){
     const value=args[i];
     if(value==='--update')update=true;
     else if(value==='--all')all=true;
-    else if(value==='--skill'){skill=args[++i];selected=true;if(!catalog[skill])throw Error('请选择 photo-retouch 或 photography-eye。');}
+    else if(value==='--skill'){skill=args[++i];selected=true;if(!catalog[skill])throw Error('请选择 photo-retouch、photography-eye 或 photo-series。');}
     else if(value.startsWith('--'))throw Error('未知选项：'+value+'。运行 --help 查看用法。');
     else if(destination)throw Error('只能提供一个目标目录。');
     else destination=value;
   }
   if(all&&selected)throw Error('--all 与 --skill 不能同时使用。');
-  return {names:all?Object.keys(catalog):[skill],all,update,destination};
+  return {names:all?Object.keys(catalog):skill==='photo-series'?['photo-retouch','photo-series']:[skill],all,update,destination};
 }
 async function install({names,all,update,destination}){
   const defaultHome=path.join(os.homedir(),'.codex','skills');
@@ -32,7 +33,7 @@ async function install({names,all,update,destination}){
   const entries=[];
   // Validate all existing destinations before preparing or replacing either skill.
   for(const name of names){
-    const target=destination&&!all?root:path.join(root,name);
+    const target=destination&&names.length===1?root:path.join(root,name);
     const legacy=!destination&&catalog[name].legacy?path.join(defaultHome,catalog[name].legacy):null;
     const prior=await exists(target)?target:legacy&&await exists(legacy)?legacy:null;
     if(prior){

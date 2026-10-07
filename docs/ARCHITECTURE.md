@@ -1,6 +1,6 @@
 # 项目结构
 
-帧好包含完整摄影工作台和两个 Agent Skill。工作台负责浏览器编辑、视觉顾问和本机项目协作；Skill 保持独立分发，使用宿主 Agent 的能力。独立摄影眼插件只提供现场拍法，统一 FrameLark 插件将两套 Skill 组合为一次安装。
+帧好包含完整摄影工作台和三个 Agent Skill：`photography-eye` 提供现场拍法，`photo-retouch` 精修原片，`photo-series` 负责主题、选片与排列并协调逐张精修。工作台负责浏览器编辑、视觉顾问和本机项目协作。组图册与精修台共享同一份本地像素引擎和项目数据；独立摄影眼插件只提供现场拍法，统一 FrameLark 插件将三个 Skill 组合为一次安装。
 
 ```text
 FrameLark/

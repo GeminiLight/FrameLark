@@ -78,7 +78,7 @@ node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight
 
 已有仓库时，`npm run plugin:install` 使用同一版本安装器；开发构建使用 `npm run plugin:install:local`。
 
-安装器会校验版本包、准备本平台修图依赖、注册本地 FrameLark 市场并安装 `framelark@framelark`。全部案例图随包下载，安装成功后即可离线查看；Sharp 与 Canvas 首次安装完成前不会报告就绪。首次准备依赖需要联网。成功时输出 `ok: true`、两套 Skill 名称和 `retouchDependencies: ready`。 看图和可选生图仍需在当前会话确认，不因安装成功就称生图已就绪。
+安装器会校验版本包、准备本平台修图依赖、注册本地 FrameLark 市场并安装 `framelark@framelark`。全部案例图随包下载，安装成功后即可离线查看；Sharp 与 Canvas 首次安装完成前不会报告就绪。首次准备依赖需要联网。成功时输出 `ok: true`、该版本的 Skill 名称和 `retouchDependencies: ready`。0.1.10 起包含摄影眼、精修台和组图册三个 Skill；固定安装旧版本时按旧版内容验证。看图和可选生图仍需在当前会话确认，不因安装成功就称生图已就绪。
 
 **开启一个新对话**，确认插件已启用，附上照片开始：
 
@@ -88,9 +88,9 @@ node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight
 
 也可以在已有 Codex 对话中直接说：
 
-> 从 GeminiLight/FrameLark 的最新正式 Release 安装 framelark@framelark，不克隆仓库；首次准备好本平台修图依赖，确认两套 Skill 和全部案例图都已包含。
+> 从 GeminiLight/FrameLark 的最新正式 Release 安装 framelark@framelark，不克隆仓库；首次准备好本平台修图依赖，确认摄影眼、精修台和组图册三个 Skill 及全部案例图都已包含。
 
-Agent 会按当前环境安装。直接市场命令、启用状态检查、ZIP 分发和发布范围见 [插件说明](PLUGIN.md)。默认从 GitHub Release 安装，尚未上架 OpenAI 官方通用目录。首次正式 Release 发布前，新入口会明确提示版本包不可用，不会退回整仓克隆。
+Agent 会按当前环境安装。直接市场命令、启用状态检查、ZIP 分发和发布范围见 [插件说明](PLUGIN.md)。默认从 GitHub Release 安装，尚未上架 OpenAI 官方通用目录。公开 Release 与主分支分别更新：v0.1.8 已发布，第三个 Skill 需要 v0.1.10 或更高版本的正式包。未发布的版本会明确报错，不会退回整仓克隆。
 
 ### 更新插件
 
@@ -100,21 +100,24 @@ Agent 会按当前环境安装。直接市场命令、启用状态检查、ZIP �
 
 ## 独立安装 Skill
 
-统一插件已经包含两套 Skill。想独立使用，或宿主不支持插件时，再选择此方式。
+统一插件已经包含三个 Skill。想独立使用，或宿主不支持插件时，再选择此方式。
 
 | 安装内容 | 命令 |
 | --- | --- |
-| 摄影眼与照片精修 | `npm run install:skills` |
+| 摄影眼、精修台与组图册 | `npm run install:skills` |
+| 组图册与精修引擎 | `node scripts/install-photo-skill.mjs --skill photo-series` |
 | 仅照片精修 | `npm run install:skill` |
 | 仅摄影眼 | `npm run install:photography-eye` |
 
-默认分别安装到 `~/.codex/skills/photography-eye` 和 `~/.codex/skills/photo-retouch`。摄影眼无需额外图片依赖；照片精修会准备固定版本的图片依赖。
+默认安装到 `~/.codex/skills/` 下的 `photography-eye`、`photo-retouch` 和 `photo-series`。摄影眼无需本地图片依赖；组图册共享精修台的引擎，单独选择组图册也会一起安装精修台。已有安装时加 `--update`，更新前保留备份。
 
 安装后刷新 Skill 列表或开启新对话，附图使用：
 
 > 用 $photography-eye 看这里有哪些值得拍的画面，告诉我站哪、怎么取景和设置参数。
 
 > 用 $photo-retouch 修这张照片。先说明值得保留的关系，再给可预览的调整方案。
+
+> 用 $photo-series 从这个目录做朋友圈九宫格，先定主题、选片和逐张精修，保留原片。
 
 ### 更新与旧版迁移
 
@@ -138,6 +141,12 @@ npm run install:skills -- /你的/agent/skills
 ```sh
 node scripts/install-photo-skill.mjs /你的/agent/skills/photo-retouch
 node scripts/install-photo-skill.mjs --skill photography-eye /你的/agent/skills/photography-eye
+```
+
+组图册需要精修引擎，指定的是 **skills 根目录**：
+
+```sh
+node scripts/install-photo-skill.mjs --skill photo-series /你的/agent/skills
 ```
 
 其他宿主如何发现、启用 Skill，以宿主说明为准。

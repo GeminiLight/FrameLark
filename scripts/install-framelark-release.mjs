@@ -1,7 +1,7 @@
 // Release bootstrap: Node built-ins only; no checkout, Git or npm package needed.
 import {execFileSync,spawn} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
-import {mkdir,mkdtemp,readFile,writeFile,readdir,rename,rm,cp,stat} from 'node:fs/promises';
+import {mkdir,mkdtemp,readFile,writeFile,readdir,rename,rm,cp,stat,lstat} from 'node:fs/promises';
 import {realpathSync,existsSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {join,resolve,dirname,isAbsolute} from 'node:path';
@@ -12,6 +12,13 @@ export const releaseRepository='GeminiLight/FrameLark';
 const github='https://github.com/'+releaseRepository;
 const digest=bytes=>createHash('sha256').update(bytes).digest('hex');
 const limits={archive:16*1024*1024,expanded:32*1024*1024,files:1000};
+const versionPattern=/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/;
+function releaseSkills(pkg){
+  if(pkg.name==='framelark-eye')return ['photography-eye'];
+  const [major,minor,patch]=pkg.version.split(/[.-]/).slice(0,3).map(Number);
+  return major>0||minor>1||minor===1&&patch>=10
+    ?['photo-retouch','photography-eye','photo-series']:['photo-retouch','photography-eye'];
+}
 const fail=message=>{throw Error(message);};
 const safePath=path=>typeof path==='string'&&/^[\w./-]+$/.test(path)&&!path.startsWith('/')&&!path.split('/').some(p=>!p||p==='.'||p==='..'||['.git','node_modules','.raw-venv','.guangjian','photos','projects','exports','drafts'].includes(p)||/^\.env(?:\.|$)/.test(p));
 
@@ -45,10 +52,12 @@ export function validateReleaseManifest(value,tag){
   if(value?.schema!==1||value.repository!==releaseRepository||value.tag!==tag||!/^v\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(tag)||!Array.isArray(value.plugins)||value.plugins.length!==2)fail('版本清单身份不一致。');
   const names=new Set();
   for(const pkg of value.plugins){
-    if(!['framelark','framelark-eye'].includes(pkg.name)||names.has(pkg.name)||!/^\d+\.\d+\.\d+$/.test(pkg.version)||pkg.asset!==pkg.name+'-'+pkg.version+'.zip'||!Number.isSafeInteger(pkg.bytes)||pkg.bytes<1||pkg.bytes>limits.archive||!/^[a-f0-9]{64}$/.test(pkg.sha256)||!Array.isArray(pkg.files)||!pkg.files.length||pkg.files.length>limits.files)fail('版本包记录无效。');
+    if(!['framelark','framelark-eye'].includes(pkg.name)||names.has(pkg.name)||!versionPattern.test(pkg.version)||pkg.asset!==pkg.name+'-'+pkg.version+'.zip'||!Number.isSafeInteger(pkg.bytes)||pkg.bytes<1||pkg.bytes>limits.archive||!/^[a-f0-9]{64}$/.test(pkg.sha256)||!Array.isArray(pkg.files)||!pkg.files.length||pkg.files.length>limits.files)fail('版本包记录无效。');
     names.add(pkg.name);let size=0;const paths=new Set();
-    for(const file of pkg.files){if(!safePath(file.path)||!(file.path==='plugin.json'||file.path==='.codex-plugin/plugin.json'||file.path.startsWith('assets/')||file.path.startsWith('skills/photography-eye/')||pkg.name==='framelark'&&file.path.startsWith('skills/photo-retouch/'))||paths.has(file.path)||!Number.isSafeInteger(file.bytes)||file.bytes<0||! /^[a-f0-9]{64}$/.test(file.sha256))fail('版本文件记录无效。');paths.add(file.path);size+=file.bytes;}
+    for(const file of pkg.files){if(!safePath(file.path)||!(file.path==='plugin.json'||file.path==='.codex-plugin/plugin.json'||file.path.startsWith('assets/')||releaseSkills(pkg).some(skill=>file.path.startsWith('skills/'+skill+'/')))||paths.has(file.path)||!Number.isSafeInteger(file.bytes)||file.bytes<0||! /^[a-f0-9]{64}$/.test(file.sha256))fail('版本文件记录无效。');paths.add(file.path);size+=file.bytes;}
     if(size>limits.expanded)fail('版本展开大小超过限制。');
+    if(pkg.name==='framelark'&&'v'+pkg.version!==tag)fail('统一插件版本与发布标签不一致。');
+    for(const skill of releaseSkills(pkg))if(!paths.has('skills/'+skill+'/SKILL.md'))fail('版本包缺少必需的 Skill：'+skill);
   }
   return value;
 }
@@ -79,12 +88,35 @@ export function releaseArchiveFiles(bytes,pkg){
   return result;
 }
 const exists=path=>stat(path).then(()=>true,error=>{if(error.code==='ENOENT')return false;throw error;});
+async function verifySourceCache(folder,files){
+  const changed=()=>fail('已有版本缓存发生变化，已保留。请先核对本地修改。');
+  if(!(await lstat(folder)).isDirectory())changed();
+  const expected=new Map(files.map(file=>[file.path,file.data]));
+  async function walk(path=''){
+    for(const entry of await readdir(join(folder,path),{withFileTypes:true})){
+      const name=path?path+'/'+entry.name:entry.name;
+      if(entry.isDirectory()){
+        if(![...expected.keys()].some(file=>file.startsWith(name+'/')))changed();
+        await walk(name);
+      }else if(entry.isFile()){
+        const bytes=expected.get(name);
+        if(!bytes||digest(await readFile(join(folder,name)))!==digest(bytes))changed();
+        expected.delete(name);
+      }else changed();
+    }
+  }
+  await walk();if(expected.size)changed();
+}
 async function setup(folder){
   const code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[join(folder,'skills/photo-retouch/scripts/setup.mjs')],{stdio:['ignore',2,2]});child.once('error',reject);child.once('exit',resolve);});
   if(code!==0)fail('修图依赖未准备完成，未报告安装成功。请检查 Node.js 与网络后重试。');
 }
-function canonicalOrigin(root){
-  try{const url=execFileSync('git',['-C',root,'remote','get-url','origin'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();return /^(?:https:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)GeminiLight\/(?:FrameLark|frameyn)(?:\.git)?\/?$/i.test(url)?url:null;}catch{return null;}
+function canonicalOrigin(current){
+  // A developer's local build can be nested inside the official Git checkout.
+  // Only migrate a Git marketplace rooted at the checkout itself.
+  if(current.marketplaceSource?.sourceType&&current.marketplaceSource.sourceType!=='git')return null;
+  const root=current.root;
+  try{const top=execFileSync('git',['-C',root,'rev-parse','--show-toplevel'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();if(realpathSync(top)!==realpathSync(root))return null;const url=execFileSync('git',['-C',root,'remote','get-url','origin'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();return /^(?:https:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)GeminiLight\/(?:FrameLark|frameyn)(?:\.git)?\/?$/i.test(url)?url:null;}catch{return null;}
 }
 async function moveRuntime(source,target){
   if(await exists(target))return;
@@ -97,14 +129,14 @@ export async function installFrameLarkRelease({photographyEye=false,tag,root=pro
   if(tag&&!/^v\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(tag))fail('版本号无效。');
   root=resolve(root);const marketplaceRoot=join(root,'marketplace'),current=codex(['plugin','marketplace','list']).marketplaces?.find(m=>m.name==='framelark');
   if(current&&!current.root)fail('当前 framelark 市场没有可用的本地来源，已保留配置。');
-  const priorOrigin=current&&resolve(current.root)!==marketplaceRoot?canonicalOrigin(current.root):null;
+  const priorOrigin=current&&resolve(current.root)!==marketplaceRoot?canonicalOrigin(current):null;
   if(current&&resolve(current.root)!==marketplaceRoot&&!priorOrigin)fail('framelark 市场指向其他来源或本地构建，已保留原配置。请明确选择版本包安装来源后再继续。');
   // Release assets are public downloads and do not consume the anonymous REST
   // API quota (often shared by proxies). The manifest pins the selected tag.
   const manifestURL=github+'/releases/'+(tag?'download/'+tag:'latest/download')+'/framelark-release.json';
   const value=JSON.parse((await download(manifestURL,512*1024,fetchImpl)).toString('utf8'));
   const manifest=validateReleaseManifest(value,tag||value.tag),releaseTag=manifest.tag;
-  const name=photographyEye?'framelark-eye':'framelark',pkg=manifest.plugins.find(p=>p.name===name),skills=photographyEye?['photography-eye']:['photo-retouch','photography-eye'];
+  const name=photographyEye?'framelark-eye':'framelark',pkg=manifest.plugins.find(p=>p.name===name),skills=releaseSkills(pkg);
   const files=releaseArchiveFiles(await download(github+'/releases/download/'+releaseTag+'/'+pkg.asset,limits.archive,fetchImpl),pkg);
   await mkdir(root,{recursive:true});const temporary=await mkdtemp(join(root,'.install-')),stage=join(temporary,name),target=join(marketplaceRoot,'releases',releaseTag,name),catalogPath=join(marketplaceRoot,'.agents/plugins/marketplace.json');
   try{
@@ -115,7 +147,7 @@ export async function installFrameLarkRelease({photographyEye=false,tag,root=pro
     if(!photographyEye)await prepareRuntime(stage);
     const runtime=join(temporary,'runtime'),prepared=join(stage,'skills/photo-retouch/node_modules');if(!photographyEye&&await exists(prepared))await rename(prepared,runtime);
     if(await exists(target)){
-      for(const file of files)if(digest(await readFile(join(target,file.path)))!==digest(file.data))fail('已有版本缓存发生变化，已保留。请先核对本地修改。');
+      await verifySourceCache(target,files);
     }else{await mkdir(dirname(target),{recursive:true});await rename(stage,target);}
     const priorCatalog=await readFile(catalogPath).catch(error=>{if(error.code==='ENOENT')return null;throw error;}),catalog=priorCatalog?JSON.parse(priorCatalog):{name:'framelark',interface:{displayName:'FrameLark · 帧好'},plugins:[]};
     if(catalog.name!=='framelark'||!Array.isArray(catalog.plugins)||catalog.plugins.some(p=>!['framelark','framelark-eye'].includes(p.name)))fail('本地版本市场记录发生变化，已保留。');

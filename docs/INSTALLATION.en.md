@@ -66,7 +66,7 @@ node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight
 
 `npm run plugin:install` runs the same release installer from a checkout; `npm run plugin:install:local` installs the local development build. All examples and native retouch dependencies are prepared during installation.
 
-The installer builds the plugin, registers the FrameLark marketplace, installs `framelark@framelark`, and prepares local retouching dependencies. The first dependency setup needs an internet connection. Success reports `ok: true`, both skill names, and `retouchDependencies: ready`, followed by starting requests and follow-up examples for the installed workflows. Vision and optional image generation still need to be checked in the current session; installation does not enable a model service.
+The installer verifies the release archive, prepares local retouching dependencies, registers its local marketplace and installs `framelark@framelark`. First setup needs an internet connection. Success reports `ok: true`, the skills included in that version, and `retouchDependencies: ready`. Version 0.1.10 and newer include all three skills; pinned older releases retain their original skill set. Published releases and main are updated separately; use the local development build for changes awaiting release. Vision and optional image generation still need to be checked in the current session; installation does not enable a model service.
 
 **Open a new chat**, confirm the plugin is enabled, and attach a photograph:
 

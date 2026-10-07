@@ -1,4 +1,4 @@
 interface:
-  display_name: "帧好修片 · 小帧"
-  short_description: "按用途与主题选片、排序、统一精修；保留原片、批注、试片和版本，支持整组交付"
-  default_prompt: "使用 $photo-retouch 处理这些照片：围绕我的用途和表达，选出值得保留的画面，安排顺序，再给可预览、可继续精调的方案。"
+  display_name: "FrameLark 精修台 · 小帧"
+  short_description: "实际打磨原片的构图、光色与局部，按生成目标试修和返修，保留原片、可编辑版本与导出"
+  default_prompt: "使用 $photo-retouch 精修这张原片，按我的成片目标给可比较、可继续调整的试片，保留原片。"
