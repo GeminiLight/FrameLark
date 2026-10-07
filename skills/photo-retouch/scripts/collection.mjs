@@ -93,18 +93,21 @@ export async function inspectCollection(folder){
   const root=path.resolve(folder),c=await loadCollection(root),ctx=await context(root,c),plan=c.plans.at(-1);
   return {folder:root,...c,...ctx,plan:plan?{...plan,stale:plan.snapshotHash!==ctx.snapshotHash}:null,unreviewed:ctx.photos.filter(p=>!plan?.decisions.some(d=>d.id===p.id)).map(p=>p.id),visualAnalysis:'宿主 Agent 须实际看联系表与单图；工具未进行视觉评分、主题识别或自动淘汰。'};
 }
-export async function updateCollectionBrief(folder,value){
+export async function updateCollectionBrief(folder,value,{collectionId}={}){
   object(value,['revision','brief']);
   if(!value.brief||typeof value.brief!=='object'||Array.isArray(value.brief))fail('COLLECTION_BRIEF','请提供要更新的 brief 对象。');
   return locked(folder,async(root,c)=>{
+    if(collectionId&&c.id!==collectionId)fail('COLLECTION_IDENTITY','组图身份已变化，请重新读取。');
     revision(c,value.revision);const next=brief({...c.brief,...value.brief});
     if(next.mustKeep.some(id=>!c.photos.some(p=>p.id===id)))fail('COLLECTION_IDS','必留照片 ID 不存在。');
     c.brief=next;c.revision++;c.updatedAt=now();await writeState(root,c);return inspectCollection(root);
   });
 }
-export async function saveCollectionPlan(folder,value){
-  object(value,['revision','snapshotHash','title','rationale','decisions','order','anchorId']);
+export async function saveCollectionPlan(folder,value,{collectionId}={}){
+  object(value,['revision','snapshotHash','title','rationale','decisions','order','anchorId','source']);
+  if(value.source!==undefined&&!['host-agent','workspace-user'].includes(value.source))fail('COLLECTION_PLAN','选片来源无效。');
   return locked(folder,async(root,c)=>{
+    if(collectionId&&c.id!==collectionId)fail('COLLECTION_IDENTITY','组图身份已变化，请重新读取。');
     revision(c,value.revision);const ctx=await context(root,c);
     if(value.snapshotHash!==ctx.snapshotHash)fail('STALE_COLLECTION','主题、照片或批注已变化，请重新看图并读取组图。');
     if(!Array.isArray(value.decisions)||value.decisions.length>c.photos.length||new Set(value.decisions.map(d=>d.id)).size!==value.decisions.length)fail('COLLECTION_DECISIONS','每张照片最多一条取舍记录。');
@@ -118,7 +121,7 @@ export async function saveCollectionPlan(folder,value){
     if(!Array.isArray(value.order)||new Set(value.order).size!==selected.length||value.order.length!==selected.length||value.order.some(id=>!selected.includes(id)))fail('COLLECTION_ORDER','顺序须恰好包含全部入选照片，各一次。');
     if(c.brief.mustKeep.some(id=>!selected.includes(id)))fail('COLLECTION_MUST_KEEP','不能排除用户明确必留的照片；请说明冲突并让用户调整约束。');
     if(value.anchorId!==undefined&&value.anchorId!==null&&!selected.includes(value.anchorId))fail('COLLECTION_ANCHOR','定调参考须是入选照片。');
-    const plan={id:randomUUID(),title:requiredText(value.title,80),rationale:requiredText(value.rationale,1200),snapshotHash:ctx.snapshotHash,brief:structuredClone(c.brief),decisions,order:[...value.order],anchorId:value.anchorId||null,createdAt:now(),source:'host-agent'};
+    const plan={id:randomUUID(),title:requiredText(value.title,80),rationale:requiredText(value.rationale,1200),snapshotHash:ctx.snapshotHash,brief:structuredClone(c.brief),decisions,order:[...value.order],anchorId:value.anchorId||null,createdAt:now(),source:value.source||'host-agent'};
     await mkdir(path.join(root,'plans'),{recursive:true});await writeFile(path.join(root,'plans',`${plan.id}.json`),JSON.stringify(plan,null,2),{flag:'wx',mode:0o600});
     c.plans.push(plan);c.plans=c.plans.slice(-5);c.revision++;c.updatedAt=now();await writeState(root,c);
     return {...await inspectCollection(root),warnings:c.brief.targetCount!==null&&selected.length!==c.brief.targetCount?[`目标 ${c.brief.targetCount} 张，实际入选 ${selected.length} 张；不为凑数自动补图。`]:[]};
@@ -151,9 +154,10 @@ export async function collectionSheet(folder,value={}){
   await writeFile(file,canvas.toBuffer('image/png'),{flag:'wx',mode:0o600});
   return {path:file,page,pages,total:list.length,photos:records,snapshotHash:ctx.snapshotHash,detail:'联系表用于初选；表情、焦点、噪点与重复帧取舍仍需打开单图和细节。'};
 }
-export async function exportCollection(folder,value){
+export async function exportCollection(folder,value,{collectionId}={}){
   object(value,['revision','snapshotHash','preset','format','retryJob']);
   return locked(folder,async(root,c)=>{
+    if(collectionId&&c.id!==collectionId)fail('COLLECTION_IDENTITY','组图身份已变化，请重新读取。');
     revision(c,value.revision);const ctx=await context(root,c),plan=c.plans.at(-1);
     if(!plan||!plan.order.length||plan.snapshotHash!==ctx.snapshotHash||value.snapshotHash!==ctx.snapshotHash)fail('STALE_COLLECTION','请基于当前主题和最终版本保存选片排序，再导出。');
     const preset=value.preset||'share',format=value.format||(preset==='original'?'png':'jpeg');

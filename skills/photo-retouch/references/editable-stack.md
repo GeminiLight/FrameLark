@@ -8,7 +8,11 @@ node <skill>/scripts/cli.mjs document --project <project>
 node <skill>/scripts/cli.mjs document --project <project> --input <plan.json>
 ```
 
-`document` 的只读调用返回项目 revision、baseVersion 和当前文档（旧项目返回尚未保存的固定兼容基础）。下面示例只说明结构，使用刚读取的实际身份：
+`inspect` 的 `editProtocol.mode` 为 `document`、当前版本有 recipe，或 `document` 返回 active:true 时，必须用此协议。RAW 从导入成功时就使用新栈。`legacy` 项目仍可用旧参数；只读 `document` 不启用新栈，也不写盘。
+
+`document` 的只读调用返回项目 `revision`/`baseVersion`、文档 `documentRevision`、权威 `baseHash`（同值别名 `documentHash`），以及完整 `document`。旧项目返回尚未保存的固定兼容基础。项目 revision 与文档 revision 不混用：每次写入项目后重新读取；文档命令把返回的 `documentRevision` 放入 `documentProposal.baseRevision`，把 `baseHash` 原样回传，不能使用 base.stateHash 或普通 JSON 的 SHA256 替代。
+
+下面示例只说明结构，使用刚读取的实际身份：
 
 ```json
 {
@@ -18,7 +22,7 @@ node <skill>/scripts/cli.mjs document --project <project> --input <plan.json>
   "name": "让暗处稍亮",
   "documentProposal": {
     "baseRevision": 3,
-    "baseHash": "实际文档的SHA256身份",
+    "baseHash": "document 返回的 baseHash",
     "items": [{
       "id": "weaken-light", "title": "减弱原来的提亮", "dependsOn": [],
       "commands": [{"type":"UpdateStepParameters","stepId":"原来的稳定步骤ID","parameters":{"ev":0.2}}]
@@ -27,7 +31,9 @@ node <skill>/scripts/cli.mjs document --project <project> --input <plan.json>
 }
 ```
 
-宿主工具 `frameyn_document_tools` 发现能力，`frameyn_propose_document` 生成候选；`tool-schema` 给出契约，静态协议见 `schemas/document-plan.schema.json`。接受、逐项选择、诊断、审核、保护和导出沿用现有入口。不要使用旧 aggregate settings 覆盖已启用的新栈。
+示例里的顶层 revision/baseVersion 分别替换为返回的项目身份，baseRevision:3 替换为实际 documentRevision。新照片没有步骤时用 AddStep；继续调整时用 UpdateStepParameters 与真实 stepId。提案成功返回实际 candidate、preview 和选择身份，检查预览后再 `accept --id <candidate.id> --revision <project.revision> --selection-hash <candidate.selectionHash>`；Agent 正式交付仍需 reviewed 与同组合审核。
+
+宿主工具 `frameyn_document_tools` 发现能力，`frameyn_propose_document` 生成候选；`tool-schema` 给出契约，静态协议见 `schemas/document-plan.schema.json`。接受、逐项选择、诊断、审核、保护和导出沿用现有入口。不要使用旧 aggregate settings、items patch、compose 或 rebuild 覆盖已启用的新栈。需要查看节点实际响应时，用文档命令生成候选再比较，不用旧参数 probe 当作新节点试条。
 
 步骤命令支持添加、参数修改、强度、启停、名称、范围、合法移动和删除。基础图变化重放后续独立步骤；真实资源依赖不能破坏。删除依赖生产者默认拒绝，显式 cascade 才连带删除。一次命令提案原子采纳，源、文档、项目版本与选择身份分别核对。
 
@@ -37,4 +43,4 @@ node <skill>/scripts/cli.mjs document --project <project> --input <plan.json>
 
 可编辑交换使用 `framelark-photo-exchange/2`，旧交换 /1 继续读取。工具/源/资源不匹配会拒绝导入，不把渲染副本当可编辑项目。带文字或最终保护引用的便携交换仍沿用既有明确边界，继续使用原文件项目，不能删除这些数据来完成交换。
 
-Float32 只改善新节点的中间精度。源解码、构图和旧基础仍有明确的 8 位边界；RAW、完整 16 位、精准语义分割及任意历史外部冻结参考没有实现。输出、内存、蒙版和步骤数量有预算；降尺寸重试不能偷偷替换当前配方。
+普通栅格源解码与旧兼容基础仍有明确的 8 位边界，Float32 只改善后续节点的中间精度。RAW 项目另有固定解码后端、线性高精度缓存和分块新栈渲染：分享预览/PNG/JPEG 是显示输出，`export --preset master` 从高精度数据导出当前裁剪的原尺寸 16 位 sRGB TIFF，不经预览代理。普通 TIFF 输入、广色域母版、精准语义分割及任意历史外部冻结参考不在当前支持范围；RAW 机型/压缩方式以实际后端为准。输出、内存、蒙版和步骤数量有预算，降尺寸重试不能偷偷替换当前配方，不能把更高位深称为自动找回失焦或已剪切的信息。

@@ -62,7 +62,7 @@ test('full plugin includes three independent skill entries',async t=>{
 
 test('standalone series installation includes its retouch dependency but leaves photography eye out',async t=>{
   const {root,put}=await fixture(t);
-  for(const name of ['install-photo-skill.mjs','installation-guide.mjs'])await put('scripts/'+name,await readFile(join(repositoryRoot,'scripts',name)));
+  for(const name of ['install-photo-skill.mjs','installation-guide.mjs','build-framelark-plugin.mjs'])await put('scripts/'+name,await readFile(join(repositoryRoot,'scripts',name)));
   const target=join(root,'installed-skills');
   const result=spawnSync(process.execPath,[join(root,'scripts/install-photo-skill.mjs'),'--skill','photo-series',target],{cwd:root,encoding:'utf8'});
   assert.equal(result.status,0,result.stderr);

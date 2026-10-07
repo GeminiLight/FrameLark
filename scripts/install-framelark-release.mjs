@@ -111,6 +111,10 @@ async function setup(folder){
   const code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[join(folder,'skills/photo-retouch/scripts/setup.mjs')],{stdio:['ignore',2,2]});child.once('error',reject);child.once('exit',resolve);});
   if(code!==0)fail('修图依赖未准备完成，未报告安装成功。请检查 Node.js 与网络后重试。');
 }
+function sameRoot(first,second){
+  const canonical=path=>{try{return realpathSync(path);}catch{return resolve(path);}};
+  return canonical(first)===canonical(second);
+}
 function canonicalOrigin(current){
   // A developer's local build can be nested inside the official Git checkout.
   // Only migrate a Git marketplace rooted at the checkout itself.
@@ -124,49 +128,121 @@ async function moveRuntime(source,target){
   try{await rename(source,target);}catch(error){if(error.code!=='EXDEV')throw error;await cp(source,target,{recursive:true,verbatimSymlinks:true});await rm(source,{recursive:true,force:true});}
 }
 
+async function sourceCatalog(root){
+  const value=JSON.parse(await readFile(join(root,'.agents/plugins/marketplace.json'),'utf8'));
+  if(value.name!=='framelark'||!Array.isArray(value.plugins)||value.plugins.some(p=>!['framelark','framelark-eye'].includes(p.name)))fail('原市场包含其他插件或记录无效，已保留来源。');
+  return value;
+}
+async function sourceSnapshot(root,pluginId,catalog){
+  const name=pluginId.split('@')[0],entry=catalog.plugins.find(p=>p.name===name);
+  if(entry?.source?.source!=='local'||typeof entry.source.path!=='string')fail('无法核对原插件来源，已保留安装状态。');
+  const folder=resolve(root,entry.source.path),files=[];
+  async function walk(path){
+    const file=join(folder,path),info=await lstat(file);
+    if(info.isSymbolicLink())fail('原插件来源包含链接，已保留安装状态。');
+    if(info.isDirectory()){
+      for(const child of await readdir(file))if(!['node_modules','.raw-venv','__pycache__','.DS_Store'].includes(child))await walk(path+'/'+child);
+    }else if(info.isFile())files.push({path,sha256:digest(await readFile(file))});
+    else fail('原插件来源包含不支持的文件。');
+  }
+  await walk('.codex-plugin/plugin.json');await walk('skills');
+  for(const path of ['plugin.json','assets'])if(await exists(join(folder,path)))await walk(path);
+  return files;
+}
+async function atomicCatalog(path,bytes){
+  if(bytes===null){await rm(path,{force:true});return;}
+  await mkdir(dirname(path),{recursive:true});const temporary=path+'.'+randomUUID();
+  try{await writeFile(temporary,bytes);await rename(temporary,path);}finally{await rm(temporary,{force:true});}
+}
+
 export async function installFrameLarkRelease({photographyEye=false,tag,root=process.env.FRAMELARK_INSTALL_ROOT||join(homedir(),'.local/share/framelark'),codex=runReleaseCodex,fetchImpl=fetch,prepareRuntime=setup}={}){
   const [major,minor]=process.versions.node.split('.').map(Number);if(major<20||major===20&&minor<9)fail('需要 Node.js 20.9+。');
   if(tag&&!/^v\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(tag))fail('版本号无效。');
-  root=resolve(root);const marketplaceRoot=join(root,'marketplace'),current=codex(['plugin','marketplace','list']).marketplaces?.find(m=>m.name==='framelark');
+  root=resolve(root);
+  const name=photographyEye?'framelark-eye':'framelark',pluginId=name+'@framelark',marketplaceRoot=join(root,'marketplace'),catalogPath=join(marketplaceRoot,'.agents/plugins/marketplace.json');
+  const current=codex(['plugin','marketplace','list']).marketplaces?.find(m=>m.name==='framelark');
   if(current&&!current.root)fail('当前 framelark 市场没有可用的本地来源，已保留配置。');
-  const priorOrigin=current&&resolve(current.root)!==marketplaceRoot?canonicalOrigin(current):null;
-  if(current&&resolve(current.root)!==marketplaceRoot&&!priorOrigin)fail('framelark 市场指向其他来源或本地构建，已保留原配置。请明确选择版本包安装来源后再继续。');
-  // Release assets are public downloads and do not consume the anonymous REST
-  // API quota (often shared by proxies). The manifest pins the selected tag.
+  const priorOrigin=current&&!sameRoot(current.root,marketplaceRoot)?canonicalOrigin(current):null;
+  if(current&&!sameRoot(current.root,marketplaceRoot)&&!priorOrigin)fail('framelark 市场指向其他来源或本地构建，已保留原配置。请明确选择版本包安装来源后再继续。');
+  const priorStates=current?(codex(['plugin','list','--marketplace','framelark']).installed||[]):[],priorPlugin=priorStates.find(p=>p.pluginId===pluginId&&p.installed===true);
+  // The CLI has no enable/disable operation. Never enable a previously disabled
+  // plugin implicitly, because its original state could not be rolled back.
+  if(priorPlugin&&priorPlugin.enabled!==true)fail('原插件处于停用状态，已保留安装与来源。请先在 Codex 插件页明确启用它，再运行安装器更新。');
+  const priorCatalog=await readFile(catalogPath).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
+  const catalog=priorCatalog?JSON.parse(priorCatalog):{name:'framelark',interface:{displayName:'FrameLark · 帧好'},plugins:[]};
+  if(catalog.name!=='framelark'||!Array.isArray(catalog.plugins)||catalog.plugins.some(p=>!['framelark','framelark-eye'].includes(p.name)))fail('本地版本市场记录发生变化，已保留。');
+  const originalCatalog=priorOrigin?await sourceCatalog(current.root):catalog;
+  const originalFiles=priorPlugin?await sourceSnapshot(current.root,pluginId,originalCatalog):null;
+  // A Git migration switches the entire marketplace, even when only one plugin
+  // is selected. Preserve every existing variant as a verified package source.
+  const names=[...new Set([name,...(priorOrigin?originalCatalog.plugins.map(p=>p.name):[])])];
   const manifestURL=github+'/releases/'+(tag?'download/'+tag:'latest/download')+'/framelark-release.json';
   const value=JSON.parse((await download(manifestURL,512*1024,fetchImpl)).toString('utf8'));
-  const manifest=validateReleaseManifest(value,tag||value.tag),releaseTag=manifest.tag;
-  const name=photographyEye?'framelark-eye':'framelark',pkg=manifest.plugins.find(p=>p.name===name),skills=releaseSkills(pkg);
-  const files=releaseArchiveFiles(await download(github+'/releases/download/'+releaseTag+'/'+pkg.asset,limits.archive,fetchImpl),pkg);
-  await mkdir(root,{recursive:true});const temporary=await mkdtemp(join(root,'.install-')),stage=join(temporary,name),target=join(marketplaceRoot,'releases',releaseTag,name),catalogPath=join(marketplaceRoot,'.agents/plugins/marketplace.json');
+  const manifest=validateReleaseManifest(value,tag||value.tag),releaseTag=manifest.tag,pkg=manifest.plugins.find(p=>p.name===name),skills=releaseSkills(pkg);
+  const packages=[];
+  for(const variant of names){
+    const record=manifest.plugins.find(p=>p.name===variant);
+    packages.push({pkg:record,files:releaseArchiveFiles(await download(github+'/releases/download/'+releaseTag+'/'+record.asset,limits.archive,fetchImpl),record)});
+  }
+  await mkdir(root,{recursive:true});const temporary=await mkdtemp(join(root,'.install-')),runtime=join(temporary,'runtime');
+  let catalogChanged=false,registered=false,removedOriginal=false,pluginAttempted=false;
   try{
-    for(const file of files){const path=join(stage,file.path);await mkdir(dirname(path),{recursive:true});await writeFile(path,file.data,{mode:0o600});}
-    const identity=JSON.parse(await readFile(join(stage,'.codex-plugin/plugin.json'),'utf8'));
-    if(identity.name!==name||identity.version!==pkg.version||identity.skills!=='./skills/'||identity.mcpServers||identity.apps||identity.hooks)fail('版本插件身份无效。');
-    const actual=(await readdir(join(stage,'skills'),{withFileTypes:true})).filter(e=>e.isDirectory()).map(e=>e.name).sort();if(JSON.stringify(actual)!==JSON.stringify([...skills].sort()))fail('版本包的 Skill 内容不一致。');
-    if(!photographyEye)await prepareRuntime(stage);
-    const runtime=join(temporary,'runtime'),prepared=join(stage,'skills/photo-retouch/node_modules');if(!photographyEye&&await exists(prepared))await rename(prepared,runtime);
-    if(await exists(target)){
-      await verifySourceCache(target,files);
-    }else{await mkdir(dirname(target),{recursive:true});await rename(stage,target);}
-    const priorCatalog=await readFile(catalogPath).catch(error=>{if(error.code==='ENOENT')return null;throw error;}),catalog=priorCatalog?JSON.parse(priorCatalog):{name:'framelark',interface:{displayName:'FrameLark · 帧好'},plugins:[]};
-    if(catalog.name!=='framelark'||!Array.isArray(catalog.plugins)||catalog.plugins.some(p=>!['framelark','framelark-eye'].includes(p.name)))fail('本地版本市场记录发生变化，已保留。');
-    catalog.plugins=catalog.plugins.filter(p=>p.name!==name);catalog.plugins.push({name,source:{source:'local',path:'./releases/'+releaseTag+'/'+name},policy:{installation:'AVAILABLE',authentication:'ON_USE'},category:'Creativity'});
-    await mkdir(dirname(catalogPath),{recursive:true});const next=catalogPath+'.'+randomUUID();await writeFile(next,JSON.stringify(catalog,null,2)+'\n');await rename(next,catalogPath);
-    try{
-      if(priorOrigin)codex(['plugin','marketplace','remove','framelark']);
-      codex(['plugin','marketplace','add',marketplaceRoot]);
-    }catch(error){
-      if(priorCatalog)await writeFile(catalogPath,priorCatalog);else await rm(catalogPath,{force:true});
-      if(priorOrigin){try{codex(['plugin','marketplace','add',await exists(current.root)?current.root:priorOrigin]);}catch(restore){throw Error('版本市场注册失败，原市场自动恢复也未完成，请核对 Codex 配置。',{cause:restore});}}
-      throw error;
+    for(const packageRecord of packages){
+      const {pkg:record,files}=packageRecord,stage=join(temporary,record.name),target=join(marketplaceRoot,'releases',releaseTag,record.name);
+      for(const file of files){const path=join(stage,file.path);await mkdir(dirname(path),{recursive:true});await writeFile(path,file.data,{mode:0o600});}
+      const identity=JSON.parse(await readFile(join(stage,'.codex-plugin/plugin.json'),'utf8'));
+      if(identity.name!==record.name||identity.version!==record.version||identity.skills!=='./skills/'||identity.mcpServers||identity.apps||identity.hooks)fail('版本插件身份无效。');
+      const actual=(await readdir(join(stage,'skills'),{withFileTypes:true})).filter(e=>e.isDirectory()).map(e=>e.name).sort();
+      if(JSON.stringify(actual)!==JSON.stringify([...releaseSkills(record)].sort()))fail('版本包的 Skill 内容不一致。');
+      if(record.name===name&&!photographyEye){
+        await prepareRuntime(stage);const prepared=join(stage,'skills/photo-retouch/node_modules');if(await exists(prepared))await rename(prepared,runtime);
+      }
+      if(await exists(target))await verifySourceCache(target,files);
+      else{await mkdir(dirname(target),{recursive:true});await rename(stage,target);}
+      catalog.plugins=catalog.plugins.filter(p=>p.name!==record.name);
+      catalog.plugins.push({name:record.name,source:{source:'local',path:'./releases/'+releaseTag+'/'+record.name},policy:{installation:'AVAILABLE',authentication:'ON_USE'},category:'Creativity'});
     }
-    const pluginId=name+'@framelark',installed=codex(['plugin','add',pluginId]);
+    await atomicCatalog(catalogPath,Buffer.from(JSON.stringify(catalog,null,2)+'\n'));catalogChanged=true;
+    if(priorOrigin){removedOriginal=true;codex(['plugin','marketplace','remove','framelark']);}
+    registered=true;codex(['plugin','marketplace','add',marketplaceRoot]);
+    pluginAttempted=true;const installed=codex(['plugin','add',pluginId]);
     if(installed.pluginId!==pluginId||!installed.installedPath||!isAbsolute(installed.installedPath))fail('Codex 返回了预期之外的安装结果。');
     if(!photographyEye){if(await exists(runtime))await moveRuntime(runtime,join(installed.installedPath,'skills/photo-retouch/node_modules'));await prepareRuntime(installed.installedPath);}
-    for(const file of files)if(digest(await readFile(join(installed.installedPath,file.path)))!==digest(file.data))fail('安装副本与版本包内容不一致，未报告成功。');
+    for(const file of packages.find(p=>p.pkg.name===name).files)if(digest(await readFile(join(installed.installedPath,file.path)))!==digest(file.data))fail('安装副本与版本包内容不一致，未报告成功。');
     const verified=await verifyReleasePlugin({pluginId,installedPath:installed.installedPath,skills,version:pkg.version,codex});
     return {ok:true,...verified,release:releaseTag,source:'github-release',retouchDependencies:photographyEye?'not-required':'ready',archiveBytes:pkg.bytes,next:'new-chat'};
+  }catch(error){
+    if(!catalogChanged)throw error;
+    const failures=[],attempt=async action=>{try{await action();return true;}catch(restore){failures.push(restore.message);return false;}};
+    // Remove only a plugin created by this attempt. Existing installations and
+    // their version caches stay available for reinstatement from the old source.
+    if(pluginAttempted&&!priorPlugin)await attempt(async()=>{
+      const installed=codex(['plugin','list','--marketplace','framelark']).installed?.find(p=>p.pluginId===pluginId&&p.installed===true);
+      if(installed)codex(['plugin','remove',pluginId]);
+    });
+    const restoredCatalog=await attempt(()=>atomicCatalog(catalogPath,priorCatalog));
+    if(registered&&(!current||priorOrigin))await attempt(async()=>{
+      const active=codex(['plugin','marketplace','list']).marketplaces?.find(p=>p.name==='framelark');
+      if(active?.root&&sameRoot(active.root,marketplaceRoot))codex(['plugin','marketplace','remove','framelark']);
+    });
+    let restoredSource=!current;
+    if(current&&(registered||removedOriginal))restoredSource=await attempt(async()=>{
+      const source=current.marketplaceSource?.sourceType==='git'?(current.marketplaceSource.source||priorOrigin):await exists(current.root)?current.root:priorOrigin;
+      const args=['plugin','marketplace','add',source];
+      if(current.marketplaceSource?.sourceType==='git'&&typeof current.marketplaceSource.ref==='string')args.push('--ref',current.marketplaceSource.ref);
+      codex(args);
+    });
+    else if(current)restoredSource=true;
+    if(priorPlugin&&pluginAttempted&&restoredCatalog&&restoredSource)await attempt(async()=>{
+      const restored=codex(['plugin','add',pluginId]);
+      if(restored.pluginId!==pluginId||!restored.installedPath||!isAbsolute(restored.installedPath))fail('原插件安装目录无法恢复。');
+      const identity=JSON.parse(await readFile(join(restored.installedPath,'.codex-plugin/plugin.json'),'utf8'));
+      const state=codex(['plugin','list','--marketplace','framelark']).installed?.find(p=>p.pluginId===pluginId);
+      if(identity.version!==priorPlugin.version||state?.installed!==true||state.enabled!==priorPlugin.enabled)fail('原插件版本或启用状态未恢复。');
+      for(const file of originalFiles)if(digest(await readFile(join(restored.installedPath,file.path)))!==file.sha256)fail('原插件内容未恢复。');
+    });
+    if(failures.length)throw Error('安装失败：'+error.message+'；原安装自动恢复未完成：'+failures.join('；')+'。请在 Codex 插件页核对来源、版本与启用状态，已有照片项目保留。',{cause:error});
+    throw error;
   }finally{await rm(temporary,{recursive:true,force:true});}
 }
 
@@ -176,7 +252,7 @@ if(entry&&entry!=='-'&&!entry.startsWith('--'))try{direct=import.meta.url===path
 if(direct){
   try{
     const args=process.argv.slice(entry&&!entry.startsWith('--')?2:1);let photographyEye=false,tag;
-    if(args.includes('--help'))console.log('FrameLark 版本安装：node install-framelark.mjs [--photography-eye] [--version vX.Y.Z]\n首次安装统一插件会准备修图依赖并包含全部案例图；无需克隆仓库。');
+    if(args.includes('--help'))console.log('FrameLark 版本安装：node install-framelark.mjs [--photography-eye] [--version vX.Y.Z]\n首次安装统一插件会准备修图依赖并包含全部案例图；无需克隆仓库。\n已停用的插件保持停用；请先在 Codex 插件页明确启用，再更新。安装失败会恢复可验证的原来源与版本，恢复失败会单独说明。');
     else{for(let i=0;i<args.length;i++){if(args[i]==='--photography-eye')photographyEye=true;else if(args[i]==='--version'){tag=args[++i];if(!tag)fail('请提供版本号。');}else fail('未知安装参数。');}const result=await installFrameLarkRelease({photographyEye,tag});console.log(JSON.stringify(result,null,2));console.error('FrameLark 已安装并启用。开启新对话后使用；本次只安装到运行命令的 Codex 环境。');}
   }catch(error){console.error('FrameLark 安装未完成：'+error.message);process.exitCode=1;}
 }

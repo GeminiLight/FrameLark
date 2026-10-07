@@ -1,6 +1,7 @@
 import {versionToolRuns} from '../../public/photo-tools/history.js';
 import {createProjectRenderPool} from './render-pool.mjs';
 import {publicToolRun} from '../tools/results.mjs';
+import {FileRegistry} from './registry.mjs';
 import {readFile,writeFile,mkdir,rename,realpath,mkdtemp,rm,stat} from 'node:fs/promises';
 import {watch} from 'node:fs';
 import {resolve,join,basename,sep} from 'node:path';
@@ -9,19 +10,18 @@ import {documentHash} from '../../public/edit-stack/identity.js';
 import {createHash,randomUUID} from 'node:crypto';
 
 export class ProjectBridge {
-  constructor({root=process.cwd()}={}){this.root=resolve(root);this.file=join(this.root,'.guangjian/projects.json');this.records=null;this.writes=Promise.resolve();this.watchers=new Set();this.renderer=createProjectRenderPool();this.workers=this.renderer.workers;}
+  constructor({root=process.cwd()}={}){this.root=resolve(root);this.file=join(this.root,'.guangjian/projects.json');this.projectRegistry=new FileRegistry(this.file);this.watchers=new Set();this.renderer=createProjectRenderPool();this.workers=this.renderer.workers;}
   async runtime(){
     try{return await import('../../../../skills/photo-retouch/scripts/project.mjs');}
     catch(error){if(error.code==='ERR_MODULE_NOT_FOUND')throw Object.assign(new Error('请在项目目录运行 npm run setup，安装本地图片处理依赖后重试。'),{code:'PROJECT_SETUP_REQUIRED'});throw error;}
   }
   async capabilities(){try{await this.runtime();const {rawCapabilities}=await import('../../../../skills/photo-retouch/scripts/raw/backends.mjs');return {projects:true,heic:process.platform==='darwin',raw:await rawCapabilities()};}catch{return {projects:false,heic:process.platform==='darwin',raw:{available:false},setup:'npm run setup'};}}
-  async registry(){if(!this.registryLoading)this.registryLoading=(async()=>{try{this.records=JSON.parse(await readFile(this.file,'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;this.records={};}return this.records;})();return this.registryLoading;}
-  async persist(){const value=JSON.stringify(await this.registry());this.writes=this.writes.catch(()=>{}).then(async()=>{await mkdir(join(this.root,'.guangjian'),{recursive:true,mode:0o700});const temp=this.file+'.'+randomUUID()+'.tmp';await writeFile(temp,value,{mode:0o600});await rename(temp,this.file);});return this.writes;}
+  async registry(){return this.projectRegistry.read();}
   async register(folder){
     if(typeof folder!=='string'||!folder.trim()||folder.length>4096)throw Object.assign(new Error('请输入照片项目的文件夹路径。'),{code:'PROJECT_PATH'});
     const path=await realpath(resolve(folder)),runtime=await this.runtime(),p=await runtime.loadProject(path);
     if(typeof p.id!=='string'||!/^[-a-zA-Z0-9]{1,80}$/.test(p.id))throw new Error('项目编号无效。');
-    const records=await this.registry();records[p.id]={path,name:p.source.name,updatedAt:p.updatedAt};await this.persist();return this.get(p.id);
+    await this.projectRegistry.set(p.id,{path,name:p.source.name,updatedAt:p.updatedAt});return this.get(p.id);
   }
   async resolve(id){
     if(!/^[-a-zA-Z0-9]{1,80}$/.test(id))throw Object.assign(new Error('项目编号无效。'),{code:'PROJECT_NOT_FOUND'});

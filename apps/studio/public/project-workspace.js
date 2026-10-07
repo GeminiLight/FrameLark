@@ -3,7 +3,7 @@ import {readVisionStream} from './vision-stream.js';
 import {createProjectCollaboration} from './project-collaboration.js';
 const patchIdentity=value=>{const patch=typeof value==='string'?JSON.parse(value):value;return JSON.stringify({...patch,...(patch.document?{document:documentHash(patch.document)}:{})});};
 const equalPatch=(a,b)=>patchIdentity(a)===patchIdentity(b);
-const contextIdentity=data=>JSON.stringify([data.currentId,data.current,data.document?documentHash(data.document):null,data.intent,data.notes,data.conversation,data.source?.checksum,data.source?.normalizedChecksum,data.source?.width,data.source?.height]);
+const contextIdentity=data=>JSON.stringify([data.currentId,data.current,data.document?documentHash(data.document):null,data.intent,data.notes,data.conversation,data.source?.checksum,data.source?.normalizedChecksum,data.source?.width,data.source?.height,data.supported,data.limitations]);
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export async function projectRequest(url,{method='GET',value,body,headers={},signal,onEvent}={}) {
   const response=await fetch(url,{method,signal,headers:{...(value?{'Content-Type':'application/json'}:{}),...headers,...(onEvent?{Accept:'application/x-ndjson'}:{})},body:value?JSON.stringify(value):body});
@@ -81,7 +81,9 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     const data=await projectRequest(`/api/projects/${link.data.id}`);
     if(links.get(photo.id)!==link)return;
     if(data.revision<=photo.projectRevision)return;
-    if(contextIdentity(data)===contextIdentity(link.data)&&JSON.stringify(data.exports)!==JSON.stringify(link.data.exports)){if(!link.dirty&&equalPatch(getPatch(photo),link.baseline))await updatePhoto(photo,()=>onUpdate(photo,data));Object.assign(photo,{projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});link.data=data;link.error=null;link.conflict=false;onVersions(photo,data);if(previewToken&&previewToken.revision!==data.revision){previewToken=null;$('project-accept').disabled=true;}if(selected?.id===data.id)render(data);status(photo);return;}
+    // Candidates, progress and saved-version metadata can change without touching
+    // the accepted editing context. Adopt their revision without replacing edits.
+    if(contextIdentity(data)===contextIdentity(link.data)){if(!link.dirty&&equalPatch(getPatch(photo),link.baseline))await updatePhoto(photo,()=>onUpdate(photo,data));Object.assign(photo,{projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});link.data=data;link.error=null;link.conflict=false;onVersions(photo,data);if(previewToken&&previewToken.revision!==data.revision){previewToken=null;$('project-accept').disabled=true;}if(selected?.id===data.id)render(data);status(photo);return;}
     if(link.dirty||link.busy||!collaboration.isNative(photo)&&!equalPatch(getPatch(photo),link.baseline)){link.conflict=true;status();return;}
     try{await updatePhoto(photo,async()=>{await onUpdate(photo,data);Object.assign(photo,{projectRevision:data.revision,projectCurrentId:data.currentId,projectData:data});link.data=data;link.error=null;link.baseline=JSON.stringify(getPatch(photo));if(previewToken&&previewToken.revision!==data.revision){previewToken=null;$('project-accept').disabled=true;}if(selected?.id===data.id)render(data);});}finally{status();}
   }
@@ -105,17 +107,17 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     clearTimeout(link.timer);if(link.dirty&&!link.conflict)link.timer=setTimeout(()=>flush(photo).catch(error=>{link.error=error.message;notice(error.message);status();}),500);
     else if(!link.dirty&&link.remote>photo.projectRevision)drainRemote(photo).catch(error=>{link.error=error.message;notice(error.message);status();});
   }
-  async function flush(photo=getPhoto()){
+  async function flush(photo=getPhoto(),metadataRetries=1){
     const link=photo&&links.get(photo.id);if(!link)return null;
     clearTimeout(link.timer);
     if(link.conflict)throw new Error('项目已在另一处更新，请先处理未同步修改。');
     if(collaboration.isNative(photo)){if(photo.projectNativePending)throw new Error('请先保存协作精修里的输入，或生成试片。');await drainRemote(photo);return link.data;}
-    if(link.busy){await link.promise;return flush(photo);}
+    if(link.busy){await link.promise;return flush(photo,metadataRetries);}
     const patch=getPatch(photo),serialized=JSON.stringify(patch);
     const savedIds=new Set(link.data.versions.map(v=>v.id));
     const versions=JSON.parse(JSON.stringify(getVersions(photo).filter(v=>!savedIds.has(v.id))));
     if(equalPatch(serialized,link.baseline)&&!versions.length){link.dirty=false;await drainRemote(photo);return link.data;}
-    link.busy=true;link.error=null;status();
+    link.dirty=true;link.busy=true;link.error=null;status();let metadataRetry=false;
     link.promise=(async()=>{
       try{
         const data=await projectRequest(`/api/projects/${link.data.id}/save`,{method:'POST',value:{...patch,...(versions.length?{versions,importId:crypto.randomUUID()}:{}),revision:photo.projectRevision,baseVersion:photo.projectCurrentId}});
@@ -123,12 +125,24 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
         photo.projectRevision=data.revision;photo.projectCurrentId=data.currentId;photo.projectData=data;link.data=data;link.baseline=serialized;link.dirty=!equalPatch(getPatch(photo),serialized);
         onVersions(photo,data);
         if(selected?.id===data.id)render(data);return data;
-      }catch(error){if(error.status===409)link.conflict=true;link.error=error.message;throw error;}
+      }catch(error){
+        if(error.status===409&&links.get(photo.id)===link){
+          const revision=photo.projectRevision;
+          try{
+            await refresh(photo);
+            if(photo.projectRevision>revision&&!link.conflict){
+              link.dirty=true;
+              if(metadataRetries>0){metadataRetry=true;link.error=null;return link.data;}
+            }else link.conflict=true;
+          }catch(reconcileError){link.error=reconcileError.message;throw reconcileError;}
+        }
+        link.error=error.message;throw error;
+      }
       finally{link.busy=false;status();}
     })();
     const data=await link.promise;
     if(links.get(photo.id)!==link)return links.get(photo.id)?.data||data;
-    if(link.dirty||getVersions(photo).some(v=>!link.data.versions.some(saved=>saved.id===v.id)))return flush(photo);
+    if(link.dirty||getVersions(photo).some(v=>!link.data.versions.some(saved=>saved.id===v.id)))return flush(photo,metadataRetries-(metadataRetry?1:0));
     await drainRemote(photo);return link.data;
   }
   async function mutate(photo,operation,value,baseline,{reload=false,signal,onEvent}={}){

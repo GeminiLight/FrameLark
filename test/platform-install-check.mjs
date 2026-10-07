@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,copyFile,rm,readdir,stat,readFile} from 'node:fs/promises';
+import {mkdtemp,mkdir,copyFile,rm,readdir,stat,readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {execFileSync} from 'node:child_process';
@@ -24,7 +24,9 @@ else{
   const output=execFileSync(process.execPath,[join(root,'scripts/setup.mjs')],{encoding:'utf8',timeout:180000});
   // Windows cannot unlink loaded native DLLs. A completed probe child releases
   // its handles before the parent cleans the disposable installation.
+  const metadata=join(root,'node_modules/sharp/package.json'),prior=JSON.parse(await readFile(metadata,'utf8'));prior.version='0.35.3';await writeFile(metadata,JSON.stringify(prior));
+  const upgrade=execFileSync(process.execPath,[join(root,'scripts/setup.mjs')],{encoding:'utf8',timeout:180000});
   const result=JSON.parse(execFileSync(process.execPath,[fileURLToPath(import.meta.url),'--probe',root],{encoding:'utf8',timeout:30000}));
-  console.log(JSON.stringify({...result,setupOutput:output},null,2));
+  console.log(JSON.stringify({...result,setupOutput:output,upgradeOutput:upgrade},null,2));
  }finally{await rm(root,{recursive:true,force:true});}
 }

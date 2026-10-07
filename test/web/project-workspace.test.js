@@ -45,6 +45,69 @@ test('export-only events advance the file revision without turning owned edits i
  await env.workspace.attach(photo,data());patch.settings.exposure=.2;photo.editSaving=true;await env.events[0].onmessage({data:JSON.stringify({revision:2})});assert.equal(photo.projectRevision,1);
  photo.editSaving=false;await env.workspace.refresh(photo);env.workspace.schedule(photo);await env.workspace.flush(photo);assert.equal(saved.revision,2);assert.equal(saved.settings.exposure,.2);assert.equal(env.workspace.hasPending(),false);
 });
+for(const change of [
+  {label:'new Agent candidate',candidates:[{id:'candidate',name:'trial',selectedItemIds:[],items:[]}]},
+  {label:'handoff progress',collaboration:{status:'running',request:{id:'handoff',summary:'checking the photo'}}},
+  {label:'named version',versions:[{id:'edition',name:'自然版'}]}
+])test(`${change.label} advances revision while keeping the dirty browser patch saveable`,async t=>{
+  const {label,...metadata}=change;let saved,updates=0;
+  const remote={...data(2),...metadata};
+  const env=fixture(t,{onUpdate:()=>{updates++;},fetchImpl:async(_url,options)=>{
+    if(options?.method==='POST'){saved=JSON.parse(options.body);return response({...remote,revision:3});}return response(remote);
+  }});
+  await env.workspace.attach(env.photo,data());env.patch.settings.exposure=.3;env.workspace.schedule(env.photo);
+  await env.events[0].onmessage({data:JSON.stringify({revision:2})});
+  assert.equal(env.photo.projectRevision,2,'metadata refresh adopts the latest revision');
+  assert.equal(env.patch.settings.exposure,.3,'the owned edit is retained');assert.equal(updates,0,'metadata cannot replace a dirty photo');
+  await env.workspace.flush(env.photo);assert.equal(saved.revision,2);assert.equal(saved.settings.exposure,.3);assert.equal(env.workspace.hasPending(),false);
+});
+test('a remote workflow change still conflicts with dirty browser edits',async t=>{
+  const env=fixture(t,{fetchImpl:async()=>response({...data(2),supported:false,limitations:'reviewed workflow'})});
+  await env.workspace.attach(env.photo,data());env.patch.settings.exposure=.3;env.workspace.schedule(env.photo);
+  await env.events[0].onmessage({data:JSON.stringify({revision:2})});
+  assert.equal(env.photo.projectRevision,1);await assert.rejects(env.workspace.flush(env.photo),/项目已在另一处更新/);assert.equal(env.patch.settings.exposure,.3);
+});
+test('a metadata-only edit racing an in-flight save retries the latest owned patch',async t=>{
+  const remote={...data(2),collaboration:{status:'running'}};let finish,ready;const submissions=[],waiting=new Promise(resolve=>{ready=resolve;});
+  const env=fixture(t,{fetchImpl:async(_url,options)=>{
+    if(options?.method!=='POST')return response(remote);
+    submissions.push(JSON.parse(options.body));
+    if(submissions.length===1)return new Promise(resolve=>{finish=()=>resolve(new Response(JSON.stringify({error:{code:'STALE_REVISION',message:'changed'}}),{status:409}));ready();});
+    return response({...remote,revision:3});
+  }});
+  await env.workspace.attach(env.photo,data());env.patch.settings.exposure=.3;env.workspace.schedule(env.photo);
+  const saving=env.workspace.flush(env.photo);await waiting;
+  env.patch.settings.exposure=.5;await env.events[0].onmessage({data:JSON.stringify({revision:2})});finish();await saving;
+  assert.equal(submissions.length,2);assert.equal(submissions[1].revision,2);assert.equal(submissions[1].settings.exposure,.5);assert.equal(env.workspace.hasPending(),false);
+});
+test('a real context edit racing a save is preserved as a conflict and never retried',async t=>{
+  let posts=0;const env=fixture(t,{fetchImpl:async(_url,options)=>{
+    if(options?.method!=='POST')return response({...data(2),currentId:'foreign'});
+    posts++;return new Response(JSON.stringify({error:{code:'STALE_REVISION',message:'foreign edit'}}),{status:409});
+  }});
+  await env.workspace.attach(env.photo,data());env.patch.settings.exposure=.3;
+  await assert.rejects(env.workspace.flush(env.photo),{code:'STALE_REVISION'});
+  assert.equal(posts,1);assert.equal(env.patch.settings.exposure,.3);assert.equal(env.photo.projectRevision,1);assert.equal(env.workspace.hasPending(),true);
+});
+test('a failed stale-save reconciliation reports its failure and retains the owned patch',async t=>{
+  const env=fixture(t,{fetchImpl:async(_url,options)=>{
+    if(options?.method!=='POST')throw Error('connection lost during refresh');
+    return new Response(JSON.stringify({error:{code:'STALE_REVISION',message:'changed'}}),{status:409});
+  }});
+  await env.workspace.attach(env.photo,data());env.patch.settings.exposure=.3;
+  await assert.rejects(env.workspace.flush(env.photo),/connection lost during refresh/);assert.equal(env.patch.settings.exposure,.3);assert.equal(env.workspace.hasPending(),true);
+});
+test('repeated metadata races stop retrying but leave the next save usable',async t=>{
+  let revision=1,posts=0,allowSave=false;
+  const env=fixture(t,{fetchImpl:async(_url,options)=>{
+    if(options?.method!=='POST')return response({...data(revision),collaboration:{status:'running'}});
+    posts++;if(allowSave)return response(data(++revision));revision++;
+    return new Response(JSON.stringify({error:{code:'STALE_REVISION',message:'progress changed'}}),{status:409});
+  }});
+  await env.workspace.attach(env.photo,data());env.patch.settings.exposure=.3;
+  await assert.rejects(env.workspace.flush(env.photo),{code:'STALE_REVISION'});assert.equal(posts,2);assert.equal(env.workspace.hasPending(),true);
+  allowSave=true;await env.workspace.flush(env.photo);assert.equal(posts,3);assert.equal(env.patch.settings.exposure,.3);assert.equal(env.workspace.hasPending(),false);
+});
 test('receipt/revision differences on the same document do not create a false draft conflict',async t=>{
  const document=createDocument({documentId:'doc',source:{assetId:'source',contentHash:'a'.repeat(64),width:8,height:8},base:{settings:{},locals:[]}}),patch={settings:{exposure:0},document};let posts=0;
  const env=fixture(t,{patch,fetchImpl:async()=>{posts++;return response(data(2));}});await env.workspace.attach(env.photo,data());patch.document={...structuredClone(document),revision:1};env.workspace.schedule(env.photo);await env.workspace.flush(env.photo);assert.equal(posts,0);assert.equal(env.workspace.hasPending(),false);
@@ -109,7 +172,7 @@ test('an external event during a candidate mutation is drained before it finishe
 
 test('a remote update never overwrites an edit made while it is being read',async t=>{
   let finish;
-  const env=fixture(t,{fetchImpl:()=>new Promise(resolve=>{finish=()=>resolve(response(data(2)));}),onUpdate:()=>{throw Error('must not overwrite local edits');}});
+  const env=fixture(t,{fetchImpl:()=>new Promise(resolve=>{finish=()=>resolve(response({...data(2),current:{settings:{exposure:.7}}}));}),onUpdate:()=>{throw Error('must not overwrite local edits');}});
   await env.workspace.attach(env.photo,data());const read=env.events[0].onmessage({data:JSON.stringify({revision:2})});
   await Promise.resolve();env.patch.settings.exposure=.3;finish();await read;
   assert.equal(env.photo.projectRevision,1);assert.equal(env.patch.settings.exposure,.3);assert.equal(env.workspace.hasPending(),true);

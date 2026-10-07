@@ -2,9 +2,11 @@
 
 执行 `<skill>/scripts/cli.mjs help` 查看全部命令。成功返回 JSON `ok:true`；失败返回 `ok:false`、具体原因与恢复动作，退出码 1。工具无模型请求。
 
+开始或继续编辑都先 `inspect` 并实际看图，再按返回的 `editProtocol.mode` 分流。`document` 模式（包括 RAW）读取 [可编辑操作栈](editable-stack.md)，用 `document-tools` 和文档命令；项目 revision/baseVersion 与文档 documentRevision/baseHash 原样回传。以下 settings/items/compose 是 `legacy` 模式的兼容入口，不能覆盖新栈。
+
 ## 候选 JSON
 
-复合编辑优先使用动态工具目录和 `compose`，目标可以是整张、区域、对象范围、批注或前一步生成的蒙版。见 [工具组合](tool-composition.md)。下方旧候选与 `items` 格式继续兼容。
+旧配方的复合编辑使用动态工具目录和 `compose`，目标可以是整张、区域、对象范围、批注或前一步生成的蒙版。见 [工具组合](tool-composition.md)。下方旧候选与 `items` 格式仅在当前版本未启用新栈时继续兼容。
 
 使用 inspect 刚返回的 revision/currentId。用 JSON 文件或 stdin 提交，避免 shell 转义用户文本。
 

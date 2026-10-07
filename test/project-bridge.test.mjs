@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,readFile,writeFile,rm,stat} from 'node:fs/promises';
+import {mkdtemp,readFile,writeFile,rm,stat,mkdir,utimes} from 'node:fs/promises';
+import {EventEmitter} from 'node:events';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {createRequire} from 'node:module';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {ProjectBridge} from '../apps/studio/server/projects/bridge.mjs';
+import {handleProjectRoutes} from '../apps/studio/server/projects/routes.mjs';
 import {loadProject,createCandidate,acceptCandidate,saveNote,deleteNote,changeGuards,initProject} from '../skills/photo-retouch/scripts/project.mjs';
 import {workspacePatch,snapshotFromProject,editionsFromProject,workspaceEditions} from '../apps/studio/public/project-snapshot.js';
 import {snapshotSettings} from '../apps/studio/public/batch-edits.js';
@@ -194,6 +196,65 @@ test('file changes notify the Web client without a polling loop',async t=>{
   await saveNote(data.path,{revision:data.revision,rect:{x:.1,y:.1,width:.2,height:.2},note:'新批注'});
   const timeout=setTimeout(()=>resolveEvent({timeout:true}),2000);
   const update=await event;clearTimeout(timeout);assert.equal(update.revision,data.revision+1);
+});
+
+test('an SSE connection catches up a CLI edit made before its watcher is attached',async t=>{
+  const {bridge,data}=await fixture(t),subscribe=bridge.subscribe.bind(bridge),events=[];
+  bridge.subscribe=async(id,send)=>{
+    await saveNote(data.path,{revision:data.revision,rect:{x:.1,y:.1,width:.2,height:.2},note:'written in the connection gap'});
+    // fs.watch cannot recover an event that was delivered before registration.
+    await new Promise(resolve=>setTimeout(resolve,50));
+    return subscribe(id,send);
+  };
+  const response=new EventEmitter();Object.assign(response,{writeHead(){},write(chunk){events.push(JSON.parse(chunk.slice(6)));},end(){this.writableEnded=true;}});
+  t.after(()=>response.emit('close'));
+  await handleProjectRoutes({method:'GET',headers:{}},response,new URL('http://localhost/api/projects/'+data.id+'/events'),{bridge,readBody:async()=>Buffer.from('{}'),allowed:()=>true,cloud:false});
+  assert.equal(events.at(-1).revision,data.revision+1,'the connected client receives the current file revision without another edit');
+});
+
+test('two Studio instances merge new registrations and immediately see each other',async t=>{
+  const {root,bridge,bytes}=await fixture(t),other=new ProjectBridge({root});t.after(()=>other.close());
+  await other.registry();
+  const a=await bridge.create(bytes,'studio-a.png'),b=await other.create(bytes,'studio-b.png');
+  const disk=JSON.parse(await readFile(join(root,'.guangjian/projects.json'),'utf8'));
+  assert.ok(disk[a.id],'later registrations preserve another instance project');
+  assert.ok((await bridge.list()).some(p=>p.id===b.id),'reads see registrations from the other instance');
+  assert.equal((await other.get(a.id)).id,a.id);
+});
+
+test('simultaneous registration from separate processes preserves every project',async t=>{
+  const {root,data,bytes,bridge}=await fixture(t),source=join(root,'source.png');await writeFile(source,bytes);
+  const folders=[join(root,'external-a'),join(root,'external-b')];
+  const projects=await Promise.all(folders.map(folder=>initProject(source,folder)));
+  const {spawn}=await import('node:child_process'),moduleURL=new URL('../apps/studio/server/projects/bridge.mjs',import.meta.url).href;
+  const children=folders.map(folder=>spawn(process.execPath,['--input-type=module','-e',`const {ProjectBridge}=await import(${JSON.stringify(moduleURL)});const bridge=new ProjectBridge({root:process.argv[1]});await bridge.registry();process.send('ready');await new Promise(r=>process.once('message',r));await bridge.register(process.argv[2]);await bridge.close();process.disconnect();`,root,folder],{stdio:['ignore','ignore','pipe','ipc']}));
+  const finished=children.map(child=>new Promise((resolve,reject)=>{let stderr='';child.stderr.on('data',chunk=>stderr+=chunk);child.once('error',reject);child.once('exit',code=>code===0?resolve():reject(Error(stderr||'registration worker failed')));}));
+  t.after(()=>children.forEach(child=>child.kill()));
+  await Promise.all(children.map(child=>new Promise(resolve=>child.once('message',resolve))));
+  children.forEach(child=>child.send('register'));await Promise.all(finished);
+  const known=new Set(Object.keys(JSON.parse(await readFile(join(root,'.guangjian/projects.json'),'utf8'))));
+  assert.deepEqual(known,new Set([data.id,...projects.map(p=>p.project.id)]));
+});
+
+test('a crashed registration lock can be reclaimed without losing earlier projects',async t=>{
+  const {root,data,bridge,bytes}=await fixture(t),lock=join(root,'.guangjian/projects.json.lock');
+  await mkdir(lock);await writeFile(join(lock,'owner'),JSON.stringify({pid:2147483647,token:'abandoned'}));
+  const next=await bridge.create(bytes,'after-crash.png');
+  const ids=new Set((await bridge.list()).map(p=>p.id));assert.ok(ids.has(data.id));assert.ok(ids.has(next.id));
+  await assert.rejects(stat(lock),{code:'ENOENT'});
+});
+test('a crash while reclaiming a registry lock does not leave registration permanently blocked',async t=>{
+  const {root,bridge,bytes}=await fixture(t),lock=join(root,'.guangjian/projects.json.lock'),recovery=join(lock,'recovery');
+  await mkdir(recovery,{recursive:true});
+  for(const directory of [lock,recovery])await writeFile(join(directory,'owner'),JSON.stringify({pid:2147483647,token:'abandoned'}));
+  const next=await bridge.create(bytes,'recovery-after-crash.png');assert.equal((await bridge.get(next.id)).id,next.id);
+  await assert.rejects(stat(lock),{code:'ENOENT'});
+});
+for(const incomplete of ['missing','truncated'])test(`an expired ${incomplete} registration owner record recovers`,async t=>{
+  const {root,bridge,bytes}=await fixture(t),lock=join(root,'.guangjian/projects.json.lock');await mkdir(lock);
+  if(incomplete==='truncated')await writeFile(join(lock,'owner'),'{');
+  const old=new Date(Date.now()-20000);await utimes(lock,old,old);
+  const next=await bridge.create(bytes,'interrupted-registration.png');assert.equal((await bridge.get(next.id)).id,next.id);
 });
 
 test('macOS HEIC import preserves original bytes and creates a usable normalized image',{skip:process.platform!=='darwin'},async t=>{

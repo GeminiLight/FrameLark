@@ -12,6 +12,7 @@ import {cleanIntent,describeIntent,styleSelections} from './creative-intent.js';
 import {advisorCandidate,suggestionCandidate,previewStillValid,actionExplanation,scalablePreview,scalePreview} from './advisor-candidate.js';
 import {createPhotoViewer} from './photo-viewer.js';
 import {createDraftStore,buildDraftWorkspace,restoreDraftPhoto,draftVersion} from './draft-store.js';
+import {createDraftAutosave} from './draft-autosave.js';
 import { adjustmentKeys, neutralSettings, combineSettings, renderPixels,renderingVersion } from './editor-engine.js';
 import { presets, presetById, styleCategories, stylePreferences } from './presets.js';
 import {normalizeMetricEvidence,normalizeAssessment,statisticalEvidence,buildStatisticalAssessment} from './diagnosis-explanation.js';
@@ -133,9 +134,9 @@ function startStyleAudition(id,mode){
 let versionSelections=[];
 let maskTool='rectangle',showLocalMask=false;
 let draftWorkspaceId=crypto.randomUUID();
-let draftTimer=null,draftSaving=false,draftRequested=false,draftRestoring=false,draftList=[];
+let draftRestoring=false,draftTransition=false,draftList=[],draftListFailed=false;
 let pendingDraftDeleteId=null;
-let draftSavedAt=null,draftDirty=false,draftFailed=false;
+const draftAutosave=createDraftAutosave({capture:captureDraftSnapshot,save:snapshot=>draftStore.save(snapshot),onState:renderDraftStatus});
 
 const sliderSpecs = [
   {key:'exposure',label:'曝光',group:'light',min:-1.5,max:1.5,step:.01,unit:' EV'},
@@ -2914,7 +2915,7 @@ dropZone.addEventListener('drop', event => {
 });
 window.addEventListener('pagehide',()=>{finishAnnotationNote();finishRangeEdit();flushDraftSave();});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden') {finishAnnotationNote();finishRangeEdit();flushDraftSave();}});
-window.addEventListener('beforeunload',event=>{if(draftDirty || draftFailed || draftSaving || [...analysisQueue.tasks,...exportQueue.tasks].some(task=>['queued','running'].includes(task.status) || task.kind==='export' && task.status==='done' && !task.downloaded)) {flushDraftSave();event.preventDefault();event.returnValue='';}});
+window.addEventListener('beforeunload',event=>{const {dirty,failed,saving}=draftAutosave.status;if(dirty || failed || saving || [...analysisQueue.tasks,...exportQueue.tasks].some(task=>['queued','running'].includes(task.status) || task.kind==='export' && task.status==='done' && !task.downloaded)) {flushDraftSave();event.preventDefault();event.returnValue='';}});
 
 function captureVersion(kind,label) {
   finishRangeEdit();finishAnnotationNote();
@@ -2942,39 +2943,27 @@ $('#version-items').addEventListener('click',event=>{
 
 function renderDraftStatus() {
   const own=Boolean(currentPhoto() && !currentPhoto().isDemo);
+  const {savedAt:draftSavedAt,dirty:draftDirty,saving:draftSaving}=draftAutosave.status,draftFailed=draftAutosave.status.failed||draftListFailed;
   $('#draft-status').textContent=draftFailed ? '保存失败 · 重试':draftSaving || draftDirty ? '保存中…':draftSavedAt && own ? '草稿已保存':own ? '等待保存':'草稿';
   $('#draft-status').classList.toggle('save-failed',draftFailed);
   $('#draft-status').title=draftFailed ? '本次修改尚未保存；点击可重试或导出照片':draftSavedAt ? `上次保存 ${new Date(draftSavedAt).toLocaleString('zh-CN')}`:'查看、继续编辑或清理草稿';
 }
 function scheduleDraftSave() {
-  if(draftRestoring || (!draftSavedAt && !photoSessions.some(photo=>!photo.isDemo))) return;
-  draftDirty=true;draftRequested=true;renderDraftStatus();
-  clearTimeout(draftTimer);draftTimer=setTimeout(flushDraftSave,300);
+  if(draftRestoring || (!draftAutosave.status.savedAt && !photoSessions.some(photo=>!photo.isDemo))) return;
+  draftAutosave.request();
 }
-async function flushDraftSave() {
-  clearTimeout(draftTimer);
-  if(draftRestoring || draftSaving || !draftRequested) return;
-  draftSaving=true;renderDraftStatus();
-  try {
-    while(draftRequested) {
-      draftRequested=false;
-      saveCurrentPhoto({finish:false});
-      const snapshot=buildDraftWorkspace(draftWorkspaceId,photoSessions,currentPhotoId,seriesWorkspace.draft());
-      const pendingBefore=editHistory.range?.before || annotationNoteBefore;
-      const active=snapshot.photos.find(item=>item.id===currentPhotoId);
-      if(active && pendingBefore && JSON.stringify(pendingBefore)!==JSON.stringify(editSnapshot())) active.history.past=[...active.history.past,pendingBefore].slice(-30);
-      await draftStore.save(snapshot);
-      draftSavedAt=snapshot.savedAt;draftFailed=false;
-    }
-    draftDirty=false;
-  } catch(error) {
-    draftFailed=true;draftDirty=true;draftRequested=true;
-  } finally {draftSaving=false;renderDraftStatus();}
+function captureDraftSnapshot() {
+  saveCurrentPhoto({finish:false});
+  const snapshot=buildDraftWorkspace(draftWorkspaceId,photoSessions,currentPhotoId,seriesWorkspace.draft());
+  const pendingBefore=editHistory.range?.before || annotationNoteBefore,active=snapshot.photos.find(item=>item.id===currentPhotoId);
+  if(active && pendingBefore && JSON.stringify(pendingBefore)!==JSON.stringify(editSnapshot()))active.history.past=[...active.history.past,pendingBefore].slice(-30);
+  return snapshot;
 }
+function flushDraftSave(){return draftAutosave.flush();}
 async function refreshDraftList() {
-  try {draftList=(await draftStore.list()).filter(item=>item.version===draftVersion && item.photos?.length).sort((a,b)=>b.savedAt.localeCompare(a.savedAt));}
-  catch {draftList=[];draftFailed=true;renderDraftStatus();}
-  renderDraftList();
+  try {draftList=(await draftStore.list()).filter(item=>item.version===draftVersion && item.photos?.length).sort((a,b)=>b.savedAt.localeCompare(a.savedAt));draftListFailed=false;}
+  catch {draftList=[];draftListFailed=true;}
+  renderDraftStatus();renderDraftList();
 }
 function renderDraftList() {
   renderVersions();
@@ -2985,11 +2974,12 @@ function renderDraftList() {
 }
 async function continueDraft(id) {
   if(importingFiles) {showToast('请先完成或取消照片导入，再恢复草稿。已打开的照片可以继续编辑。');return;}
-  if(draftRestoring || state.loading) return;
-  finishAnnotationNote();finishRangeEdit();await flushDraftSave();
-  draftRestoring=true;setLoading(true,'photo');
+  if(draftTransition || state.loading) return;
+  draftTransition=true;setLoading(true,'photo');
   const loaded=[];
   try {
+    finishAnnotationNote();finishRangeEdit();
+    if(!await flushDraftSave()){showToast('当前草稿尚未保存，请重试保存或导出后再切换。当前照片仍保留。');return;}
     const saved=await draftStore.get(id);
     if(!saved || saved.version!==draftVersion || !saved.photos?.length) throw new Error('草稿不可用');
     // Decode every source before replacing a working workspace; a broken draft never discards current work.
@@ -2999,12 +2989,15 @@ async function continueDraft(id) {
       catch(error) {URL.revokeObjectURL(src);throw error;}
       loaded.push({...values,id:item.id,src,image,originalBlob:item.originalBlob,isDemo:false,previewData:null,previewSource:null,presetThumbs:{},originalInspection:null,agentBusy:false});
     }
+    // Background analysis can finish while the next source is decoding.
+    if(!await flushDraftSave())throw new Error('当前草稿尚未保存');
+    draftStore.adopt(saved);draftRestoring=true;
     for(const queue of [analysisQueue,exportQueue])for(const photo of photoSessions)queue.releasePhoto(photo.id);
     advisorRequests.cancelAll('restored');cancelReassessment('restored');
     selectedPhotos.clear();lastBatch=null;analysisController?.abort();analysisGeneration++;reassessGeneration++;
     for(const photo of photoSessions) if(photo.src.startsWith('blob:')) URL.revokeObjectURL(photo.src);
     photoSessions.splice(0,photoSessions.length,...loaded);
-    currentPhotoId=null;seriesWorkspace.restore(saved.series);draftWorkspaceId=id;draftSavedAt=saved.savedAt;draftDirty=false;draftFailed=false;
+    currentPhotoId=null;seriesWorkspace.restore(saved.series);draftWorkspaceId=id;draftAutosave.reset(saved.savedAt);
     nextPhotoId=Math.max(nextPhotoId,...loaded.map(photo=>Number(photo.id.replace('photo-',''))+1).filter(Number.isFinite));
     nextAnnotationId=Math.max(nextAnnotationId,...loaded.flatMap(photo=>photo.annotations.map(item=>Number(String(item.id).replace('note-',''))+1)).filter(Number.isFinite));
     setLoading(false);activatePhoto(loaded.some(photo=>photo.id===saved.currentPhotoId) ? saved.currentPhotoId:loaded[0].id);
@@ -3013,9 +3006,9 @@ async function continueDraft(id) {
   } catch(error) {
     loaded.forEach(photo=>URL.revokeObjectURL(photo.src));
     showToast('这份草稿未能完整打开；当前照片仍保留。');
-  } finally {draftRestoring=false;setLoading(false);await refreshDraftList();}
+  } finally {draftRestoring=false;draftTransition=false;setLoading(false);await refreshDraftList();}
 }
-$('#draft-status').addEventListener('click',async()=>{if(draftFailed) {draftRequested=true;await flushDraftSave();}await refreshDraftList();$('#draft-dialog').showModal();});
+$('#draft-status').addEventListener('click',async()=>{if(draftTransition)return;if(draftAutosave.status.failed) {draftAutosave.request();await flushDraftSave();}await refreshDraftList();$('#draft-dialog').showModal();});
 $('#draft-recovery-continue').addEventListener('click',()=>{const item=draftList.find(item=>!item.deletedAt && item.id!==draftWorkspaceId);if(item) continueDraft(item.id);});
 $('#draft-recovery-manage').addEventListener('click',async()=>{await refreshDraftList();$('#draft-dialog').showModal();});
 $('#close-drafts').addEventListener('click',()=>$('#draft-dialog').close());
@@ -3023,12 +3016,16 @@ $('#draft-items').addEventListener('click',async event=>{
   const button=event.target.closest('[data-draft-continue],[data-draft-clean],[data-draft-restore],[data-draft-purge]');if(!button) return;
   if(button.dataset.draftPurge) {pendingDraftDeleteId=button.dataset.draftPurge;$('#draft-delete-dialog').showModal();return;}
   if(button.dataset.draftContinue) {await continueDraft(button.dataset.draftContinue);return;}
+  const id=button.dataset.draftClean || button.dataset.draftRestore,cleanCurrent=id===draftWorkspaceId&&Boolean(button.dataset.draftClean);
+  if(cleanCurrent){if(draftTransition||state.loading)return;draftTransition=true;setLoading(true,'photo');}
   try {
-    const id=button.dataset.draftClean || button.dataset.draftRestore;
-    if(id===draftWorkspaceId && button.dataset.draftClean) {finishRangeEdit();await flushDraftSave();draftWorkspaceId=crypto.randomUUID();draftSavedAt=null;draftRequested=false;draftDirty=false;}
-    await draftStore.setDeleted(id,Boolean(button.dataset.draftClean));await refreshDraftList();
+    if(cleanCurrent){finishAnnotationNote();finishRangeEdit();if(!await flushDraftSave()){showToast('当前草稿尚未保存，请重试保存或导出后再清理。');return;}draftRestoring=true;}
+    await draftStore.setDeleted(id,Boolean(button.dataset.draftClean));
+    if(cleanCurrent){draftWorkspaceId=crypto.randomUUID();draftAutosave.reset();}
+    await refreshDraftList();
     showToast(button.dataset.draftClean ? '草稿已清理，可在这里恢复。当前照片仍可继续编辑。':'草稿已恢复到列表。');
   } catch {showToast('草稿列表未能更新，请重试。');}
+  finally{if(cleanCurrent){draftRestoring=false;draftTransition=false;setLoading(false);}}
 });
 
 $('#cancel-draft-delete').addEventListener('click',()=>{$('#draft-delete-dialog').close();pendingDraftDeleteId=null;});

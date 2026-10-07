@@ -56,8 +56,9 @@ description: FrameLark 精修台：审阅并实际精修单张原片或已经选
 
 1. 首次运行 `node <skill>/scripts/setup.mjs`，检查 Node 20.9+ 并安装此 Skill 的固定图片处理依赖。以后运行不会重复安装。
 2. 新照片：`node <skill>/scripts/cli.mjs init --image <photo> --project <new-project-directory> --intent <表达目标>`。项目目录须不存在，父目录须存在。保留源图字节，不改动输入文件。
-3. 已有项目：`node <skill>/scripts/cli.mjs inspect --project <project>`。读取 `revision`、当前版本、意图、全部批注、审片记录、候选和预览路径。
+3. 新建后或继续已有项目，都运行 `node <skill>/scripts/cli.mjs inspect --project <project>`。读取项目 `revision`、`baseVersion`、`editProtocol`、当前版本、意图、全部批注、审片记录、候选和预览路径。
 4. 用宿主实际的图片读取工具查看返回的原片/当前预览。不能仅凭文件名、均值或用户评论声称已识别画面。无视觉能力时明确说明，并提供基础统计或人工调参，不伪称视觉审片。
+5. 编写方案前按 `editProtocol.mode` 选择执行协议。`document`（或 `active:true`、当前版本有 `recipe`）先读 [可编辑操作栈](references/editable-stack.md)，用 `document-tools` 发现节点参数，`document --project` 读取完整步骤及权威 `documentRevision`/`baseHash`，再提交文档命令。RAW 导入成功后直接使用此协议。`legacy` 才使用下面的 `controls`、settings/items 或 `photo-tools`/`compose`；不能用旧参数覆盖新栈，也不自行猜算文档哈希。
 
 工具命令和 JSON 结构见 [工具参考](references/tools.md)，需要编写方案或局部操作时再读取。
 
@@ -74,8 +75,8 @@ description: FrameLark 精修台：审阅并实际精修单张原片或已经选
 1. `collection-init` 保存整批原片和稳定 ID；查看逐个导入错误。`collection-sheet` 分页实际看图，再打开候选单图与细节。没有看过的照片明确保留为 unreviewed，工具统计不替代视觉判断。
 2. 用 `collection-brief` 保存用途、主题、期望数量、必留 ID 与保护条件。`collection-plan` 保存 select/reserve/exclude、画面依据、角色和 order；源图不会删除。数量是期望，必要信息与情感价值优先，不为凑数补弱片。
 3. 初选时试排以检查主题的缺口和重复，再按每张的亮点与表达阻碍充分精修；共同风格与逐张绝对目标分开，不跨图复制局部坐标，不强行统一昼夜亮度。查看真实修后版本再决定正式排列；时间线只用可靠信息，定调参考不必是封面。用户要求完整九张时，少量定调试片不能替代完整交付，也不能擅自收窄为同一题材。
-4. 通过返回的单图项目路径进入下面的候选/批注/接受流程。接受新版本、更新主题或批注会使旧组选片过期；复看单张完整画面、关键细节和真实三行三列的九格，再以最新 snapshotHash 保存最终方案。单张或整组仍有表达阻碍时保留为试修；不能为导出把弱片问题全部降成 minor。
-5. `collection-export` 按顺序导出已保存版本与 manifest；失败逐张保留并可重试。交付主题、已审阅范围、顺序、取舍理由和备选，供用户继续换图或精调。上传发布和删除照片需用户明确要求。
+4. 通过返回的单图项目路径进入下面的候选/批注/接受流程。接受新版本、更新主题或批注会使旧组选片过期；复看单张完整画面和关键细节，再以最新 snapshotHash 保存排序方案。按 [组图工具](references/collection-tools.md#实际版本的三行三列预览) 用方案顺序对应的已保存版本预览生成真实三行三列九格；四列联系表不充当九格。换片或返修后重新读取并复看。单张或整组仍有表达阻碍时保留为试修；不能为导出把弱片问题全部降成 minor。
+5. `collection-export` 按顺序导出已保存版本与 manifest；失败逐张保留并可重试。全部导出完成且任务未过期后，用实际导出路径重做九格，核对输出光色和顺序，再交付主题、已审阅范围、成片与备选理由。上传发布和删除照片需用户明确要求。
 
 具体命令和 JSON 见 [组图工具](references/collection-tools.md)。批次最多 500 个文件，联系表每页 20 张；大批分段审阅。不把目前的几何蒙版称为语义选区，不把 RAW 导入称为所有机型兼容，也不把静态照片工具称为视频或印刷排版工具。
 
@@ -83,11 +84,11 @@ description: FrameLark 精修台：审阅并实际精修单张原片或已经选
 
 自动精修、返修或正式交付时，读 [可追踪的审片与交付](references/reviewed-workflow.md)，启用 reviewed 流程；人手探索参数可以保持 manual。实际看当前图后记录 `diagnosis`，保存目标、值得保留的关系、具体位置、处理假设和检查点。工具返回当前阶段和下一步；零项问题可以保留原片。
 
-光色判断缺少把握时，读相近 [视觉案例](references/visual-examples.md)，或用 `probe` 看当前照片上的真实参数响应。案例与测量辅助选择，不能替代视觉判断或直接套用配方。
+光色判断缺少把握时，读相近 [视觉案例](references/visual-examples.md)。旧配方可用 `probe` 看真实参数响应；新栈用文档命令修改对应步骤并比较实际候选，不用旧手动参数试条代替节点响应。案例与测量辅助选择，不能替代视觉判断或直接套用配方。
 
 反复被否定或需要独立判断时，准备 `review-packet`，按宿主可用且已授权的能力交给另一位审片者；不提供旧结论或希望得到的答案。区分 self/independent，缺少独立能力时如实自审。审核以 `resolutions` 回答原诊断，Agent 保存交付版须通过当前组合的审核。不要伪造审片者身份、靠 preserved 状态掩盖阻碍或把哈希当审美证明。
 
-旧调整难以理清时先 `edit-sources`，用 `rebuild` 显式重建获准范围，再看试片；未指定范围保留。用户要在网页或自己的 Agent 继续时，用项目交换快照，先核对支持范围与实际导入结果。
+旧配方难以理清时先 `edit-sources`，用 `rebuild` 显式重建获准范围，再看试片；新栈先读取 `document`，用已有稳定步骤 ID 修改、启停或删除获准范围，保留其余步骤与依赖。用户要在网页或自己的 Agent 继续时，用项目交换快照，先核对支持范围与实际导入结果。
 
 ## 审片与候选
 
@@ -97,10 +98,10 @@ description: FrameLark 精修台：审阅并实际精修单张原片或已经选
 - 风格任务先建立可指认的光色关系，按 [定调与试片验收](references/look-development.md) 在相同基础与构图下比较；裁剪单独取舍。不要把许多微调、工具成功或技术合格称为审美提升。
 - 建议写成「画面位置与依据 → 对当前意图的影响 → 最小处理 → 检查点与代价」。先说明值得保留的关系，按真正有用的内容展开，不靠专业术语堆砌或固定条数显得全面。
 - 可以没有调整。说明值得保留的关系；不机械提亮、增色或裁剪。必要时用 `review` 保存观察与保留依据，来源写作宿主 Agent，不编造另一个模型调用。
-- 首次调参读 `controls`：范围与灰卡响应来自真实引擎。曝光是 EV；色温/色调为相对增益，不是 Lightroom 开尔文。统计值不证明主体曝光错误，剪切掉的高光无法恢复。
-- `candidate` 的 `settings` 是当前手动层的**绝对目标值**，不是累加量。`style` 是独立风格层；不要再把其配方写进 settings。局部 settings 是该标记局部层的绝对目标；保留其他已接受的局部。
-- 新方案优先用结构化 `items`：一项说明一个可独立取舍的改动，填写 `id`、`title`、`patch` 和可选 `dependsOn`。同一写入路径不要拆成两项。`selectedItemIds` 从固定基础版本重算，不在上次预览上累加。`tool-schema` 输出可交给宿主的函数工具定义，`tool --input` 仅分派允许的 JSON 操作；当前运行时仍不调用模型 API。
-- 复合请求优先发现 `photo-tools` 目录，用 `compose` 的 `operations` 表达工具、目标、参数和依赖；每个被选中步骤在独立子进程执行，返回实际中间预览。见 [工具组合](references/tool-composition.md)。旧结构化 `items` 仍兼容，每项说明一个可独立取舍的 patch。`selectedItemIds` 始终从固定基础版本重算，不在上次预览上累加。`tool-schema` 输出可交给宿主的函数工具定义，`tool --input` 仅分派允许的 JSON 操作；运行时不调用模型 API。
+- 新栈先读 `document-tools` 和 `document`。项目 `revision`/`baseVersion` 与文档 `documentRevision`/`baseHash` 分别原样回传；`documentProposal.baseRevision` 使用文档 revision。已有步骤按稳定 ID 修改，不叠加反向补偿。节点参数、蒙版和依赖以动态目录为准；接受、审核与保护仍走现有入口。
+- 旧配方首次调参读 `controls`：范围与灰卡响应来自真实引擎。曝光是 EV；色温/色调为相对增益，不是 Lightroom 开尔文。统计值不证明主体曝光错误，剪切掉的高光无法恢复。
+- 旧配方 `candidate` 的 `settings` 是当前手动层的**绝对目标值**，不是累加量。`style` 是独立风格层；不要再把其配方写进 settings。局部 settings 是该标记局部层的绝对目标；保留其他已接受的局部。
+- 旧配方结构化 `items` 中一项说明一个可独立取舍的改动，填写 `id`、`title`、`patch` 和可选 `dependsOn`。同一写入路径不要拆成两项。复合请求先发现 `photo-tools`，用 `compose` 的 `operations` 表达工具、目标、参数和依赖，返回实际中间预览，见 [工具组合](references/tool-composition.md)。新栈改用 `documentProposal.items[].commands`。两种协议的 `selectedItemIds` 都从固定基础重算；`tool-schema` 给出有限 JSON 工具契约，运行时不调用模型 API。
 - 每个方案填写刚读取的 `revision` 和 `baseVersion`。继续精调尚未接受的试片时，旧整组格式可填写 `fromCandidate`，继承所选试片的全部层并固化为相对已保存基础版本的一项；不要与 `items` 混用。用当前效果为基础，填写目标、主要取舍及自然易辨认的名称。候选不会改变当前版本。
 - 查看候选实际预览，并用 `compare` 与基础版本共享范围对照。对眼睛、头发、肤色、高光与蒙版边缘，用 `preview --region --max-side 8192` 查看指定完整输出帧的准确裁片。region 不会重新渲染小区域；先核对返回的整帧尺寸、regionPixels 与 limited，不能无条件称为源图 100%。不能以工具执行成功、指标升高替代画质判断。
 - 风格从当前光线和意图选择，解释成立条件与回退现象；大师名称是学习线索，不是官方配方。拍摄距离、时机、景深、长曝光等不能由调参补齐。精准参考要求实际看参考图。
@@ -118,14 +119,14 @@ description: FrameLark 精修台：审阅并实际精修单张原片或已经选
 
 开启诊断与复审、含文字或保护设置的项目会在完整工作台内进入“协作精修”，仍使用同一份项目和原生处理流程。也可用下面的 `serve` 独立预览。不要通过网页快照接口绕过诊断、复评或保护检查。
 
-macOS 可直接 `init` 静态 HEIC/HEIF，工具用系统解码器生成 8 位工作图，保留原文件字节。其他系统仍需先转换；相机 RAW 首次运行 `node <skill>/scripts/raw/setup.mjs` 安装 LibRaw/rawpy；macOS 优先 CIRAWFilter（需 Xcode Command Line Tools），其他平台使用 rawpy。`init --image <RAW> --project <folder> [--raw-backend auto|apple|rawpy]` 保留原片和线性高精度数据。机型和压缩方式取决于实际后端；普通 TIFF 输入仍不支持。
+macOS 可直接 `init` 静态 HEIC/HEIF，工具用系统解码器生成 8 位工作图，保留原文件字节。其他系统仍需先转换；相机 RAW 首次运行 `node <skill>/scripts/raw/setup.mjs` 安装 LibRaw/rawpy；macOS 优先 CIRAWFilter（需 Xcode Command Line Tools），其他平台使用 rawpy。`init --image <RAW> --project <folder> [--raw-backend auto|apple|rawpy]` 保留原片和线性高精度数据，并直接建立可编辑栈；继续时按 `document` 协议创建候选，不能用旧 settings/compose。机型和压缩方式取决于实际后端；普通 TIFF 输入仍不支持。
 
 ## 接续请求与等待
 
 网页的“交给 Agent 继续”保存真实接续请求。查看 `inspect` 返回的 `project.collaboration`：queued 是等待接手，running 是已由 Agent 领取，不代表运行时会自行调用模型。
 
 1. 先 inspect 并看最新图与批注。用户要求处理网页接续时，用 `handoff --input` 提交 `{action:"claim", revision, id:<请求id>, actorId:<本宿主标识>}`。actorId 是宿主声明，不是认证身份。
-2. 每次写入用最新 revision。用 `{action:"progress", revision, id, actorId, summary}` 报告实际进度。生成候选或 compose 时填写 `handoffId: id` 和同一个 actorId，避免取消后的旧工作再次提交。
+2. 每次写入用最新 revision。用 `{action:"progress", revision, id, actorId, summary}` 报告实际进度。按当前 editProtocol 生成文档提案或旧候选/compose 时，在方案顶层填写 `handoffId: id` 和同一个 actorId，避免取消后的旧工作再次提交。
 3. 实际检查候选后，以 `{action:"complete", revision, id, actorId, summary, candidateIds:[<实际候选id>]}` 回应，留给用户比较。没有调整也可返回空列表并说明保留依据；complete 不等于接受、审核或偏好学习。失败用 action:"fail"，说明原因。
 4. 用户取消、当前意图／批注变化，或 HANDOFF_STALE/HANDOFF_CLOSED 时停止旧接续；重新 inspect，保留用户修改，不盲目重试。正常的 reviewed 和成片审核规则仍适用。
 5. 只有用户要求继续等待这个项目时，运行 `watch --project <project> --after-revision <刚读到的revision> --timeout 60`。它等待文件事件并返回 handoff、project-updated 或 timeout；收到事件后重新 inspect，处理已授权范围。不要声称仅启动 watch 就已开始审片，也不要在无人要求时无限等待。

@@ -53,6 +53,7 @@ import {globalAdjustments,effectiveAnnotations,adjustmentSignature,remainingAdju
 import {createTaskQueue,latestReviewTask,elapsedReview,unresolvedFailure} from './task-queue.js';
 import {syncGroups,photoSnapshot,snapshotSettings,planSync,planStyle} from './batch-edits.js';
 import {createSeriesWorkspace} from './series-workspace.js';
+import {createCollectionWorkspace} from './collection-workspace.js';
 import {outputGeometry,exportPresets,exportLimits,safeFilename,printCentimeters} from './export-settings.js';
 import {createPhotoArchive} from './export-files.js';
 import {buildToneCurve,mapTone} from './tone-processing.js';
@@ -322,6 +323,12 @@ const projectWorkspace=createProjectWorkspace({
     await applySharedProject(photo,data);if(currentPhotoId!==photo.id)activatePhoto(photo.id);return photo;
   },onUpdate:applySharedProject,onState:()=>scheduleDraftSave(),notify:showToast
 });
+createCollectionWorkspace({notify:showToast,onEdit:async id=>{
+  if(currentPhoto()?.projectId)await projectWorkspace.flush(currentPhoto());
+  const response=await fetch(`/api/projects/${encodeURIComponent(id)}`);
+  if(!response.ok)throw new Error('单图项目无法读取，请检查共享组图目录。');
+  await projectWorkspace.load(await response.json());
+}});
 function syncSharedEditions(photo,data){
   const saved=editionsFromProject(data).map(v=>({...v,signature:snapshotAcceptanceSignature(v.snapshot)}));
   const known=new Set(data.versions.map(v=>v.id));
