@@ -13,7 +13,7 @@
 | [SICE](https://github.com/csjcai/SICE)、[LOL](https://daooshee.github.io/BMVC2018website/) | 曝光、低照与噪声的技术恢复 | 官方任务与数据入口已查；图片许可仍待确认，不采用镜像的代码许可标签代替授权 |
 | 用户明确反馈的本地照片 | 实际使用者认可的效果，以及已否定方向的回归 | 私有数据独立保存。整板反馈与单张反馈分开；指向不明确的否定不硬标为某张的金标准 |
 
-可复核的完整目录见 [datasets.json](../../evals/retouch/datasets.json)，已下载小集的源网址、大小、SHA256、逐文件许可和预留分组见 [fivek-pilot.json](../../evals/retouch/fivek-pilot.json)。图片、RAW 缓存和修后 TIFF 保存在仓库外，不随插件或官网发布。
+可复核的完整目录见 [datasets.json](../../test/evals/retouch/datasets.json)，已下载小集的源网址、大小、SHA256、逐文件许可和预留分组见 [fivek-pilot.json](../../test/evals/retouch/fivek-pilot.json)。图片、RAW 缓存和修后 TIFF 保存在仓库外，不随插件或官网发布。
 
 ## 复现下载
 

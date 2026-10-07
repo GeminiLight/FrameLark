@@ -24,7 +24,7 @@ async function main(args){
  if(!args.includes('--research-only'))throw Error('FiveK images allow non-commercial research only; use --research-only for that scope after reading the licenses.');
  const index=args.indexOf('--output');if(index<0||!args[index+1]||args[index+1].startsWith('--'))throw Error('Supply --output <directory>');
  const output=resolve(args[index+1]),repo=fileURLToPath(new URL('../',import.meta.url)),rel=relative(repo,output);if(!rel||(!rel.startsWith('..')&&!isAbsolute(rel)))throw Error('Store dataset images outside the repository.');
- const manifest=JSON.parse(await readFile(new URL('../evals/retouch/fivek-pilot.json',import.meta.url),'utf8'));
+ const manifest=JSON.parse(await readFile(new URL('../test/evals/retouch/fivek-pilot.json',import.meta.url),'utf8'));
  const jobs=[...manifest.legalFiles.map(f=>({...f,path:resolve(output,'provenance',f.name)}))];
  for(const c of manifest.cases){if(!/^a\d{4}$/.test(c.id)||!/^[a-zA-Z0-9_.-]+\.dng$/.test(c.sourceName))throw Error('Invalid corpus filename');jobs.push({...c.input,path:resolve(output,'fivek/raw',c.sourceName)});for(const r of c.references)jobs.push({...r,path:resolve(output,'fivek/references',c.id,'expert-'+r.expert.toLowerCase()+'.tif')});}
  for(const job of jobs){const result=await downloadChecked(job,job.path);console.log(JSON.stringify(result));}
