@@ -35,8 +35,10 @@ try{
  let log='';server.stderr.on('data',chunk=>{log+=chunk;});
  const base=await new Promise((r,j)=>{const timer=setTimeout(()=>j(Error('Studio startup failed: '+log)),10000);server.once('error',j);server.stdout.on('data',chunk=>{log+=chunk;const match=log.match(/http:\/\/localhost:(\d+)/);if(match){clearTimeout(timer);r('http://127.0.0.1:'+match[1]);}});});
  const response=await fetch(base+'/api/projects/register',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({path:folder})});const view=await response.json();assert.equal(view.supported,true);
- await browser('open',base+'/?project='+view.id);await browser('set','viewport','1280','800');await wait('document.querySelector("#project-open")&&!document.querySelector("#project-open").hidden');
- await browser('click','#project-open');await browser('click','[data-project-review="diagnosis"]');await wait('document.querySelector("#project-notice").textContent.includes("诊断已保存")');
+ await browser('open',base+'/?project='+view.id);await browser('set','viewport','1280','800');
+ await wait('document.querySelector("#project-sync-status")&&!document.querySelector("#project-sync-status").hidden&&document.querySelector("#project-sync-status").textContent==="已保存到项目"');
+ await browser('click','#project-open');await wait('document.querySelector("#project-dialog").open&&document.querySelector("[data-project-review=diagnosis]")');
+ await browser('click','[data-project-review="diagnosis"]');await wait('document.querySelector("#project-notice").textContent.includes("诊断已保存")');
  p=await loadProject(folder);assert.equal(p.diagnoses.length,1);assert.ok(p.diagnoses[0].policy.bundleHash);assert.equal(await read('document.querySelector("#project-native-frame")?.closest("section")?.hidden===false'),false);
  const made=await candidate([{type:'UpdateStepParameters',stepId:'light',parameters:{ev:.4}},{type:'AddStep',step:{id:'warm',title:'稍暖',tool:'color',toolVersion:2,parameters:{warmth:2}}}]);
  await wait(`document.querySelector('[data-review-version="${made.candidate.id}"]')`);await browser('click',`[data-review-version="${made.candidate.id}"]`);await wait('document.querySelector("[data-candidate-audit]").textContent.includes("审核通过")');
