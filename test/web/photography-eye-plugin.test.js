@@ -79,12 +79,13 @@ test('eye-only build never reads tracked retouch configuration',async t=>{
 
 test('standalone installer leaves retouch setup untouched and reports one available workflow',async t=>{
   const {root,put}=await fixture(t);
-  for(const name of ['build-framelark-plugin.mjs','install-framelark-plugin.mjs','install-photography-eye.mjs','installation-guide.mjs'])await put('scripts/'+name,await readFile(join(repositoryRoot,'scripts',name)));
+  for(const name of ['build-framelark-plugin.mjs','install-framelark-plugin.mjs','install-framelark-release.mjs','install-photography-eye.mjs','installation-guide.mjs'])await put('scripts/'+name,await readFile(join(repositoryRoot,'scripts',name)));
   await put('bin/codex',`#!/usr/bin/env node
 const args=process.argv.slice(2),eye=args.some(a=>a.startsWith('framelark-eye@'));
 if(args.includes('marketplace')&&args.includes('list'))console.log(JSON.stringify({marketplaces:[]}));
-else if(args.includes('list')){const market=args[args.indexOf('--marketplace')+1],name=market==='framelark-eye'?'framelark-eye':'framelark';console.log(JSON.stringify({installed:[{pluginId:name+'@'+market,installed:true,enabled:true}]}));}
-else if(args.includes('add')&&args.includes('plugin')&&!args.includes('marketplace')&&!args.includes('--help'))console.log(JSON.stringify({installedPath:${JSON.stringify(root)}+'/dist/'+(eye?'framelark-eye':'framelark')+'/marketplace/'+(eye?'framelark-eye':'framelark'),pluginId:eye?'framelark-eye@framelark-eye':'framelark@framelark',version:eye?'0.1.0':'0.1.7'}));
+else if(args.includes('list')){if(!require('node:fs').existsSync(${JSON.stringify(root)}+'/fake-installed')||JSON.parse(require('node:fs').readFileSync(require('node:path').join(require('node:fs').readFileSync(${JSON.stringify(root)}+'/fake-marketplace-root','utf8'),'.agents/plugins/marketplace.json'))).name!==args[args.indexOf('--marketplace')+1]){console.log('{"installed":[]}');process.exit(0);}const market=args[args.indexOf('--marketplace')+1],name=market==='framelark-eye'?'framelark-eye':'framelark';console.log(JSON.stringify({installed:[{pluginId:name+'@'+market,installed:true,enabled:true}]}));}
+else if(args.includes('marketplace')&&args.includes('add')){require('node:fs').writeFileSync(${JSON.stringify(root)}+'/fake-marketplace-root',args[3]);console.log('{}');}
+else if(args.includes('add')&&args.includes('plugin')&&!args.includes('marketplace')&&!args.includes('--help')){require('node:fs').writeFileSync(${JSON.stringify(root)}+'/fake-installed','yes');console.log(JSON.stringify({installedPath:require('node:fs').readFileSync(${JSON.stringify(root)}+'/fake-marketplace-root','utf8')+'/'+(eye?'framelark-eye':'framelark'),pluginId:eye?'framelark-eye@framelark-eye':'framelark@framelark',version:eye?'0.1.0':'0.1.7'}));}
 else console.log('{}');
 `);await chmod(join(root,'bin/codex'),0o755);
   const env={...process.env,PATH:join(root,'bin')+delimiter+process.env.PATH};

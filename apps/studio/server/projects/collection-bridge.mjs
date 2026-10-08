@@ -44,12 +44,12 @@ export class CollectionBridge {
   async get(id){
     const folder=await this.folder(id),c=await (await runtime()).inspectCollection(folder);
     if(c.id!==id)throw failure('COLLECTION_IDENTITY','组图身份已变化，请重新打开。');
-    const {loadProject}=await this.projects.runtime(),known=await this.projects.registry(),photos=[];
+    const known=await this.projects.registry(),photos=[];
     for(const photo of c.photos){
       if(photo.error){photos.push(photo);continue;}
-      const path=join(folder,photo.project),p=await loadProject(path);
-      if(known[p.id]?.path!==path)await this.projects.register(path);
-      photos.push({...photo,projectId:p.id,preview:`/api/projects/${p.id}/preview?version=current&revision=${p.revision}`});
+      const path=join(folder,photo.project);
+      if(known[photo.projectId]?.path!==path){const registered=await this.projects.register(path);if(registered.id!==photo.projectId)throw failure('COLLECTION_IDENTITY','照片项目身份已变化，请重新读取组图。');}
+      photos.push({...photo,preview:`/api/projects/${photo.projectId}/preview?version=${encodeURIComponent(photo.versionId)}&revision=${photo.revision}`});
     }
     return {...c,photos};
   }

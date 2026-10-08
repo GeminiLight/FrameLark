@@ -18,6 +18,60 @@ import {drawTextOverlays} from '../text-overlays.mjs';
 import {srgbToLinear} from '../engine/tone-processing.js';
 import {protectionWeight} from '../engine/protected-regions.js';
 
+const cacheMetadataLimit=1024,cachePngLimit=80*1024*1024,cacheBudget=256*1024*1024;
+async function boundedCacheBytes(file,limit){
+  let fd;try{fd=await open(file,'r');}catch(error){if(error.code==='ENOENT')return null;throw error;}
+  try{
+    const info=await fd.stat();if(!info.isFile()||info.size<1||info.size>limit)return null;
+    const bytes=Buffer.alloc(info.size+1);let offset=0;
+    while(offset<bytes.length){const read=await fd.read(bytes,offset,bytes.length-offset,null);if(!read.bytesRead)break;offset+=read.bytesRead;}
+    return offset===info.size?bytes.subarray(0,offset):null;
+  }finally{await fd.close();}
+}
+async function readFrameCache(cache,key,g){
+  const metadataBytes=await boundedCacheBytes(cache.replace(/\.png$/,'.json'),cacheMetadataLimit);if(!metadataBytes)return null;
+  let metadata;try{metadata=JSON.parse(metadataBytes.toString('utf8'));}catch(error){if(error instanceof SyntaxError)return null;throw error;}
+  if(!metadata||metadata.schema!==1||metadata.key!==key||metadata.width!==g.width||metadata.height!==g.height||!Number.isSafeInteger(metadata.bytes)||metadata.bytes<1||metadata.bytes>cachePngLimit||typeof metadata.fileHash!=='string'||! /^[a-f0-9]{64}$/.test(metadata.fileHash))return null;
+  const png=await boundedCacheBytes(cache,cachePngLimit);
+  if(!png||png.length!==metadata.bytes||rawHash(png)!==metadata.fileHash||png.length<33||!png.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))||png.toString('ascii',12,16)!=='IHDR'||png.readUInt32BE(16)!==g.width||png.readUInt32BE(20)!==g.height)return null;
+  let decoded;
+  try{decoded=await sharp(png,{limitInputPixels:g.width*g.height,failOn:'error'}).ensureAlpha().raw().toBuffer({resolveWithObject:true});}
+  catch(error){
+    // Buffer decoding has no filesystem access. Only corrupt PNG input is a
+    // regeneratable miss; memory/resource failures and file IO still surface.
+    if(!error.code&&!/memory|allocation|resource/i.test(error.message)&&/^Input buffer|\bpngload(?:_buffer)?\b|^vipspng:\s*libpng read error$/i.test(error.message))return null;
+    throw error;
+  }
+  if(decoded.info.width!==g.width||decoded.info.height!==g.height||decoded.info.channels!==4||decoded.data.length!==g.width*g.height*4)return null;
+  return {png,pixels:new Uint8ClampedArray(decoded.data),cached:true,cachePath:cache};
+}
+async function publishFrameCache(cache,key,g,png){
+  if(png.length>cachePngLimit)return false;
+  const metadata=cache.replace(/\.png$/,'.json'),token=randomUUID(),imageTemp=cache+'.'+token+'.tmp',metadataTemp=metadata+'.'+token+'.tmp';
+  try{
+    await writeFile(imageTemp,png,{flag:'wx',mode:0o600});
+    await writeFile(metadataTemp,JSON.stringify({schema:1,key,width:g.width,height:g.height,bytes:png.length,fileHash:rawHash(png)}),{flag:'wx',mode:0o600});
+    // Two atomic files are not an atomic pair. Readers require matching bytes,
+    // so a interrupted/concurrent publication can only cause another render.
+    await rename(imageTemp,cache);await rename(metadataTemp,metadata);return true;
+  }finally{await rm(imageTemp,{force:true});await rm(metadataTemp,{force:true});}
+}
+async function cacheStat(file){try{return await stat(file);}catch(error){if(error.code==='ENOENT')return null;throw error;}}
+async function pruneFrameCaches(folder,current){
+  const directory=join(folder,'previews'),names=await readdir(directory),entries=[];
+  for(const name of names)if(/^raw-[a-f0-9]{64}\.png$/.test(name)){
+    const file=join(directory,name),image=await cacheStat(file);if(!image)continue;
+    const metadata=file.replace(/\.png$/,'.json'),info=await cacheStat(metadata);
+    entries.push({file,metadata,size:image.size+(info?.size||0),time:image.mtimeMs});
+  }
+  let total=entries.reduce((sum,e)=>sum+e.size,0);
+  for(const entry of entries.sort((a,b)=>a.time-b.time)){
+    if(total<=cacheBudget)break;if(entry.file===current)continue;
+    await rm(entry.file,{force:true});await rm(entry.metadata,{force:true});total-=entry.size;
+  }
+  for(const name of names)if(/^raw-[a-f0-9]{64}\.json$/.test(name)&&!await cacheStat(join(directory,name.replace(/\.json$/,'.png'))))await rm(join(directory,name),{force:true});
+}
+
 export const rawRenderingVersion='raw-float-render-v1';
 export function rawGeometry(crop,W,H,maxSide=2048,{full=false}={}){
   const area=crop||{x:0,y:0,width:1,height:1},rect={x:area.x*W,y:area.y*H,width:area.width*W,height:area.height*H},scale=full?1:Math.min(1,maxSide/Math.max(rect.width,rect.height),Math.sqrt(16_000_000/(rect.width*rect.height)));
@@ -95,14 +149,13 @@ export async function rawFrame(folder,project,version,g,options={}){
   const session=await createRawRenderSession(folder,project,{master:options.master}),selected=options.original?project.versions[0]:version,crop=options.renderCrop??version.state.crop;
   await session.verifyVersion(selected,Boolean(options.withoutText));
   const key=rawHash(Buffer.from(JSON.stringify({renderer:rawRenderingVersion,source:project.source.raw.manifestHash,state:versionStateHash(selected),geometry:g,crop,options:{master:Boolean(options.master),maskView:options.maskView,withoutText:options.withoutText,original:options.original}}))),cache=join(folder,'previews','raw-'+key+'.png');
-  try{const png=await readFile(cache),pixels=await sharp(png).ensureAlpha().raw().toBuffer();return {png,pixels:new Uint8ClampedArray(pixels),cached:true,cachePath:cache};}catch(error){if(error.code!=='ENOENT')throw error;}
+  const cached=await readFrameCache(cache,key,g);if(cached)return cached;
   const tile={x:0,y:0,width:g.width,height:g.height},result=options.master?{pixels:await renderTiles(session,project,selected,g,{...options,crop,depth:8})}:await session.renderTile(selected,g,tile,crop,options),png=await sharp(result.pixels,{raw:{width:g.width,height:g.height,channels:4}}).png().toBuffer();
-  const temporary=cache+'.'+randomUUID()+'.tmp';await writeFile(temporary,png,{mode:0o600});await rename(temporary,cache);
+  const published=await publishFrameCache(cache,key,g,png);
   // Only regeneratable RAW render caches are pruned. Version previews used by
   // accepted protection snapshots, the original and linear master are retained.
-  const entries=[];for(const name of await readdir(join(folder,'previews')))if(/^raw-[a-f0-9]{64}\.png$/.test(name)){const path=join(folder,'previews',name),info=await stat(path).catch(()=>null);if(info)entries.push({path,size:info.size,time:info.mtimeMs});}
-  let total=entries.reduce((sum,e)=>sum+e.size,0);for(const entry of entries.sort((a,b)=>a.time-b.time)){if(total<=256*1024*1024)break;if(entry.path===cache)continue;await rm(entry.path,{force:true});total-=entry.size;}
-  return {...result,png,cached:false,cachePath:cache};
+  await pruneFrameCaches(folder,cache);
+  return {...result,png,cached:false,cachePath:published?cache:undefined};
 }
 export async function renderTiles(session,project,version,g,{depth=16,withoutText=false,tileSide=384,crop=version.state.crop,maskView}={}){
   await session.verifyVersion(version,withoutText);const halo=session.requiredHalo(version);

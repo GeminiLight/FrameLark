@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm,readFile,writeFile,rename,mkdir} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile,rename,mkdir,stat} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -77,6 +77,30 @@ test('ordered exports persist partial success and retry failures without rewriti
   const manifest=JSON.parse(await readFile(result.manifest));assert.deepEqual(manifest.order,['P0002','P0001']);assert.equal(path.basename(result.job.items[0].result.path),'001-P0002.jpg');
   await writeFile(result.job.items[0].result.path,'changed');c=await inspectCollection(folder);
   result=await exportCollection(folder,{revision:c.revision,snapshotHash:c.snapshotHash,retryJob:result.job.id});assert.equal(result.job.items[0].error.code,'COLLECTION_OUTPUT_CHANGED');assert.equal(await readFile(result.job.items[0].result.path,'utf8'),'changed');
+});
+test('retrying an unfinished export preserves any existing user output and uses its own new name',async t=>{
+  const folder=await fixture(t);let c=await inspectCollection(folder);c=await saveCollectionPlan(folder,plan(c));
+  const original=path.join(folder,'photos/P0002/source/normalized.png'),backup=path.join(folder,'backup.png');await rename(original,backup);
+  const partial=await exportCollection(folder,{revision:c.revision,snapshotHash:c.snapshotHash});assert.deepEqual(partial.job.items.map(item=>item.status),['done','failed']);
+  const completed=await readFile(partial.job.items[0].result.path),existing=path.join(folder,partial.job.folder,'002-P0002.jpg'),user=Buffer.from('user output is independent of this unfinished export');await writeFile(existing,user);await rename(backup,original);
+  c=await inspectCollection(folder);const result=await exportCollection(folder,{revision:c.revision,snapshotHash:c.snapshotHash,retryJob:partial.job.id});
+  assert.equal(result.job.status,'done');assert.notEqual(result.job.items[1].result.path,existing);assert.deepEqual(await readFile(existing),user);assert.deepEqual(await readFile(result.job.items[0].result.path),completed);
+  const before=await stat(result.job.items[1].result.path);c=await inspectCollection(folder);const again=await exportCollection(folder,{revision:c.revision,snapshotHash:c.snapshotHash,retryJob:partial.job.id});
+  assert.equal(again.job.status,'done');assert.equal(again.job.items[1].result.path,result.job.items[1].result.path);assert.equal((await stat(result.job.items[1].result.path)).mtimeMs,before.mtimeMs);
+});
+test('retrying a completed export after moving its collection returns the verified current paths',async t=>{
+  const folder=await fixture(t);let c=await inspectCollection(folder);c=await saveCollectionPlan(folder,plan(c));
+  const first=await exportCollection(folder,{revision:c.revision,snapshotHash:c.snapshotHash,preset:'original'});
+  const originals=await Promise.all(first.job.items.map(async item=>({bytes:await readFile(item.result.path),mtime:(await stat(item.result.path)).mtimeMs,result:item.result})));
+  const moved=folder+'-moved';await rename(folder,moved);c=await inspectCollection(moved);
+  const result=await exportCollection(moved,{revision:c.revision,snapshotHash:c.snapshotHash,preset:'original',retryJob:first.job.id});
+  assert.equal(result.job.status,'done');const manifest=JSON.parse(await readFile(result.manifest));
+  for(const [i,item] of result.job.items.entries()){
+    assert.equal(item.result.path,path.join(moved,result.job.folder,path.basename(originals[i].result.path)));
+    assert.deepEqual(await readFile(item.result.path),originals[i].bytes);assert.equal((await stat(item.result.path)).mtimeMs,originals[i].mtime);
+    assert.equal(item.result.fileHash,originals[i].result.fileHash);assert.equal(item.result.versionId,originals[i].result.versionId);
+    assert.equal(manifest.job.items[i].result.path,item.result.path);
+  }
 });
 test('allowlisted collection tools use their own folder and reject code execution and invalid paths',async t=>{
   const folder=await fixture(t),contract=hostToolContract();assert.equal(contract.tools.length,24);assert.ok(contract.tools.some(tool=>tool.function.name==='frameyn_document_tools'));assert.ok(contract.tools.some(tool=>tool.function.name==='frameyn_propose_document'));

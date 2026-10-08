@@ -54,6 +54,7 @@ import {globalAdjustments,effectiveAnnotations,adjustmentSignature,remainingAdju
 import {createTaskQueue,latestReviewTask,elapsedReview,unresolvedFailure} from './task-queue.js';
 import {syncGroups,photoSnapshot,snapshotSettings,planSync,planStyle} from './batch-edits.js';
 import {createSeriesWorkspace} from './series-workspace.js';
+import {seriesPhotos} from './photo-series.js';
 import {createCollectionWorkspace} from './collection-workspace.js';
 import {outputGeometry,exportPresets,exportLimits,safeFilename,printCentimeters} from './export-settings.js';
 import {createPhotoArchive} from './export-files.js';
@@ -291,17 +292,26 @@ let annotationNoteBefore = null;
 let nextAnnotationId = 1;
 const editHistory = {past:[],future:[],range:null};
 const seriesWorkspace=createSeriesWorkspace({
-  getPhotos:()=>{commitPhotoInputs({finish:false});return photoSessions;},onChange:()=>scheduleDraftSave(),notify:showToast,
+  getPhotos:()=>{commitPhotoInputs({finish:false});return seriesPhotos(photoSessions);},onChange:()=>scheduleDraftSave(),notify:showToast,
   canOpen:()=>!importingFiles&&!state.loading,
   onEdit:id=>activatePhoto(id),onExport:ids=>openExportDialog(ids),
-  onAccept:plans=>{
-    commitPhotoInputs();const changed=[];
-    for(const plan of plans)if(commitPhotoSnapshot(plan.photo,plan.candidate,plan.before)){
-      changed.push({id:plan.photo.id,before:plan.before,after:photoSnapshot(plan.photo)});
-      plan.photo.versions ||= [];if(plan.photo.versions.length<40)plan.photo.versions.push({id:crypto.randomUUID(),kind:'manual',label:'组图调整前',at:new Date().toISOString(),signature:snapshotAcceptanceSignature(plan.before),snapshot:structuredClone(plan.before)});
+  onAccept:async plans=>{
+    commitPhotoInputs();const changed=[],intents=new Map(plans.map(plan=>[plan.photo,cleanIntent(plan.photo.creativeIntent)]));
+    try{
+      for(const plan of plans){
+        if(!seriesPhotos(photoSessions).includes(plan.photo)||cleanIntent(plan.photo.creativeIntent)!==intents.get(plan.photo)||JSON.stringify(photoSnapshot(plan.photo))!==JSON.stringify(plan.before))throw new Error('照片已更新，已完成的调整保留，请复看后重新审片。');
+        const before={...plan.before,projectVersionId:plan.photo.projectCurrentId};
+        const applied=plan.commands?plan.commands.length&&await editStack.command(plan.commands,plan.photo):commitPhotoSnapshot(plan.photo,plan.candidate,plan.before);
+        if(plan.commands?.length&&!applied)throw new Error(plan.photo.editStackError||'这张照片尚未保存，请先完成保存再继续组图。');
+        if(!applied)continue;
+        changed.push({id:plan.photo.id,before,after:photoSnapshot(plan.photo)});
+        if(!plan.photo.projectId){plan.photo.versions ||= [];if(plan.photo.versions.length<40)plan.photo.versions.push({id:crypto.randomUUID(),kind:'manual',label:'组图调整前',at:new Date().toISOString(),signature:snapshotAcceptanceSignature(plan.before),snapshot:structuredClone(plan.before)});}
+      }
+    }finally{
+      if(changed.length)lastBatch=changed;
+      scheduleDraftSave();renderPhotoTabs();
     }
-    if(changed.length)lastBatch=changed;
-    scheduleDraftSave();renderPhotoTabs();showToast(changed.length?`已应用 ${changed.length} 张的组图调整，可逐张精调或整组撤销。`:'已保留这组照片的当前光色。');
+    showToast(changed.length?`已应用 ${changed.length} 张的组图调整，可逐张精调或整组撤销。`:'已保留这组照片的当前光色。');
   }
 });
 

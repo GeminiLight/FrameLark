@@ -42,7 +42,7 @@ decision 只有 select/reserve/exclude。取舍必须包含可见观察和理由
 node <skill>/scripts/cli.mjs collection-export --project <collection> --input <export.json>
 ```
 
-每次新任务写到 exports 下的独立目录，用 `001-P0002.jpg` 等顺序名，manifest.json 记录主题、顺序、具体版本、尺寸、文件 hash 和每张状态。原片也是已保存版本，可保留原片直接交付；未接受候选不能导出。成功文件不覆盖。失败项恢复后，用最新 revision、同一 snapshotHash、原 preset/format 加 `retryJob` 任务 ID 重试。版本或主题变了，先重新检查和保存组图方案，再发起新任务。导出期间中断可从已保存队列继续；已写出但尚未登记的文件不会被自动覆盖，应另起新任务。
+每次新任务写到 exports 下的独立目录，用 `001-P0002.jpg` 等顺序名，manifest.json 记录主题、顺序、具体版本、尺寸、文件 hash 和每张状态。原片也是已保存版本，可保留原片直接交付；未接受候选不能导出。成功文件不覆盖。失败项恢复后，用最新 revision、同一 snapshotHash、原 preset/format 加 `retryJob` 任务 ID 重试。版本或主题变了，先重新检查和保存组图方案，再发起新任务。导出期间中断可从已保存队列继续。已写出但尚未登记的文件保留；同一任务重试时，未完成项使用新名称，manifest 记录本次实际文件名；已完成项按记录的路径与 hash 核验后复用。
 
 ### 实际版本的三行三列预览
 

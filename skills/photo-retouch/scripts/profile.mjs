@@ -5,15 +5,28 @@ import {loadProject,preferenceChoices} from './project.mjs';
 import {hash} from './engine/edit-identity.js';
 import {object,fail} from './engine/edit-values.js';
 const text=(s,n=300)=>typeof s==='string'&&s.trim()&&s.length<=n;
+const textLimits={subject:120,lighting:120,reason:600};
+// 500 bounded legacy entries, including duplicated feedback/intent and JSON
+// escaping, fit within 8 MiB. Read and write use one cap so old pretty archives
+// can be edited or deleted normally without an unbounded recovery exception.
+const byteLimit=8*1024*1024;
+function validateProfile(p){
+  if(!p||typeof p!=='object'||Array.isArray(p)||p.schema!=='frameyn-preferences/1'||!Array.isArray(p.entries)||p.entries.length>500||p.entries.some(e=>!e||typeof e!=='object'||Array.isArray(e))||new Set(p.entries.map(e=>e.id)).size!==p.entries.length||p.entries.some(e=>!text(e.id,80)||Object.entries(textLimits).some(([field,limit])=>!text(e[field],limit))||!['prefer','reject'].includes(e.signal)))fail('PROFILE_INVALID','偏好记录不完整，请保留文件并从备份恢复。');
+  return p;
+}
 async function readProfile(file){
-  if((await stat(file)).size>1024*1024)fail('PROFILE_INVALID','偏好档案过大，请整理后再读取。');
+  if((await stat(file)).size>byteLimit)fail('PROFILE_INVALID','偏好档案超过 8 MiB 读取上限，请保留原文件并检查备份。');
   let p;try{p=JSON.parse(await readFile(file,'utf8'));}catch{fail('PROFILE_INVALID','偏好档案无法读取，原文件未改动。');}
-  if(p.schema!=='frameyn-preferences/1'||!Array.isArray(p.entries)||p.entries.length>500||new Set(p.entries.map(e=>e.id)).size!==p.entries.length||p.entries.some(e=>!text(e.id,80)||!text(e.subject,80)||!text(e.lighting,120)||!text(e.reason,600)||!['prefer','reject'].includes(e.signal)))fail('PROFILE_INVALID','偏好记录不完整，请保留文件并从备份恢复。');return p;
+  return validateProfile(p);
 }
 async function updateProfile(file,fn){
   const lock=file+'.lock';try{await mkdir(lock);}catch(e){if(e.code==='EEXIST')fail('PROFILE_BUSY','另一项偏好更新正在进行；请检查进程后重试。');throw e;}
   const temp=file+'.'+randomUUID()+'.tmp';
-  try{const p=await readProfile(file),result=await fn(p);p.updatedAt=new Date().toISOString();await writeFile(temp,JSON.stringify(p,null,2),{flag:'wx',mode:0o600});await rename(temp,file);return {profile:p,...result};}
+  try{const p=await readProfile(file),result=await fn(p);p.updatedAt=new Date().toISOString();
+    const serialized=JSON.stringify(validateProfile(p));
+    if(Buffer.byteLength(serialized,'utf8')>byteLimit)fail('PROFILE_SIZE','偏好档案超过 8 MiB 保存上限，请删减记录或说明后重试；原文件保持不变。');
+    validateProfile(JSON.parse(serialized));
+    await writeFile(temp,serialized,{flag:'wx',mode:0o600});await rename(temp,file);return {profile:p,...result};}
   finally{await rm(temp,{force:true});await rm(lock,{recursive:true,force:true});}
 }
 export async function initProfile(file,name='我的摄影偏好'){
@@ -25,7 +38,7 @@ export async function inspectProfile(file,{subject,lighting}={}){
 }
 export async function learnProfile(folder,file,value){
   object(value,['revision','versionId','subject','lighting','reason'],'PROFILE_INVALID');
-  if(!Number.isInteger(value.revision)||!text(value.subject,80)||!text(value.lighting,120)||!text(value.reason,600))fail('PROFILE_INVALID','记录需当前 revision、版本、题材、光线及用户明确表达的理由。');
+  if(!Number.isInteger(value.revision)||Object.entries(textLimits).some(([field,limit])=>!text(value[field],limit)))fail('PROFILE_INVALID','记录需当前 revision、版本、题材、光线及用户明确表达的理由。');
   const p=await loadProject(folder),v=p.versions.find(v=>v.id===value.versionId);
   if(value.revision!==p.revision)fail('STALE_REVISION','项目反馈已改变，请重新读取。');
   if(!v)fail('VERSION_NOT_FOUND','偏好需对应已保存版本。');
@@ -51,6 +64,6 @@ export async function learnProfile(folder,file,value){
 export async function editProfile(file,value){
   object(value,['id','subject','lighting','reason','remove'],'PROFILE_INVALID');
   if(!text(value.id,80)||value.remove!==undefined&&typeof value.remove!=='boolean')fail('PROFILE_INVALID','指定需要修改或删除的记录 ID。');
-  for(const k of ['subject','lighting','reason'])if(value[k]!==undefined&&!text(value[k],k==='reason'?600:120))fail('PROFILE_INVALID','偏好说明不能为空或过长。');
+  for(const [field,limit] of Object.entries(textLimits))if(value[field]!==undefined&&!text(value[field],limit))fail('PROFILE_INVALID','偏好说明不能为空或过长。');
   return updateProfile(file,p=>{const e=p.entries.find(e=>e.id===value.id);if(!e)fail('PROFILE_NOT_FOUND','记录已删除或不存在。');if(value.remove)p.entries=p.entries.filter(e=>e.id!==value.id);else for(const k of ['subject','lighting','reason'])if(value[k]!==undefined)e[k]=value[k].trim();return {removed:value.remove===true};});
 }

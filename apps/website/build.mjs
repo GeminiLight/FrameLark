@@ -1,6 +1,6 @@
-import {readFile,writeFile,readdir,mkdir,rm,stat} from 'node:fs/promises';
+import {readFile,writeFile,readdir,mkdir,rm,stat,realpath} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
-import {resolve,dirname,join} from 'node:path';
+import {resolve,dirname,join,basename,relative,sep,isAbsolute} from 'node:path';
 
 const argumentsMap=new Map();
 for(let i=2;i<process.argv.length;i+=2)argumentsMap.set(process.argv[i],process.argv[i+1]);
@@ -14,6 +14,21 @@ if(siteURL.protocol==='http:'&&!['localhost','127.0.0.1','::1'].includes(siteURL
 if(!siteURL.pathname.endsWith('/'))siteURL.pathname+='/';
 const basePath=siteURL.pathname.replace(/\/$/,'');
 const extensions=new Set(['html','js','css','svg','png','jpg','jpeg','webp','ico','json','txt','woff2']);
+
+async function canonicalPath(path){
+  try{return await realpath(path);}catch(error){
+    if(error.code!=='ENOENT')throw error;
+    const parent=dirname(path);if(parent===path)throw error;
+    return join(await canonicalPath(parent),basename(path));
+  }
+}
+const contains=(folder,path)=>{const part=relative(folder,path);return !part||!isAbsolute(part)&&part.split(sep)[0]!=='..';};
+const canonicalDestination=await canonicalPath(destination);
+for(const input of [source,caseSource]){
+  const canonicalSource=await realpath(input);
+  if(contains(canonicalDestination,canonicalSource)||contains(canonicalSource,canonicalDestination))throw Error('Website output cannot overlap a maintained source directory or its ancestor: '+destination);
+}
+
 
 async function filesIn(directory){
   const files=[];

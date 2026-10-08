@@ -1,12 +1,13 @@
 // Release bootstrap: Node built-ins only; no checkout, Git or npm package needed.
 import {execFileSync,spawn} from 'node:child_process';
 import {createHash,randomUUID} from 'node:crypto';
-import {mkdir,mkdtemp,readFile,writeFile,readdir,rename,rm,cp,stat,lstat} from 'node:fs/promises';
+import {mkdir,mkdtemp,readFile,writeFile,readdir,rename,rm,cp,stat,lstat,readlink} from 'node:fs/promises';
 import {realpathSync,existsSync} from 'node:fs';
-import {homedir} from 'node:os';
-import {join,resolve,dirname,isAbsolute} from 'node:path';
+import {homedir,tmpdir} from 'node:os';
+import {join,resolve,dirname,isAbsolute,basename} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {inflateRawSync} from 'node:zlib';
+import {isDeepStrictEqual} from 'node:util';
 
 export const releaseRepository='GeminiLight/FrameLark';
 const github='https://github.com/'+releaseRepository;
@@ -111,7 +112,7 @@ async function setup(folder){
   const code=await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[join(folder,'skills/photo-retouch/scripts/setup.mjs')],{stdio:['ignore',2,2]});child.once('error',reject);child.once('exit',resolve);});
   if(code!==0)fail('修图依赖未准备完成，未报告安装成功。请检查 Node.js 与网络后重试。');
 }
-function sameRoot(first,second){
+export function sameRoot(first,second){
   const canonical=path=>{try{return realpathSync(path);}catch{return resolve(path);}};
   return canonical(first)===canonical(second);
 }
@@ -122,18 +123,18 @@ function canonicalOrigin(current){
   const root=current.root;
   try{const top=execFileSync('git',['-C',root,'rev-parse','--show-toplevel'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();if(realpathSync(top)!==realpathSync(root))return null;const url=execFileSync('git',['-C',root,'remote','get-url','origin'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();return /^(?:https:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)GeminiLight\/(?:FrameLark|frameyn)(?:\.git)?\/?$/i.test(url)?url:null;}catch{return null;}
 }
-async function moveRuntime(source,target){
+export async function moveRuntime(source,target){
   if(await exists(target))return;
   await mkdir(dirname(target),{recursive:true});
   try{await rename(source,target);}catch(error){if(error.code!=='EXDEV')throw error;await cp(source,target,{recursive:true,verbatimSymlinks:true});await rm(source,{recursive:true,force:true});}
 }
 
-async function sourceCatalog(root){
+export async function sourceCatalog(root,marketplaceName='framelark'){
   const value=JSON.parse(await readFile(join(root,'.agents/plugins/marketplace.json'),'utf8'));
-  if(value.name!=='framelark'||!Array.isArray(value.plugins)||value.plugins.some(p=>!['framelark','framelark-eye'].includes(p.name)))fail('原市场包含其他插件或记录无效，已保留来源。');
+  if(value.name!==marketplaceName||!Array.isArray(value.plugins)||value.plugins.some(p=>!['framelark','framelark-eye'].includes(p.name)))fail('原市场包含其他插件或记录无效，已保留来源。');
   return value;
 }
-async function sourceSnapshot(root,pluginId,catalog){
+export async function sourceSnapshot(root,pluginId,catalog){
   const name=pluginId.split('@')[0],entry=catalog.plugins.find(p=>p.name===name);
   if(entry?.source?.source!=='local'||typeof entry.source.path!=='string')fail('无法核对原插件来源，已保留安装状态。');
   const folder=resolve(root,entry.source.path),files=[];
@@ -155,16 +156,136 @@ async function atomicCatalog(path,bytes){
   try{await writeFile(temporary,bytes);await rename(temporary,path);}finally{await rm(temporary,{force:true});}
 }
 
-export async function installFrameLarkRelease({photographyEye=false,tag,root=process.env.FRAMELARK_INSTALL_ROOT||join(homedir(),'.local/share/framelark'),codex=runReleaseCodex,fetchImpl=fetch,prepareRuntime=setup}={}){
+async function installationInventory(folder){
+  const entries=[];
+  async function walk(path=''){
+    const file=join(folder,path),info=await lstat(file),mode=info.mode&0o777;
+    if(info.isSymbolicLink())entries.push({path,kind:'link',target:await readlink(file)});
+    else if(info.isDirectory()){
+      entries.push({path,kind:'directory',mode});
+      for(const name of (await readdir(file)).sort())await walk(path?path+'/'+name:name);
+    }else if(info.isFile())entries.push({path,kind:'file',mode,sha256:digest(await readFile(file))});
+    else fail('原安装包含无法安全备份的特殊文件。');
+  }
+  await walk();return entries;
+}
+export async function backupPluginInstallation(plugin,{pluginId=plugin.pluginId,backupDirectory,cacheRoot=join(process.env.CODEX_HOME||join(homedir(),'.codex'),'plugins/cache')}={}){
+  const [name,marketplace]=pluginId.split('@');
+  if(!/^[\w.-]+$/.test(name)||! /^[\w.-]+$/.test(marketplace)||!versionPattern.test(plugin.version))fail('原插件身份或版本无法核对，已保留配置。');
+  const originalPath=resolve(plugin.installedPath||join(cacheRoot,marketplace,name,plugin.version)),info=await lstat(originalPath);
+  if(!info.isDirectory()||info.isSymbolicLink())fail('原安装不是可安全备份的普通目录，已保留配置。');
+  const manifest=JSON.parse(await readFile(join(originalPath,'.codex-plugin/plugin.json'),'utf8'));
+  if(manifest.name!==name||manifest.version!==plugin.version||manifest.skills!=='./skills/')fail('原安装目录与 Codex 已选插件不一致，已保留配置。');
+  const inventory=await installationInventory(originalPath),backupPath=join(backupDirectory,'cache');
+  await mkdir(backupDirectory,{recursive:true,mode:0o700});await cp(originalPath,backupPath,{recursive:true,verbatimSymlinks:true});
+  if(!isDeepStrictEqual(await installationInventory(backupPath),inventory))fail('原安装在备份期间变化，尚未修改来源；请重试。');
+  const snapshot={pluginId,version:plugin.version,originalPath,backupPath,inventory};
+  await writeFile(join(backupDirectory,'installation.json'),JSON.stringify(snapshot,null,2)+'\n',{mode:0o600});return snapshot;
+}
+export async function restorePluginInstallation(snapshot){
+  if(!isDeepStrictEqual(await installationInventory(snapshot.backupPath),snapshot.inventory))fail('原安装备份发生变化，未覆盖现有安装。');
+  if(await exists(snapshot.originalPath)){
+    const info=await lstat(snapshot.originalPath),identity=JSON.parse(await readFile(join(snapshot.originalPath,'.codex-plugin/plugin.json'),'utf8'));
+    if(!info.isDirectory()||info.isSymbolicLink()||identity.name!==snapshot.pluginId.split('@')[0]||identity.version!==snapshot.version)fail('原安装位置被其他内容占用，未覆盖。');
+    await rm(snapshot.originalPath,{recursive:true,force:true});
+  }
+  await mkdir(dirname(snapshot.originalPath),{recursive:true});await cp(snapshot.backupPath,snapshot.originalPath,{recursive:true,verbatimSymlinks:true});
+  if(!isDeepStrictEqual(await installationInventory(snapshot.originalPath),snapshot.inventory))fail('原安装字节或权限尚未完整恢复。');
+}
+function sourceIdentity(source){
+  if(!source)return null;const value=structuredClone(source);
+  const key=value.sourceType==='local'?'source':value.source==='local'?'path':null;
+  if(key&&typeof value[key]==='string'&&isAbsolute(value[key]))try{value[key]=realpathSync(value[key]);}catch{value[key]=resolve(value[key]);}
+  return value;
+}
+const pluginChoice=plugin=>plugin?{installed:plugin.installed,enabled:plugin.enabled,version:plugin.version,installPolicy:plugin.installPolicy,authPolicy:plugin.authPolicy,source:sourceIdentity(plugin.source),marketplaceSource:sourceIdentity(plugin.marketplaceSource)}:null;
+export function readInstallSelection({marketplaceName,pluginId,codex}){
+  return {current:structuredClone(codex(['plugin','marketplace','list']).marketplaces?.find(p=>p.name===marketplaceName)),plugin:structuredClone(codex(['plugin','list','--marketplace',marketplaceName]).installed?.find(p=>p.pluginId===pluginId&&p.installed===true))};
+}
+export function assertInstallSelection({marketplaceName,pluginId,current,plugin,codex}){
+  const observed=readInstallSelection({marketplaceName,pluginId,codex}),market=observed.current;
+  const sameMarket=!current&&!market||current&&market&&sameRoot(current.root,market.root)&&isDeepStrictEqual(sourceIdentity(current.marketplaceSource),sourceIdentity(market.marketplaceSource));
+  if(!sameMarket||!isDeepStrictEqual(pluginChoice(observed.plugin),pluginChoice(plugin)))throw Object.assign(Error('安装期间来源、版本或启用选择已变化，本次未覆盖后来选择；请核对后重试。'),{code:'INSTALL_SELECTION_CHANGED'});
+}
+// A CLI request can take effect and then return an error before we capture its
+// result. In that case restore only an absent/original source or this local root.
+export function assertRollbackSource({marketplaceName,pluginId,current,plugin,sourceRoot,targetVersion,targetSource,codex}){
+  const observed=readInstallSelection({marketplaceName,pluginId,codex}),active=observed.current,source=active?.marketplaceSource;
+  const original=active&&current&&sameRoot(active.root,current.root)&&isDeepStrictEqual(sourceIdentity(source),sourceIdentity(current.marketplaceSource));
+  const ours=active&&sameRoot(active.root,sourceRoot)&&(!source||source.sourceType==='local'&&sameRoot(source.source,sourceRoot)&&!source.ref);
+  const selection=observed.plugin,priorChoice=isDeepStrictEqual(pluginChoice(selection),pluginChoice(plugin));
+  const attemptedChoice=selection?.installed===true&&selection.enabled===true&&selection.version===targetVersion&&(!selection.source||selection.source.source==='local'&&sameRoot(selection.source.path,targetSource))&&(!selection.marketplaceSource||isDeepStrictEqual(sourceIdentity(selection.marketplaceSource),sourceIdentity(source)));
+  if(active&&!original&&!ours||plugin&&!selection||selection&&!priorChoice&&!attemptedChoice)throw Error('安装期间来源、版本或启用选择已变化，已保留后来选择；请核对后重试。');
+}
+
+function defaultInstallLock(){
+  const configured=resolve(process.env.CODEX_HOME||join(homedir(),'.codex'));
+  let profile=configured;const missing=[];
+  while(true){
+    try{profile=join(realpathSync(profile),...missing.reverse());break;}catch(error){
+      if(error.code!=='ENOENT')throw error;
+      const parent=dirname(profile);if(parent===profile)throw error;missing.push(basename(profile));profile=parent;
+    }
+  }
+  return join(tmpdir(),'framelark-install-'+digest(profile).slice(0,24)+'.lock');
+}
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function lockOwner(folder){try{return JSON.parse(await readFile(join(folder,'owner'),'utf8'));}catch(error){if(error.code==='ENOENT'||error instanceof SyntaxError)return null;throw error;}}
+async function lockInfo(folder){try{const info=await lstat(folder);if(!info.isDirectory()||info.isSymbolicLink())fail('安装锁不是普通目录，已保留；请核对临时文件。');return info;}catch(error){if(error.code==='ENOENT')return null;throw error;}}
+async function abandonedLock(folder,observedAge){
+  const owner=await lockOwner(folder);
+  if(Number.isInteger(owner?.pid)&&owner.pid>0){try{process.kill(owner.pid,0);return false;}catch(error){if(error.code==='ESRCH')return true;if(error.code==='EPERM')return false;throw error;}}
+  const info=await lockInfo(folder);return Boolean(info&&Date.now()-(observedAge??info.mtimeMs)>10000);
+}
+async function acquireInstallLock(folder,deadline){
+  while(true){
+    let created=false;const token=randomUUID();
+    try{
+      await mkdir(folder,{mode:0o700});created=true;
+      await writeFile(join(folder,'owner'),JSON.stringify({pid:process.pid,token}),{flag:'wx',mode:0o600});
+      return async()=>{if((await lockOwner(folder))?.token===token)await rm(folder,{recursive:true,force:true});};
+    }catch(error){
+      if(created){await rm(folder,{recursive:true,force:true});throw error;}
+      if(error.code==='ENOENT')return null;
+      if(error.code!=='EEXIST')throw error;
+    }
+    if(await abandonedLock(folder)){
+      const before=await lockInfo(folder);
+      if(before){const release=await acquireInstallLock(join(folder,'recovery'),deadline);
+        if(release)try{
+          if((await lockInfo(folder))?.ino===before.ino&&await abandonedLock(folder,before.mtimeMs)){
+            const retired=folder+'.abandoned-'+randomUUID();await rename(folder,retired);await rm(retired,{recursive:true,force:true});
+          }
+        }finally{await release();}
+      }
+    }
+    if(Date.now()>=deadline)fail('另一项 FrameLark 安装正在进行，本次来源尚未修改；请稍后重试。');
+    await pause(25);
+  }
+}
+// One profile owns one FrameLark marketplace, even across different cache roots
+// or full/eye entry points. Lock the complete read/check/commit/rollback sequence.
+// Only a private OS-temporary lock is written; Codex configuration is untouched.
+export async function withFrameLarkInstallLock(operation,{directory=defaultInstallLock(),timeoutMs=30000}={}){
+  directory=resolve(directory);await mkdir(dirname(directory),{recursive:true,mode:0o700});
+  const release=await acquireInstallLock(directory,Date.now()+timeoutMs);
+  if(!release)fail('安装锁位置已变化，请重试；本次来源尚未修改。');
+  try{return await operation();}finally{await release();}
+}
+export async function installFrameLarkRelease(options={}){
+  return withFrameLarkInstallLock(()=>installReleaseUnlocked(options),{directory:options.lockDirectory});
+}
+
+async function installReleaseUnlocked({photographyEye=false,tag,root=process.env.FRAMELARK_INSTALL_ROOT||join(homedir(),'.local/share/framelark'),codex=runReleaseCodex,fetchImpl=fetch,prepareRuntime=setup,installedCacheRoot}={}){
   const [major,minor]=process.versions.node.split('.').map(Number);if(major<20||major===20&&minor<9)fail('需要 Node.js 20.9+。');
   if(tag&&!/^v\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(tag))fail('版本号无效。');
   root=resolve(root);
   const name=photographyEye?'framelark-eye':'framelark',pluginId=name+'@framelark',marketplaceRoot=join(root,'marketplace'),catalogPath=join(marketplaceRoot,'.agents/plugins/marketplace.json');
-  const current=codex(['plugin','marketplace','list']).marketplaces?.find(m=>m.name==='framelark');
+  const current=structuredClone(codex(['plugin','marketplace','list']).marketplaces?.find(m=>m.name==='framelark'));
   if(current&&!current.root)fail('当前 framelark 市场没有可用的本地来源，已保留配置。');
   const priorOrigin=current&&!sameRoot(current.root,marketplaceRoot)?canonicalOrigin(current):null;
   if(current&&!sameRoot(current.root,marketplaceRoot)&&!priorOrigin)fail('framelark 市场指向其他来源或本地构建，已保留原配置。请明确选择版本包安装来源后再继续。');
-  const priorStates=current?(codex(['plugin','list','--marketplace','framelark']).installed||[]):[],priorPlugin=priorStates.find(p=>p.pluginId===pluginId&&p.installed===true);
+  const priorStates=current?(codex(['plugin','list','--marketplace','framelark']).installed||[]):[],priorPlugin=structuredClone(priorStates.find(p=>p.pluginId===pluginId&&p.installed===true));
   // The CLI has no enable/disable operation. Never enable a previously disabled
   // plugin implicitly, because its original state could not be rolled back.
   if(priorPlugin&&priorPlugin.enabled!==true)fail('原插件处于停用状态，已保留安装与来源。请先在 Codex 插件页明确启用它，再运行安装器更新。');
@@ -173,6 +294,7 @@ export async function installFrameLarkRelease({photographyEye=false,tag,root=pro
   if(catalog.name!=='framelark'||!Array.isArray(catalog.plugins)||catalog.plugins.some(p=>!['framelark','framelark-eye'].includes(p.name)))fail('本地版本市场记录发生变化，已保留。');
   const originalCatalog=priorOrigin?await sourceCatalog(current.root):catalog;
   const originalFiles=priorPlugin?await sourceSnapshot(current.root,pluginId,originalCatalog):null;
+  const installationBackup=priorPlugin?await backupPluginInstallation(priorPlugin,{pluginId,backupDirectory:join(root,'installation-backups',randomUUID()),cacheRoot:installedCacheRoot}):null;
   // A Git migration switches the entire marketplace, even when only one plugin
   // is selected. Preserve every existing variant as a verified package source.
   const names=[...new Set([name,...(priorOrigin?originalCatalog.plugins.map(p=>p.name):[])])];
@@ -185,7 +307,8 @@ export async function installFrameLarkRelease({photographyEye=false,tag,root=pro
     packages.push({pkg:record,files:releaseArchiveFiles(await download(github+'/releases/download/'+releaseTag+'/'+record.asset,limits.archive,fetchImpl),record)});
   }
   await mkdir(root,{recursive:true});const temporary=await mkdtemp(join(root,'.install-')),runtime=join(temporary,'runtime');
-  let catalogChanged=false,registered=false,removedOriginal=false,pluginAttempted=false;
+  let catalogChanged=false,registered=false,removedOriginal=false,pluginAttempted=false,committedSelection=null;
+  const recoveryPath=join(installationBackup?dirname(installationBackup.backupPath):join(root,'installation-backups',randomUUID()),'transaction.json');
   try{
     for(const packageRecord of packages){
       const {pkg:record,files}=packageRecord,stage=join(temporary,record.name),target=join(marketplaceRoot,'releases',releaseTag,record.name);
@@ -202,20 +325,29 @@ export async function installFrameLarkRelease({photographyEye=false,tag,root=pro
       catalog.plugins=catalog.plugins.filter(p=>p.name!==record.name);
       catalog.plugins.push({name:record.name,source:{source:'local',path:'./releases/'+releaseTag+'/'+record.name},policy:{installation:'AVAILABLE',authentication:'ON_USE'},category:'Creativity'});
     }
+    await mkdir(dirname(recoveryPath),{recursive:true,mode:0o700});await writeFile(recoveryPath,JSON.stringify({marketplace:current||null,plugin:priorPlugin||null,catalog:priorCatalog?.toString('utf8')||null,installation:installationBackup},null,2)+'\n',{mode:0o600});
+    assertInstallSelection({marketplaceName:'framelark',pluginId,current,plugin:priorPlugin,codex});
     await atomicCatalog(catalogPath,Buffer.from(JSON.stringify(catalog,null,2)+'\n'));catalogChanged=true;
     if(priorOrigin){removedOriginal=true;codex(['plugin','marketplace','remove','framelark']);}
     registered=true;codex(['plugin','marketplace','add',marketplaceRoot]);
     pluginAttempted=true;const installed=codex(['plugin','add',pluginId]);
     if(installed.pluginId!==pluginId||!installed.installedPath||!isAbsolute(installed.installedPath))fail('Codex 返回了预期之外的安装结果。');
+    committedSelection=readInstallSelection({marketplaceName:'framelark',pluginId,codex});
     if(!photographyEye){if(await exists(runtime))await moveRuntime(runtime,join(installed.installedPath,'skills/photo-retouch/node_modules'));await prepareRuntime(installed.installedPath);}
     for(const file of packages.find(p=>p.pkg.name===name).files)if(digest(await readFile(join(installed.installedPath,file.path)))!==digest(file.data))fail('安装副本与版本包内容不一致，未报告成功。');
     const verified=await verifyReleasePlugin({pluginId,installedPath:installed.installedPath,skills,version:pkg.version,codex});
-    return {ok:true,...verified,release:releaseTag,source:'github-release',retouchDependencies:photographyEye?'not-required':'ready',archiveBytes:pkg.bytes,next:'new-chat'};
+    assertInstallSelection({marketplaceName:'framelark',pluginId,codex,...committedSelection});
+    return {ok:true,...verified,release:releaseTag,source:'github-release',retouchDependencies:photographyEye?'not-required':'ready',archiveBytes:pkg.bytes,next:'new-chat',...(installationBackup?{previousInstallationBackup:dirname(installationBackup.backupPath)}:{})};
   }catch(error){
     if(!catalogChanged)throw error;
+    const recoveryMessage=reason=>'安装失败：'+error.message+'；原安装自动恢复未完成：'+reason+'。\n恢复记录：'+recoveryPath;
+    try{
+      if(committedSelection)assertInstallSelection({marketplaceName:'framelark',pluginId,codex,...committedSelection});
+      else assertRollbackSource({marketplaceName:'framelark',pluginId,current,plugin:priorPlugin,sourceRoot:marketplaceRoot,targetVersion:pkg.version,targetSource:join(marketplaceRoot,'releases',releaseTag,name),codex});
+    }catch(ownership){throw Error(recoveryMessage(ownership.message),{cause:error});}
     const failures=[],attempt=async action=>{try{await action();return true;}catch(restore){failures.push(restore.message);return false;}};
-    // Remove only a plugin created by this attempt. Existing installations and
-    // their version caches stay available for reinstatement from the old source.
+    // Remove only a plugin created by this attempt. Restore an existing plugin
+    // from its original source, then repair its complete cache from our backup.
     if(pluginAttempted&&!priorPlugin)await attempt(async()=>{
       const installed=codex(['plugin','list','--marketplace','framelark']).installed?.find(p=>p.pluginId===pluginId&&p.installed===true);
       if(installed)codex(['plugin','remove',pluginId]);
@@ -236,12 +368,13 @@ export async function installFrameLarkRelease({photographyEye=false,tag,root=pro
     if(priorPlugin&&pluginAttempted&&restoredCatalog&&restoredSource)await attempt(async()=>{
       const restored=codex(['plugin','add',pluginId]);
       if(restored.pluginId!==pluginId||!restored.installedPath||!isAbsolute(restored.installedPath))fail('原插件安装目录无法恢复。');
+      if(installationBackup){if(!sameRoot(restored.installedPath,installationBackup.originalPath))fail('原安装绝对路径未恢复，备份已保留。');await restorePluginInstallation(installationBackup);}
       const identity=JSON.parse(await readFile(join(restored.installedPath,'.codex-plugin/plugin.json'),'utf8'));
       const state=codex(['plugin','list','--marketplace','framelark']).installed?.find(p=>p.pluginId===pluginId);
       if(identity.version!==priorPlugin.version||state?.installed!==true||state.enabled!==priorPlugin.enabled)fail('原插件版本或启用状态未恢复。');
-      for(const file of originalFiles)if(digest(await readFile(join(restored.installedPath,file.path)))!==file.sha256)fail('原插件内容未恢复。');
+      if(!installationBackup)for(const file of originalFiles)if(digest(await readFile(join(restored.installedPath,file.path)))!==file.sha256)fail('原插件内容未恢复。');
     });
-    if(failures.length)throw Error('安装失败：'+error.message+'；原安装自动恢复未完成：'+failures.join('；')+'。请在 Codex 插件页核对来源、版本与启用状态，已有照片项目保留。',{cause:error});
+    if(failures.length)throw Error(recoveryMessage(failures.join('；'))+'\n请在 Codex 插件页核对来源、版本与启用状态，已有照片项目保留。',{cause:error});
     throw error;
   }finally{await rm(temporary,{recursive:true,force:true});}
 }
