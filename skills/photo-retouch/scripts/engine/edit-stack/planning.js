@@ -3,6 +3,26 @@ import {compileDocumentProposal} from './proposals.js';
 import {retouchCapabilities} from './capabilities.js';
 import {fail} from './values.js';
 
+function resourceKeys(document){return new Set([...document.steps.map(s=>'step:'+s.id),...document.groups.map(g=>'group:'+g.id),...document.masks.map(m=>`mask:${m.id}@${m.version}`)]);}
+function referencedResources(commands){
+  const keys=new Set(),mask=ref=>{if(ref)keys.add(`mask:${ref.id}@${ref.version}`);};
+  const expression=e=>{if(!e)return;if(e.kind==='reference')mask(e);for(const k of ['a','b','input'])expression(e[k]);};
+  for(const c of commands){if(c.stepId)keys.add('step:'+c.stepId);if(c.groupId||c.step?.groupId)keys.add('group:'+(c.groupId||c.step.groupId));mask(c.maskRef);mask(c.step?.maskRef);expression(c.mask?.expression);}
+  return keys;
+}
+function validateResourceDependencies(base,proposal){
+  let before=resourceKeys(base);const provided=new Map();
+  for(let index=0;index<proposal.items.length;index++){
+    const item=proposal.items[index],references=referencedResources(item.commands);
+    // Today's pixel kernels consume the running image; none accepts a named
+    // predecessor output. Existing recipes retain any historical declarations.
+    if(item.commands.some(c=>c.type==='AddStep'&&c.step.dependsOn?.length))fail('RESOURCE_DEPENDENCY_INVALID','当前像素工具没有指定前置步骤的资源输入；普通顺序不能声明为硬依赖。');
+    for(const id of item.dependsOn)if(![...(provided.get(id)||[])].some(key=>references.has(key)))fail('RESOURCE_DEPENDENCY_INVALID','提案依赖必须引用该项实际创建的步骤、分组或蒙版资源。',{itemId:item.id,dependency:id});
+    const prefix={...proposal,selectedItemIds:undefined,items:proposal.items.slice(0,index+1)},after=resourceKeys(compileDocumentProposal(base,prefix).document);
+    provided.set(item.id,new Set([...after].filter(key=>!before.has(key))));before=after;
+  }
+}
+
 export function planningContext(document,options={}) {
   return {...plannerContext(document,options),methodCapabilities:retouchCapabilities({surface:options.surface||'browser',source:options.source})};
 }
@@ -23,6 +43,7 @@ export function compileRetouchPlan(document,action,{scopeStepId=null,diagnosis=n
     if(requireVisual&&!item.visual)fail('VISUAL_GOAL_REQUIRED','每项建议需要具体视觉目标、收益、代价与诊断关联。');
     if(item.visual?.findingIds.some(id=>!diagnosis?.findings.some(f=>f.id===id)))fail('FINDING_REFERENCE_INVALID','提案引用了不存在或过期的诊断问题。');
   }
+  if(requireVisual)validateResourceDependencies(document,valid.proposal);
   const compiled=compileDocumentProposal(document,valid.proposal,selectedItemIds);
   return {...compiled,action:valid};
 }

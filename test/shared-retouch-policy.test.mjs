@@ -49,7 +49,8 @@ test('visual choice units compile atomically and validate finding links and real
  const d=base(),input=action(d,[add,mask]);input.proposal.items.push({id:'crop',title:'构图',visual:{...visual,goal:'减少边缘'},commands:[{type:'UpdateGeometry',geometry:{crop:{x:0,y:.1,width:1,height:.8}}}],dependsOn:[]});
  const selected=compileRetouchPlan(d,input,{selectedItemIds:['light-item']});assert.equal(selected.document.steps.length,1);assert.ok(selected.document.steps[0].maskRef);assert.equal(selected.document.geometry.crop,null);assert.equal(selected.transaction.commands.length,2);
  const bad=structuredClone(input);bad.proposal.items[0].visual.findingIds=['missing'];assert.throws(()=>compileRetouchPlan(d,bad),{code:'FINDING_REFERENCE_INVALID'});
- const resource=structuredClone(input);resource.proposal.items[1].dependsOn=['light-item'];assert.throws(()=>compileRetouchPlan(d,resource,{selectedItemIds:['crop']}),{code:'DEPENDENCY_REQUIRED'});assert.equal(d.steps.length,0);
+ const fake=structuredClone(input);fake.proposal.items[1].dependsOn=['light-item'];assert.throws(()=>compileRetouchPlan(d,fake),{code:'RESOURCE_DEPENDENCY_INVALID'});
+ const resource=structuredClone(input);resource.proposal.items[1].commands=[{type:'SetStepOpacity',stepId:'light',opacity:.5}];resource.proposal.items[1].dependsOn=['light-item'];assert.throws(()=>compileRetouchPlan(d,resource,{selectedItemIds:['crop']}),{code:'DEPENDENCY_REQUIRED'});assert.equal(d.steps.length,0);
 });
 test('preview tuning depends only on the item that creates its step, and retains visual goal metadata',()=>{
  const d=base(),proposal=action(d,[add,mask]).proposal;proposal.items.push({id:'crop',title:'构图',visual,commands:[{type:'UpdateGeometry',geometry:{crop:{x:0,y:.1,width:1,height:.8}}}],dependsOn:[]});
