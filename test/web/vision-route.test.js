@@ -19,6 +19,7 @@ test('vision route calls the configured image model and returns actionable analy
     const requestBody = JSON.parse(Buffer.concat(chunks).toString());
     requests.push(requestBody);
     const reassessment = {
+      audit:{decision:'revise',summary:'阴影偏亮，需复看',checked:['当前预览'],strengths:['天空层次'],issues:[{area:'前景',observation:'暗调变浅',nextAction:'降低曝光再比较',severity:'minor'}],resolutions:[]},
       summary:'天空层次更完整，但前景变得稍亮。',observation:'检查人物轮廓与远山的分离度。',
       before:{light:68,highlights:57,shadows:62,color:73,contrast:70,detail:72},
       after:{light:74,highlights:79,shadows:76,color:75,contrast:73,detail:70}

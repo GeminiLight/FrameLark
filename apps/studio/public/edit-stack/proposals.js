@@ -3,11 +3,13 @@ import {applyCommands} from './commands.js';
 import {documentHash,contentHash} from './identity.js';
 import {object,identifier,title,hashValue,ids,fail} from './values.js';
 export function normalizeDocumentProposal(proposal){
-  object(proposal,['baseRevision','baseHash','requestId','name','goal','tradeoff','items','selectedItemIds'],['baseRevision','baseHash','items']);
+  object(proposal,['baseRevision','baseHash','requestId','name','goal','tradeoff','items','selectedItemIds','provenance','scopeStepId'],['baseRevision','baseHash','items']);
   if(!Number.isSafeInteger(proposal.baseRevision)||proposal.baseRevision<0)fail('INVALID_PROPOSAL','提案基础 revision 无效。');hashValue(proposal.baseHash);if(proposal.requestId!==undefined)identifier(proposal.requestId);
   for(const key of ['name','goal','tradeoff'])if(proposal[key]!==undefined&&(typeof proposal[key]!=='string'||proposal[key].length>(key==='name'?120:600)))fail('INVALID_PROPOSAL','提案说明过长或无效。');
+  if(proposal.scopeStepId!==undefined&&proposal.scopeStepId!==null)identifier(proposal.scopeStepId);
+  if(proposal.provenance!==undefined){object(proposal.provenance,['policy','generatedBy'],['policy','generatedBy']);if(JSON.stringify(proposal.provenance).length>8192)fail('INVALID_PROPOSAL','策略来源过大。');}
   if(!Array.isArray(proposal.items)||!proposal.items.length||proposal.items.length>24)fail('INVALID_PROPOSAL','提案需要 1～24 项。');ids(proposal.items.map(item=>item.id),24);let count=0;const seen=new Set();
-  for(const item of proposal.items){object(item,['id','title','commands','dependsOn'],['id','title','commands']);title(item.title);ids(item.dependsOn||[],24);if(!Array.isArray(item.commands)||!item.commands.length)fail('INVALID_PROPOSAL','提案项需要有限命令。');count+=item.commands.length;for(const dependency of item.dependsOn||[])if(!seen.has(dependency))fail('INVALID_ORDER','提案依赖必须位于前面。');seen.add(item.id);}
+  for(const item of proposal.items){object(item,['id','title','commands','dependsOn','visual'],['id','title','commands']);title(item.title);ids(item.dependsOn||[],24);if(item.visual!==undefined){object(item.visual,['goal','benefit','tradeoff','findingIds'],['goal','benefit','tradeoff','findingIds']);for(const key of ['goal','benefit','tradeoff'])if(typeof item.visual[key]!=='string'||!item.visual[key].trim()||item.visual[key].length>600)fail('INVALID_PROPOSAL','视觉目标、收益和代价需具体文字。');ids(item.visual.findingIds,12);}if(!Array.isArray(item.commands)||!item.commands.length)fail('INVALID_PROPOSAL','提案项需要有限命令。');count+=item.commands.length;for(const dependency of item.dependsOn||[])if(!seen.has(dependency))fail('INVALID_ORDER','提案依赖必须位于前面。');seen.add(item.id);}
   if(count>24||JSON.stringify(proposal).length>1024*1024)fail('INVALID_PROPOSAL','提案命令或输入大小超过限制。');if(proposal.selectedItemIds!==undefined)ids(proposal.selectedItemIds,24);
   return {...structuredClone(proposal),items:proposal.items.map(item=>({...structuredClone(item),dependsOn:item.dependsOn||[]}))};
 }

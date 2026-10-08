@@ -1,5 +1,5 @@
 import {createDocument,validateDocument,captureLegacyBase,stackPipeline} from './engine/edit-stack/document.js';
-import {compileDocumentProposal} from './engine/edit-stack/proposals.js';
+import {compileRetouchPlan} from './engine/edit-stack/planning.js';
 import {documentHash,renderHash,contentHash} from './engine/edit-stack/identity.js';
 import {guardsOf} from './engine/edit-guards.js';
 import {versionPipeline,versionStateHash} from './engine/edit-identity.js';
@@ -18,7 +18,7 @@ export function validateProjectDocument(project,version){
 export function compileProjectProposal(project,candidate,selected=candidate.selectedItemIds){
   const base=project.versions.find(v=>v.id===candidate.parentId),current=projectDocument(project,base);
   if(documentHash(current)!==documentHash(candidate.baseDocument))fail('STALE_REVISION','提案的基础步骤已变化。');
-  const result=compileDocumentProposal(candidate.baseDocument,candidate.documentProposal,selected),recipe=result.document,state={...structuredClone(base.state),...structuredClone(recipe.base.state),crop:structuredClone(recipe.geometry.crop),guards:structuredClone(guardsOf(base.state)),textOverlays:structuredClone(base.state.textOverlays||[])};
+  const result=compileRetouchPlan(candidate.baseDocument,{kind:'document',proposal:candidate.documentProposal},{scopeStepId:candidate.scopeStepId||null,requireVisual:Boolean(candidate.policy),diagnosis:(project.diagnoses||[]).find(d=>d.id===candidate.diagnosisId),selectedItemIds:selected}),recipe=result.document,state={...structuredClone(base.state),...structuredClone(recipe.base.state),crop:structuredClone(recipe.geometry.crop),guards:structuredClone(guardsOf(base.state)),textOverlays:structuredClone(base.state.textOverlays||[])};
   const guards=guardsOf(base.state);if((guards.parameters.length||guards.locals.length)&&renderHash(current)!==renderHash(recipe))fail('LOCK_CONFLICT','旧参数或局部锁不能安全映射到顺序步骤，请先显式解除对应锁。');
   return {recipe,state,items:result.items,selectedItemIds:result.selectedItemIds,noChange:result.noChange,documentProposal:result.proposal,baseDocument:structuredClone(candidate.baseDocument)};
 }

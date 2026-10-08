@@ -15,7 +15,7 @@ export class ProjectBridge {
     try{return await import('../../../../skills/photo-retouch/scripts/project.mjs');}
     catch(error){if(error.code==='ERR_MODULE_NOT_FOUND')throw Object.assign(new Error('请在项目目录运行 npm run setup，安装本地图片处理依赖后重试。'),{code:'PROJECT_SETUP_REQUIRED'});throw error;}
   }
-  async capabilities(){try{await this.runtime();const {rawCapabilities}=await import('../../../../skills/photo-retouch/scripts/raw/backends.mjs');return {projects:true,heic:process.platform==='darwin',raw:await rawCapabilities()};}catch{return {projects:false,heic:process.platform==='darwin',raw:{available:false},setup:'npm run setup'};}}
+  async capabilities(){try{const runtime=await this.runtime();const {rawCapabilities}=await import('../../../../skills/photo-retouch/scripts/raw/backends.mjs');const raw=await rawCapabilities();return {projects:true,heic:process.platform==='darwin',raw,retouch:runtime.retouchCapabilities({surface:'studio',rawDecode:raw.available})};}catch{return {projects:false,heic:process.platform==='darwin',raw:{available:false},setup:'npm run setup'};}}
   async registry(){return this.projectRegistry.read();}
   async register(folder){
     if(typeof folder!=='string'||!folder.trim()||folder.length>4096)throw Object.assign(new Error('请输入照片项目的文件夹路径。'),{code:'PROJECT_PATH'});
@@ -34,9 +34,9 @@ export class ProjectBridge {
   view(p,path,runtime){
     const current=p.versions.find(v=>v.id===p.currentId),limitations=runtime.workspaceLimitations(p),native=runtime.publicProject(p);
     return {id:p.id,path,name:p.source.name,source:p.source,revision:p.revision,currentId:p.currentId,intent:p.intent,notes:p.notes,current:current.state,document:current.recipe||null,documentContext:runtime.projectDocument(p),toolRuns:versionToolRuns(current),
-      supported:!limitations&&!p.source.raw,limitations:p.source.raw?'RAW 使用高精度后端编辑，浏览器只接收代理预览。':limitations,editor:`/api/projects/${p.id}/editor/?embedded=1`,workflow:native.workflowStatus,collaboration:native.collaboration,
-      diagnosis:p.diagnoses?.find(d=>d.id===native.workflowStatus.diagnosisId)||null,updatedAt:p.updatedAt,acceptedBy:current.acceptedBy||null,
-      versions:p.versions.map((v,index)=>({id:v.id,requestId:v.requestId||null,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,toolRuns:versionToolRuns(v),state:v.state,document:v.recipe||null,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,actorId:c.actorId||null,handoffId:c.handoffId||null,document:c.recipe||null,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,items:c.items.map(({id,title,dependsOn,operation,execution,commands})=>({id,title,dependsOn,operation,execution,commands})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
+      capabilities:native.capabilities,workspaceSupport:native.workspaceSupport,currentAudit:native.currentAudit,supported:!limitations,limitations,editor:`/api/projects/${p.id}/editor/?embedded=1`,workflow:native.workflowStatus,collaboration:native.collaboration,
+      diagnosis:p.diagnoses?.find(d=>d.id===native.workflowStatus.diagnosisId)||null,updatedAt:p.updatedAt,acceptedBy:current.acceptedBy||null,generatedBy:current.generatedBy||null,
+      versions:p.versions.map((v,index)=>({id:v.id,requestId:v.requestId||null,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,toolRuns:versionToolRuns(v),state:v.state,document:v.recipe||null,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({audit:native.workflowStatus.trials.find(t=>t.id===c.id)?.audit||null,id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,actorId:c.actorId||null,handoffId:c.handoffId||null,document:c.recipe||null,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,policy:c.policy||null,generatedBy:c.generatedBy||null,items:c.items.map(({id,title,dependsOn,operation,execution,commands,visual})=>({id,title,dependsOn,operation,execution,commands,visual})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
       exports:(p.exports||[]).map(e=>({path:e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
   }
   fingerprint(p){return this.contextHash?.(p);}
@@ -92,7 +92,7 @@ export class ProjectBridge {
     const {runtime,path,p}=await this.resolve(id),limitations=runtime.workspaceLimitations(p);
     if(limitations)throw Object.assign(new Error(limitations),{code:'WORKSPACE_UNSUPPORTED'});
     const {createToolCandidate}=await import('../../../../skills/photo-retouch/scripts/tool-candidates.mjs');
-    const result=await createToolCandidate(path,{revision:value.revision,baseVersion:value.baseVersion,requestId:randomUUID(),actorId:'workspace-user',name:String(value.name||'工具组合').slice(0,40),goal:String(value.goal||''),tradeoff:String(value.tradeoff||''),operations:value.operations,selectedItemIds:value.selectedItemIds},{...options,namespace:value.namespace});
+    const result=await createToolCandidate(path,{revision:value.revision,baseVersion:value.baseVersion,requestId:randomUUID(),actorId:'workspace-user',name:String(value.name||'工具组合').slice(0,40),goal:String(value.goal||''),tradeoff:String(value.tradeoff||''),operations:value.operations,selectedItemIds:value.selectedItemIds,...(value.policy?{policy:value.policy}:{}),...(value.generatedBy?{generatedBy:value.generatedBy}:{})},{...options,namespace:value.namespace});
     return {...await this.mutationView(runtime,result.project,path),candidateId:result.candidate.id,toolRun:{...publicToolRun(result.toolRun),history:result.candidate.toolRuns,label:result.candidate.name}};
   }
   async proposeDocument(id,value,{signal}={}){

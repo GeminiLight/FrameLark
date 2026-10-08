@@ -15,6 +15,13 @@ function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,o
 }
 const data=(revision=1)=>({id:'project',path:'/tmp/owned-project',name:'test',revision,currentId:'current',supported:true,current:{},candidates:[],versions:[],exports:[]});
 const response=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+test('candidate preview reads the committed selection even before the editor receives its file event',async t=>{
+  let reads=0;const candidate={id:'trial',name:'试片',goal:'提亮',tradeoff:'复看',items:[],selectedItemIds:[],selectionHash:'old'};
+  const env=fixture(t,{fetchImpl:async()=>response({...data(++reads),candidates:[{...candidate,selectionHash:reads===1?'old':'new'}]})});
+  await env.workspace.load('project');assert.equal(env.photo.projectRevision,1);
+  await env.node('project-details').listeners.click({target:{closest:()=>({dataset:{projectPreview:'trial'},hasAttribute:()=>false})}});
+  assert.equal(reads,2);assert.match(env.node('project-after').src,/revision=2$/);assert.match(env.node('project-before').src,/revision=2$/);
+});
 test('the project entry opens edition management for its current photo after closing the project dialog',async t=>{
   const opened=[],env=fixture(t,{onOpenVersions:photo=>{assert.equal(env.node('project-dialog').open,false);opened.push(photo);},fetchImpl:async url=>response(url==='/api/local-capabilities'?{local:true,projects:true}:{projects:[]})});
   await env.workspace.attach(env.photo,data());await env.workspace.open();

@@ -1,3 +1,4 @@
+import {compileRetouchPlan,withPreviewTuning} from './edit-stack/planning.js';
 import {createStyleThumbnails,renderPresetTrial} from './style-thumbnails.js';
 import {toolStateFromSnapshot,toolRunCandidate,requestToolRun} from './photo-tool-client.js';
 import {photoTools} from './photo-tools/registry.js';
@@ -2126,6 +2127,7 @@ async function askDesignAgent(question, focusId = currentPhoto()?.agentFocusId) 
   try {
     const baseDocument=await editStack.ensure(photo);if(!advisorRequests.active(request)||currentPhotoId!==photo.id)return;
     requestContext.document=baseDocument;requestContext.scopeStepId=photo.editView?.scopeStepId||null;
+    if(photo.projectId){await projectWorkspace.flush(photo);requestContext.projectId=photo.projectId;requestContext.projectRevision=photo.projectRevision;}
     if (state.aiAvailable) {
       const response = await fetch('/api/design-chat',{method:'POST',signal:request.controller.signal,headers:{'Content-Type':'application/json','Accept':'application/x-ndjson'},body:JSON.stringify({
         image:currentAgentPreview(annotationContext.focusId),question:text,history,context:requestContext,sessionKey:photo.projectId || `${draftWorkspaceId}:${photo.id}`,tier:$('#agent-model-tier').value
@@ -2275,7 +2277,7 @@ async function applyAgentAction(index) {
   finishRangeEdit();finishAnnotationNote();
   const before=editSnapshot();
   if(message.action.kind==='document'){
-    try{const base=await editStack.ensure(photo),action=validatePlannerAction(base,message.action,{scopeStepId:message.scopeStepId||null}),compiled=compileDocumentProposal(base,action.proposal),candidate={...structuredClone(before),editDocument:compiled.document,crop:compiled.document.geometry.crop};
+    try{const base=await editStack.ensure(photo),compiled=compileRetouchPlan(base,message.action,{scopeStepId:message.scopeStepId||null,diagnosis:photo.projectData?.diagnosis||null,requireVisual:Boolean(message.action.proposal.provenance)}),action=compiled.action,candidate={...structuredClone(before),editDocument:compiled.document,crop:compiled.document.geometry.crop};
       openAdjustmentPreview(before,candidate,{goal:action.goal||action.label,scope:'当前配方中的独立步骤',changes:agentChanges(action),tradeoff:action.tradeoff||'请核对范围与细节，满意后再应用。'},{messageId:message.id,documentProposal:action.proposal,baseDocument:base});return;
     }catch(error){showToast(error.message);return;}
   }
@@ -2289,10 +2291,8 @@ async function applyAgentAction(index) {
 }
 const advisorSteps=document.createElement('div');advisorSteps.id='advisor-plan-steps';advisorSteps.className='advisor-steps';advisorSteps.hidden=true;$('#advisor-preview-goal').after(advisorSteps);
 function refreshDocumentProposal(pending){
-  if(pending!==pendingAdvisorPreview)return;const selected=[...advisorSteps.querySelectorAll('[data-proposal-item]:checked')].map(input=>input.dataset.proposalItem),proposal=structuredClone(pending.documentOriginal),ids=new Set([...pending.baseDocument.steps.map(step=>step.id),...proposal.items.filter(item=>selected.includes(item.id)).flatMap(item=>item.commands.filter(command=>command.type==='AddStep').map(command=>command.step.id))]);
-  const tuning=pending.documentTuning.map(value=>value.command).filter(command=>!command.stepId||ids.has(command.stepId));if(tuning.length&&selected.length){proposal.items.push({id:'preview-tuning',title:'预览微调',commands:tuning,dependsOn:[...selected]});selected.push('preview-tuning');}
-  proposal.selectedItemIds=selected;
-  try{const compiled=compileDocumentProposal(pending.baseDocument,proposal,selected);pending.toolFailed=false;pending.documentProposal=proposal;pending.noSteps=compiled.noChange;pending.candidate={...structuredClone(pending.before),editDocument:compiled.document,crop:compiled.document.geometry.crop};pending.fullCandidate=structuredClone(pending.candidate);pending.documentView.render(compiled.document,{selectedStepId:pending.documentSelectedId});advisorViewer.updateVersion('candidate',viewerVersion(pending.candidate,'candidate','建议预览'));if(currentPhoto()?.projectId){clearTimeout(pending.projectTimer);pending.projectBusy=true;pending.projectTimer=setTimeout(()=>syncProjectPreview(pending),200);}updateAdvisorAccept();}catch(error){pending.toolFailed=true;pending.documentView.setMessage(error.message);updateAdvisorAccept();}
+  if(pending!==pendingAdvisorPreview)return;const chosen=[...advisorSteps.querySelectorAll('[data-proposal-item]:checked')].map(input=>input.dataset.proposalItem),proposal=withPreviewTuning(pending.baseDocument,pending.documentOriginal,chosen,pending.documentTuning.map(value=>value.command)),selected=proposal.selectedItemIds;
+  try{const compiled=compileRetouchPlan(pending.baseDocument,{kind:'document',proposal},{selectedItemIds:selected,requireVisual:Boolean(proposal.provenance),diagnosis:currentPhoto()?.projectData?.diagnosis||null});pending.toolFailed=false;pending.documentProposal=proposal;pending.noSteps=compiled.noChange;pending.candidate={...structuredClone(pending.before),editDocument:compiled.document,crop:compiled.document.geometry.crop};pending.fullCandidate=structuredClone(pending.candidate);pending.documentView.render(compiled.document,{selectedStepId:pending.documentSelectedId});advisorViewer.updateVersion('candidate',viewerVersion(pending.candidate,'candidate','建议预览'));if(currentPhoto()?.projectId){clearTimeout(pending.projectTimer);pending.projectBusy=true;pending.projectTimer=setTimeout(()=>syncProjectPreview(pending),200);}updateAdvisorAccept();}catch(error){pending.toolFailed=true;pending.documentView.setMessage(error.message);updateAdvisorAccept();}
 }
 const maskToggle=document.createElement('button');maskToggle.type='button';maskToggle.id='advisor-mask-toggle';maskToggle.hidden=true;maskToggle.textContent='查看蒙版';$('#advisor-preview-dialog .viewer-controls').append(maskToggle);maskToggle.addEventListener('click',()=>{const on=maskToggle.getAttribute('aria-pressed')!=='true';maskToggle.setAttribute('aria-pressed',String(on));maskToggle.textContent=on?'隐藏蒙版':'查看蒙版';advisorViewer.showMasks(on);});
 const toolStatus=document.createElement('p');toolStatus.id='advisor-tool-status';toolStatus.setAttribute('role','status');toolStatus.hidden=true;advisorSteps.after(toolStatus);
@@ -2315,7 +2315,7 @@ async function runAdvisorTools(pending){
     };
     let run,token;
     const namespace=pending.toolMessage.id||crypto.randomUUID();
-    if(photo.projectId){const made=await projectWorkspace.proposeTools(photo,{operations,namespace,selectedItemIds,name:pending.toolMessage.action.label,goal:pending.explanation.goal,tradeoff:pending.explanation.tradeoff},{signal:controller.signal,onEvent});run=made.run;token=made.token;}
+    if(photo.projectId){const made=await projectWorkspace.proposeTools(photo,{operations,namespace,selectedItemIds,name:pending.toolMessage.action.label,goal:pending.explanation.goal,tradeoff:pending.explanation.tradeoff,policy:pending.toolMessage.provenance?.policy,generatedBy:pending.toolMessage.source==='ai'?{kind:'agent',model:pending.toolMessage.provenance?.model||'unknown'}:{kind:'user'}},{signal:controller.signal,onEvent});run=made.run;token=made.token;}
     else run=await requestToolRun({operations,namespace,selectedItemIds,state:toolStateFromSnapshot(pending.before),source:{width:photo.image.naturalWidth,height:photo.image.naturalHeight},notes:pending.before.annotations,image:photo.previewSource.toDataURL('image/jpeg',.9)},{signal:controller.signal,onEvent});
     if(!current()){if(token)await projectWorkspace.discard(photo,token);return;}
     if(!previewStillValid(pending,{photoId:currentPhotoId,signature:currentEffectSignature(),intent:state.creativeIntent}))throw new Error('照片或目标已变化，请重新生成工具方案。');
@@ -2446,7 +2446,7 @@ async function reassessPhoto() {
       })});
       const result=await readServiceJSON(response,'视觉复评');
       if(!response.ok)throw Object.assign(new Error(normalizeVisionFailure(result).message),{visionFailure:normalizeVisionFailure(result)});
-      assessment = {...normalizeAssessment(result.assessment),baselineSource:result.assessment.baselineSource,source:'ai',provenance:result.provenance};
+      assessment = {...normalizeAssessment(result.assessment),audit:result.audit||null,baselineSource:result.assessment.baselineSource,source:'ai',provenance:result.provenance};
     } else {
       assessment = buildStatisticalAssessment(state.originalInspection,currentInspection,{crop:state.crop});
     }
