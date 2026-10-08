@@ -231,7 +231,12 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
         const id=selected.id,photo=getPhotos().find(p=>p.projectId===id);if(photo)await flush(photo);
         const latest=await projectRequest(`/api/projects/${id}`);
         const result=await projectRequest(`/api/projects/${id}/${button.dataset.projectReview}`,{method:'POST',value:{revision:latest.revision,versionId:button.dataset.reviewVersion||latest.currentId}});
-        await load(id);notice(button.dataset.projectReview==='diagnosis'?'诊断已保存，可按当前目标继续试片。':'这份预览的审核已保存；原尺寸导出需另行检查。');return;
+        // Review results belong to the initiating link, not the newest selection.
+        // Refresh preserves dirty/native input; load would reactivate or reopen it.
+        const link=photo&&links.get(photo.id);
+        if(link?.photo===photo&&link.data.id===id&&getPhotos().includes(photo))await refresh(photo);
+        else if(selected?.id===id)render(result);
+        if(selected?.id===id)notice(button.dataset.projectReview==='diagnosis'?'诊断已保存，可按当前目标继续试片。':'这份预览的审核已保存；原尺寸导出需另行检查。');return;
       }
       if(button.hasAttribute('data-project-editions')){const photo=getPhoto();if(photo?.projectId!==selected.id||collaboration.isNative(photo)||dialogLoads||!onOpenVersions)return;$('project-dialog').close();await onOpenVersions(photo);return;}
       if(button.hasAttribute('data-project-copy')){await navigator.clipboard.writeText(`请用 FrameLark Skill 继续编辑这个项目：\n${selected.path}\n先 inspect 并查看当前预览与全部批注，基于最新 revision 生成候选。网页会同步候选，先让我比较再应用。`);notice('已复制项目位置和继续编辑说明。');return;}

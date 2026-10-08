@@ -2,15 +2,19 @@ const text=(max=400)=>({type:'string',minLength:1,maxLength:max});
 const list=(items,maxItems,minItems=0)=>({type:'array',items,maxItems,minItems});
 const record=(properties,required=Object.keys(properties))=>({type:'object',properties,required,additionalProperties:false});
 const dimension=['subject','composition','order','light','color','emotion','detail'];
+export const findingIdSchema={...text(80),pattern:'\\S'};
 const rect=record(Object.fromEntries(['x','y','width','height'].map(k=>[k,{type:'number',minimum:0,maximum:1}])));
 export const diagnosisContentSchema=record({
   goal:text(500),preserve:list(text(),6,1),checked:list(text(),8,1),
-  findings:list(record({id:text(80),dimension:{type:'string',enum:dimension},area:text(),rect:{anyOf:[{type:'null'},rect]},observation:text(),impact:text(),action:text(),check:text(),tradeoff:text(),priority:{type:'string',enum:['blocking','optional']},confidence:{type:'string',enum:['high','medium','low']}},['id','dimension','area','observation','impact','action','check','tradeoff','priority','confidence']),12),
+  findings:list(record({id:findingIdSchema,dimension:{type:'string',enum:dimension},area:text(),rect:{anyOf:[{type:'null'},rect]},observation:text(),impact:text(),action:text(),check:text(),tradeoff:text(),priority:{type:'string',enum:['blocking','optional']},confidence:{type:'string',enum:['high','medium','low']}},['id','dimension','area','observation','impact','action','check','tradeoff','priority','confidence']),12),
   colorIntent:{anyOf:[{type:'null'},record({main:text(),accent:text(),neutralReferences:list(text(),4),avoid:text()})]}
 },['goal','preserve','checked','findings']);
-export const auditContentSchema=record({decision:{type:'string',enum:['ready','revise','reject']},summary:text(1200),checked:list(text(300),8,1),strengths:list(text(300),6),issues:list(record({area:text(80),observation:text(),nextAction:text(),severity:{type:'string',enum:['blocking','minor']}}),8),resolutions:list(record({findingId:text(80),status:{type:'string',enum:['resolved','preserved','unresolved']},evidence:text(500)}),12)},['decision','summary','checked','strengths','issues']);
+export const auditContentSchema=record({decision:{type:'string',enum:['ready','revise','reject']},summary:text(1200),checked:list(text(300),8,1),strengths:list(text(300),6),issues:list(record({area:text(80),observation:text(),nextAction:text(),severity:{type:'string',enum:['blocking','minor']}}),8),resolutions:list(record({findingId:findingIdSchema,status:{type:'string',enum:['resolved','preserved','unresolved']},evidence:text(500)}),12)},['decision','summary','checked','strengths','issues']);
 
 function reject(code,message){throw Object.assign(new Error(message),{code});}
+export function validateFindingIds(values,code='DIAGNOSIS_INVALID'){
+  if(!Array.isArray(values)||values.length>12||new Set(values).size!==values.length||values.some(id=>typeof id!=='string'||!id.trim()||id.length>80))reject(code,'诊断问题编号需要唯一的非空文字，最多 80 字、12 项。');
+}
 function validate(value,schema,code,path='record') {
   if(schema.anyOf){for(const option of schema.anyOf){try{validate(value,option,code,path);return;}catch{}}reject(code,`${path} 格式无效。`);}
   if(schema.type==='null'){if(value!==null)reject(code,`${path} 应为空。`);return;}
@@ -28,7 +32,7 @@ function validate(value,schema,code,path='record') {
 }
 export function normalizeDiagnosisContent(value){
   validate(value,diagnosisContentSchema,'DIAGNOSIS_INVALID');
-  if(new Set(value.findings.map(f=>f.id)).size!==value.findings.length)reject('DIAGNOSIS_INVALID','诊断问题编号重复。');
+  validateFindingIds(value.findings.map(f=>f.id));
   for(const f of value.findings)if(f.rect&&(f.rect.width<=0||f.rect.height<=0||f.rect.x+f.rect.width>1.001||f.rect.y+f.rect.height>1.001))reject('DIAGNOSIS_INVALID','诊断范围超出原片。');
   return {...structuredClone(value),findings:value.findings.map(f=>{const copy=structuredClone(f);if(copy.rect===null)delete copy.rect;return copy;}),colorIntent:value.colorIntent||null};
 }
@@ -37,7 +41,7 @@ export function normalizeAuditContent(value){
   if(value.decision==='ready'&&value.issues.some(i=>i.severity==='blocking'))reject('AUDIT_NOT_READY','仍有阻碍交付的问题，不能记为 ready。');
   if(value.decision!=='ready'&&!value.issues.length)reject('AUDIT_INVALID','修改或撤回需至少一个具体问题。');
   const resolutions=value.resolutions||[];
-  if(new Set(resolutions.map(r=>r.findingId)).size!==resolutions.length)reject('AUDIT_INVALID','诊断复评编号重复。');
+  validateFindingIds(resolutions.map(r=>r.findingId),'AUDIT_INVALID');
   return {...structuredClone(value),resolutions:structuredClone(resolutions)};
 }
 

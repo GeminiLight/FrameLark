@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,rm,readFile} from 'node:fs/promises';
+import {mkdtemp,rm,readFile,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {loadRetouchPolicy,verifyPolicyProvenance} from '../skills/photo-retouch/scripts/retouch-policy.mjs';
@@ -12,7 +12,7 @@ import {compileRetouchPlan,withPreviewTuning} from '../apps/studio/public/edit-s
 import {retouchCapabilities} from '../apps/studio/public/edit-stack/capabilities.js';
 import {normalizeDiagnosisContent,normalizeAuditContent} from '../apps/studio/public/edit-stack/review-protocol.js';
 import {initProject,loadProject,projectDocument,createCandidate,acceptCandidate,saveResultAudit,setIntent,saveNote,publicProject,workspaceSupport} from '../skills/photo-retouch/scripts/project.mjs';
-import {recordDiagnosis,configureWorkflow} from '../skills/photo-retouch/scripts/workflow.mjs';
+import {recordDiagnosis,configureWorkflow,prepareReview} from '../skills/photo-retouch/scripts/workflow.mjs';
 import {previewPhoto} from '../skills/photo-retouch/scripts/render.mjs';
 import {latestAudit} from '../skills/photo-retouch/scripts/workflow-state.mjs';
 import {prepareRetouchPlan,createPlannedCandidate} from '../skills/photo-retouch/scripts/retouch-plan.mjs';
@@ -23,7 +23,7 @@ const visual={goal:'让暗部更可读',benefit:'保留亮灯并显出阴影层�
 const add={type:'AddStep',step:{id:'light',title:'提亮',tool:'exposure',toolVersion:2,parameters:{ev:.35},opacity:.7}};
 const mask={type:'ReplaceStepMask',stepId:'light',mask:{expression:{kind:'luminance',mode:'exclude-highlights',start:.45,end:.8},reference:{kind:'live-input'}}};
 const base=()=>createDocument({documentId:'fixture',source:{assetId:'image',contentHash:sha256('image'),width:640,height:427},base:{settings:{},locals:[]}});
-const action=(document,commands,extra={})=>({kind:'document',label:'试片',goal:visual.goal,tradeoff:visual.tradeoff,proposal:{baseRevision:document.revision,baseHash:documentHash(document),items:[{id:'light-item',title:'明暗',visual,commands,dependsOn:[]}],...extra}});
+const action=(document,commands,extra={})=>({kind:'document',label:'试片',goal:visual.goal,tradeoff:visual.tradeoff,proposal:{baseRevision:document.revision,baseHash:documentHash(document),items:[{id:'light-item',title:'明暗',visual:structuredClone(visual),commands,dependsOn:[]}],...extra}});
 const reply=action=>({reply:'先比较暗部与灯头。',principle:'保留已有亮处。',clarification:{question:'',choices:[]},action});
 const diagnosis={goal:visual.goal,preserve:['保留灯光与夜色'],checked:['完整预览，未看原尺寸导出'],findings:[],colorIntent:null};
 const audit={decision:'ready',summary:'预览中的暗部与灯光关系已检查。',checked:['完整预览与亮暗过渡'],strengths:['灯光与背景分开'],issues:[],resolutions:[]};
@@ -93,4 +93,64 @@ test('project model adapter pins renderer identity, persists shared records, rej
 test('Web advisor attaches the actual loaded policy and model to its compiled proposal',async()=>{
  const d=base(),packet=await prepareAdvisorRequest({image:'data:image/png;base64,YQ==',question:'整体提亮',context:{document:d}}),result=finishAdvisorReply(packet,{value:reply(action(d,[add,mask])),provenance:{model:'fixture'}});
  assert.deepEqual(result.action.proposal.provenance.policy,packet.policy.provenance);assert.equal(result.action.proposal.provenance.generatedBy.model,'fixture');
+});
+
+const finding=id=>({id,dimension:'light',area:'下沿',observation:'暗部层次较弱',impact:'画面关系不清楚',action:'比较提亮与保留',check:'复看夜色',tradeoff:'噪点风险',priority:'optional',confidence:'medium'});
+async function diagnoseCurrent(folder,findings,goal='保留夜色'){
+ const p=await loadProject(folder),frame=await previewPhoto(folder,p.currentId,{maxSide:1400});
+ return recordDiagnosis(folder,{revision:p.revision,versionId:p.currentId,maxSide:1400,pixelHash:frame.pixelHash,frameSpecHash:frame.frameSpecHash,actorId:'host',...diagnosis,goal,findings});
+}
+test('Web diagnosis findings can be resolved by an audit of the unchanged saved photo',async t=>{
+ const {root,folder}=await fixture(t),bridge=new ProjectBridge({root});t.after(()=>bridge.close());let view=await bridge.register(folder);
+ const packet=await prepareProjectReview(bridge,view.id,'diagnosis',{revision:view.revision});
+ view=await persistProjectReview(bridge,packet,{value:{...diagnosis,findings:[finding('dark')]}});
+ const review=await prepareProjectReview(bridge,view.id,'audit',{revision:view.revision});
+ assert.equal(JSON.parse(review.payload.input[0].content[0].text).diagnosis.id,view.diagnosis.id);
+ const saved=await persistProjectReview(bridge,review,{value:{...audit,resolutions:[{findingId:'dark',status:'preserved',evidence:'夜色表达允许此处保持重量'}]}});
+ assert.equal(saved.review.diagnosisId,view.diagnosis.id);assert.equal(saved.currentAudit.id,saved.review.id);
+});
+test('an accepted edition can be audited against a new diagnosis without borrowing its former findings',async t=>{
+ const {root,folder}=await fixture(t),made=await auditedCandidate(folder);await acceptCandidate(folder,{revision:made.project.revision,id:made.candidate.id,selectionHash:made.candidate.selectionHash});
+ const diagnosed=await diagnoseCurrent(folder,[finding('current dark')],'当前保存版保留暗部重量'),bridge=new ProjectBridge({root});t.after(()=>bridge.close());const view=await bridge.register(folder);
+ const packet=await prepareProjectReview(bridge,view.id,'audit',{revision:view.revision});
+ assert.equal(JSON.parse(packet.payload.input[0].content[0].text).diagnosis.id,diagnosed.diagnosis.id);
+ const saved=await persistProjectReview(bridge,packet,{value:{...audit,resolutions:[{findingId:'current dark',status:'preserved',evidence:'当前目标允许保留此关系'}]}});
+ assert.equal(saved.review.diagnosisId,diagnosed.diagnosis.id);assert.equal(saved.currentAudit.id,saved.review.id);
+});
+test('an independent packet from an older diagnosis cannot authorize a review after a replacement diagnosis',async t=>{
+ const {folder}=await fixture(t);let p=await loadProject(folder);await configureWorkflow(folder,{revision:p.revision,mode:'reviewed',independent:true});await diagnoseCurrent(folder,[finding('dark')],'原目标');p=await loadProject(folder);
+ const made=await createCandidate(folder,{revision:p.revision,baseVersion:p.currentId,documentProposal:action(projectDocument(p),[add,mask]).proposal});
+ const packet=await prepareReview(folder,{revision:made.project.revision,versionId:made.candidate.id,maxSide:1400});
+ await diagnoseCurrent(folder,[finding('dark')],'替换后的新目标');p=await loadProject(folder);const frame=await previewPhoto(folder,made.candidate.id,{maxSide:1400});
+ await assert.rejects(saveResultAudit(folder,{revision:p.revision,versionId:made.candidate.id,maxSide:1400,pixelHash:frame.pixelHash,frameSpecHash:frame.frameSpecHash,selectionHash:frame.selectionHash,...audit,resolutions:[{findingId:'dark',status:'resolved',evidence:'不能借旧任务包声明新目标通过'}],reviewer:{id:'other-host',mode:'independent',packetId:packet.packet.id}}),{code:'REVIEW_PACKET_STALE'});
+ await assert.rejects(acceptCandidate(folder,{revision:p.revision,id:made.candidate.id,selectionHash:made.candidate.selectionHash,acceptedBy:'agent'}),{code:'DIAGNOSIS_REQUIRED'});
+});
+test('Chinese and spaced finding identifiers survive diagnosis to shared planning while resource IDs remain strict',async t=>{
+ const {folder}=await fixture(t),findings=[finding('暗部层次'),finding('highlight boundary')];await diagnoseCurrent(folder,findings);
+ let packet=await prepareRetouchPlan(folder),input=action(packet.document,[add]);input.proposal.items[0].visual.findingIds=findings.map(f=>f.id);
+ const made=await createPlannedCandidate(folder,{revision:packet.revision,baseVersion:packet.baseVersion,policy:packet.policy.provenance,action:input});
+ assert.deepEqual(made.candidate.items[0].visual.findingIds,findings.map(f=>f.id));
+ packet=await prepareRetouchPlan(folder);const invalid=action(packet.document,[{...add,step:{...add.step,id:'不合法步骤'}}]);invalid.proposal.items[0].visual.findingIds=findings.map(f=>f.id);
+ await assert.rejects(createPlannedCandidate(folder,{revision:packet.revision,baseVersion:packet.baseVersion,policy:packet.policy.provenance,action:invalid}),{code:'INVALID_DOCUMENT'});
+ const missing=action(packet.document,[add]);missing.proposal.items[0].visual.findingIds=['不存在的诊断'];
+ await assert.rejects(createPlannedCandidate(folder,{revision:packet.revision,baseVersion:packet.baseVersion,policy:packet.policy.provenance,action:missing}),{code:'FINDING_REFERENCE_INVALID'});
+});
+test('a legacy audit without a diagnosis remains compatible until a new applicable diagnosis is recorded',async t=>{
+ const {folder}=await fixture(t),made=await auditedCandidate(folder);
+ await acceptCandidate(folder,{revision:made.project.revision,id:made.candidate.id,selectionHash:made.candidate.selectionHash});
+ const file=join(folder,'project.json'),legacy=JSON.parse(await readFile(file));delete legacy.resultAudits[0].targetHash;await writeFile(file,JSON.stringify(legacy));
+ let p=await loadProject(folder);assert.equal(publicProject(p).currentAudit.id,made.audit.id);
+ await diagnoseCurrent(folder,[finding('new finding')]);p=await loadProject(folder);
+ assert.equal(publicProject(p).currentAudit,null);assert.equal(p.resultAudits.length,1);
+ assert.notEqual(publicProject(p).workflowStatus.stage,'delivered');
+});
+test('a legacy audit bound to a former diagnosis becomes historical when the saved photo is diagnosed under a new goal',async t=>{
+ const {folder}=await fixture(t);const diagnosed=await diagnoseCurrent(folder,[finding('dark')],'原目标');let p=await loadProject(folder);
+ const made=await createCandidate(folder,{revision:p.revision,baseVersion:p.currentId,documentProposal:action(projectDocument(p),[add,mask]).proposal}),frame=await previewPhoto(folder,made.candidate.id,{maxSide:1400});
+ const reviewed=await saveResultAudit(folder,{revision:made.project.revision,versionId:made.candidate.id,maxSide:1400,pixelHash:frame.pixelHash,frameSpecHash:frame.frameSpecHash,selectionHash:frame.selectionHash,...audit,resolutions:[{findingId:'dark',status:'resolved',evidence:'原目标中的层次已检查'}]});
+ await acceptCandidate(folder,{revision:reviewed.project.revision,id:made.candidate.id,selectionHash:made.candidate.selectionHash});
+ const file=join(folder,'project.json'),legacy=JSON.parse(await readFile(file));delete legacy.resultAudits[0].targetHash;await writeFile(file,JSON.stringify(legacy));
+ p=await loadProject(folder);assert.equal(publicProject(p).currentAudit.diagnosisId,diagnosed.diagnosis.id);
+ const changed=await diagnoseCurrent(folder,[finding('dark')],'替换后的新目标');
+ assert.equal(publicProject(changed.project).currentAudit,null);assert.equal(changed.project.resultAudits.length,1);
 });

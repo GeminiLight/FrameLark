@@ -196,7 +196,9 @@
                     "maxItems": 12,
                     "items": {
                       "type": "string",
-                      "pattern": "^[-a-zA-Z0-9_]{1,80}$"
+                      "minLength": 1,
+                      "maxLength": 80,
+                      "pattern": "\\S"
                     }
                   }
                 },

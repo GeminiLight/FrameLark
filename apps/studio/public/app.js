@@ -2128,6 +2128,9 @@ async function askDesignAgent(question, focusId = currentPhoto()?.agentFocusId) 
     const baseDocument=await editStack.ensure(photo);if(!advisorRequests.active(request)||currentPhotoId!==photo.id)return;
     requestContext.document=baseDocument;requestContext.scopeStepId=photo.editView?.scopeStepId||null;
     if(photo.projectId){await projectWorkspace.flush(photo);requestContext.projectId=photo.projectId;requestContext.projectRevision=photo.projectRevision;}
+    // Saving can yield to another photo or cancellation before the image is captured.
+    if(!advisorRequests.active(request)||currentPhotoId!==photo.id)return;
+    if(currentEffectSignature()!==baseSignature||cleanIntent(state.creativeIntent)!==baseIntent||annotationsChanged({baseAnnotations:annotationContext.signature},renderedAnnotations())){showToast('照片、目标或批注已更新，请按当前内容重新提问。');return;}
     if (state.aiAvailable) {
       const response = await fetch('/api/design-chat',{method:'POST',signal:request.controller.signal,headers:{'Content-Type':'application/json','Accept':'application/x-ndjson'},body:JSON.stringify({
         image:currentAgentPreview(annotationContext.focusId),question:text,history,context:requestContext,sessionKey:photo.projectId || `${draftWorkspaceId}:${photo.id}`,tier:$('#agent-model-tier').value

@@ -26,7 +26,7 @@ import {emptyGuards,guardsOf,assertGuards,lockState,unlockState,validateGuards,g
 import {validateReferences,verifyReferences,protectionLimits} from './reference-store.mjs';
 export {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,hash,projectDocument,retouchCapabilities};
 const text=(v,max=300)=>String(v??'').trim().slice(0,max),id=()=>randomUUID(),now=()=>new Date().toISOString();
-import {contextHash,activeDiagnosis,workflowStatus,assertWorkflowDelivery,latestAudit,auditTargetHash} from './workflow-state.mjs';
+import {contextHash,activeDiagnosis,workflowStatus,assertWorkflowDelivery,latestAudit,auditTargetHash,targetDiagnosis} from './workflow-state.mjs';
 import {handoffView} from './handoff-state.mjs';
 const fingerprint=contextHash;
 export const currentVersion=p=>p.versions.find(v=>v.id===p.currentId);
@@ -460,23 +460,24 @@ export async function saveResultAudit(folder,value,{signal,renderPreview}={}){
     const {previewPhoto}=await import('./render.mjs');
     const preview=await (renderPreview||previewPhoto)(root,version.id,{maxSide:value.maxSide});
     if(value.pixelHash!==preview.pixelHash||value.frameSpecHash!==preview.frameSpecHash||value.selectionHash!==preview.selectionHash)fail('AUDIT_PREVIEW_MISMATCH','审核的画面与当前组合不一致，请读取并实际查看最新预览。');
+    const diagnosis=targetDiagnosis(p,version);
     let reviewer=null;
     if(value.reviewer){
       object(value.reviewer,['id','mode','packetId'],'AUDIT_INVALID');
       if(!nonempty(value.reviewer.id,80)||!['self','independent'].includes(value.reviewer.mode))fail('AUDIT_INVALID','审片者需有效身份与 self/independent 来源。');
       if(value.reviewer.mode==='independent'){
         const packet=(p.reviewPackets||[]).find(r=>r.id===value.reviewer.packetId);
-        if(!packet||packet.versionId!==version.id||packet.contextHash!==fingerprint(p)||packet.images.trial.pixelHash!==preview.pixelHash||packet.images.trial.frameSpecHash!==preview.frameSpecHash||packet.images.trial.selectionHash!==preview.selectionHash)fail('REVIEW_PACKET_STALE','独立复审任务包与这份试片不一致。');
+        if(!packet||packet.diagnosisId!==diagnosis?.id||packet.versionId!==version.id||packet.contextHash!==fingerprint(p)||packet.images.trial.pixelHash!==preview.pixelHash||packet.images.trial.frameSpecHash!==preview.frameSpecHash||packet.images.trial.selectionHash!==preview.selectionHash)fail('REVIEW_PACKET_STALE','独立复审任务包与这份试片或当前诊断不一致。');
         if(value.reviewer.id===packet.creatorId)fail('REVIEWER_NOT_INDEPENDENT','同一作者可以自审，不能声明为独立审片者。');
       }
       reviewer=structuredClone(value.reviewer);
     }
-    const diagnosis=(p.diagnoses||[]).find(d=>d.id===version.diagnosisId),resolutions=value.resolutions||[];
+    const resolutions=value.resolutions||[];
     if(!Array.isArray(resolutions)||resolutions.length>12||new Set(resolutions.map(r=>r.findingId)).size!==resolutions.length)fail('AUDIT_INVALID','诊断复评记录无效。');
     for(const r of resolutions){object(r,['findingId','status','evidence'],'AUDIT_INVALID');if(!diagnosis?.findings.some(f=>f.id===r.findingId)||!['resolved','preserved','unresolved'].includes(r.status)||!nonempty(r.evidence,500))fail('AUDIT_INVALID','复评需对应诊断编号、结果与可见依据。');}
     if(value.decision==='ready'&&resolutions.some(r=>r.status==='unresolved'&&diagnosis?.findings.find(f=>f.id===r.findingId)?.priority==='blocking'))fail('AUDIT_NOT_READY','仍有未解决的诊断，不应记录 ready。');
     signal?.throwIfAborted();
-    const audit={...content,policy,targetHash:auditTargetHash(p,version),viewing:{kind:'preview',maxSide:value.maxSide,width:preview.width,height:preview.height},id:id(),versionId:version.id,createdAt:now(),contextHash:fingerprint(p),reviewer,resolutions:structuredClone(resolutions),diagnosisId:version.diagnosisId||null,source:'host-agent-result-audit',intent:p.intent,decision:value.decision,summary:value.summary.trim(),checked:value.checked.map(s=>s.trim()),strengths:value.strengths.map(s=>s.trim()),issues:structuredClone(value.issues),selectionHash:preview.selectionHash,stateHash:preview.stateHash,pixelHash:preview.pixelHash,frameSpecHash:preview.frameSpecHash,frameSpec:preview.frameSpec,maxSide:value.maxSide,width:preview.width,height:preview.height,pipeline:preview.pipeline,sourceChecksum:p.source.checksum};
+    const audit={...content,policy,targetHash:auditTargetHash(p,version),viewing:{kind:'preview',maxSide:value.maxSide,width:preview.width,height:preview.height},id:id(),versionId:version.id,createdAt:now(),contextHash:fingerprint(p),reviewer,resolutions:structuredClone(resolutions),diagnosisId:diagnosis?.id||null,source:'host-agent-result-audit',intent:p.intent,decision:value.decision,summary:value.summary.trim(),checked:value.checked.map(s=>s.trim()),strengths:value.strengths.map(s=>s.trim()),issues:structuredClone(value.issues),selectionHash:preview.selectionHash,stateHash:preview.stateHash,pixelHash:preview.pixelHash,frameSpecHash:preview.frameSpecHash,frameSpec:preview.frameSpec,maxSide:value.maxSide,width:preview.width,height:preview.height,pipeline:preview.pipeline,sourceChecksum:p.source.checksum};
     p.resultAudits??=[];p.resultAudits.push(audit);p.resultAudits=p.resultAudits.slice(-40);
     return {audit,limitation:'身份核对只确认记录对应哪张预览；审美判断由实际看图的宿主 Agent 提供，工具不会自动评美。'};
   });

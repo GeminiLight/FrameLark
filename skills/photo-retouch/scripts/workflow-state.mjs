@@ -3,11 +3,19 @@ import {fail} from './engine/edit-values.js';
 
 export const contextHash=p=>{const version=p.versions.find(v=>v.id===p.currentId);return hash({current:p.currentId,state:version?.state,...(version?.recipe?{recipe:version.recipe}:{}),source:p.source,intent:p.intent,notes:p.notes,pipeline:versionPipeline(version||{})});};
 export const activeDiagnosis=p=>(p.diagnoses||[]).findLast(d=>d.contextHash===contextHash(p));
-function targetDiagnosis(p,v){const contexts=new Set([contextHash({...p,currentId:v.id}),contextHash({...p,currentId:v.parentId||v.id})]);return (p.diagnoses||[]).findLast(d=>contexts.has(d.contextHash));}
+export function targetDiagnosis(p,v){
+  // Candidates are not yet in versions. Include their exact state when resolving
+  // a target, while retaining the saved base diagnosis until a newer applicable
+  // diagnosis supersedes it after acceptance.
+  const target=p.versions.some(saved=>saved.id===v.id)?p:{...p,versions:[...p.versions,v]};
+  const contexts=new Set([contextHash({...target,currentId:v.id}),contextHash({...p,currentId:v.parentId||v.id})]);
+  return (p.diagnoses||[]).findLast(d=>contexts.has(d.contextHash));
+}
 export const auditTargetHash=(p,v)=>{const d=targetDiagnosis(p,v);return hash({source:p.source,intent:p.intent,notes:p.notes,diagnosis:d?{id:d.id,goal:d.goal,preserve:d.preserve,findings:d.findings}:null});};
 export function latestAudit(p,v,{maxSide,frameSpecHash}={}){
   const a=(p.resultAudits||[]).findLast(a=>a.versionId===v.id);if(!a)return null;
-  const contextValid=a.targetHash?a.targetHash===auditTargetHash(p,v):[contextHash(p),contextHash({...p,currentId:v.parentId||v.id})].includes(a.contextHash);
+  const contextValid=a.targetHash?a.targetHash===auditTargetHash(p,v)
+    :(a.diagnosisId??null)===(targetDiagnosis(p,v)?.id??null)&&[contextHash(p),contextHash({...p,currentId:v.parentId||v.id})].includes(a.contextHash);
   return contextValid&&a.selectionHash===(v.selectionHash||null)&&a.stateHash===versionStateHash(v)&&a.sourceChecksum===p.source.checksum&&a.pipeline===versionPipeline(v)&&(maxSide===undefined||a.maxSide===maxSide)&&(frameSpecHash===undefined||a.frameSpecHash===frameSpecHash)?a:null;
 }
 export function workflowStatus(p){

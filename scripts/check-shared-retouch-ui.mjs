@@ -21,7 +21,8 @@ const calls=[];let server;
 // separate opt-in subscription matrix; these observations are not aesthetic QA.
 const provider=http.createServer(async(request,response)=>{
  const chunks=[];for await(const chunk of request)chunks.push(chunk);const payload=JSON.parse(Buffer.concat(chunks));calls.push(payload);
- const value=payload.text.format.name==='retouch_diagnosis'?{goal:'界面验收目标',preserve:['保留测试原片'],checked:['界面协议测试'],findings:[],colorIntent:null}:{decision:'ready',summary:'固定流程夹具，非审美结论',checked:['界面协议测试'],strengths:['版本身份一致'],issues:[],resolutions:[]};
+ const context=JSON.parse(payload.input[0].content.find(item=>item.type==='input_text').text);
+ const value=payload.text.format.name==='retouch_diagnosis'?{goal:'界面验收目标',preserve:['保留测试原片'],checked:['界面协议测试'],findings:[{id:'暗部 层次',dimension:'light',area:'暗部',rect:null,observation:'固定协议夹具中的暗部观察',impact:'复审需回应此编号',action:'先比较再决定',check:'查看当前预览',tradeoff:'保留夜色',priority:'blocking',confidence:'medium'}],colorIntent:null}:{decision:'ready',summary:'固定流程夹具，非审美结论',checked:['界面协议测试'],strengths:['版本身份一致'],issues:[],resolutions:(context.diagnosis?.findings||[]).map(f=>({findingId:f.id,status:'preserved',evidence:'固定协议夹具确认保留此关系'}))};
  response.writeHead(200,{'Content-Type':'application/json'});response.end(JSON.stringify({output_text:JSON.stringify(value),model:'ui-fixture'}));
 });
 const visual={goal:'比较亮度',benefit:'独立选择亮度变化',tradeoff:'复看灯头',findingIds:[]};
@@ -39,7 +40,7 @@ try{
  await wait('document.querySelector("#project-sync-status")&&!document.querySelector("#project-sync-status").hidden&&document.querySelector("#project-sync-status").textContent==="已保存到项目"');
  await browser('click','#project-open');await wait('document.querySelector("#project-dialog").open&&document.querySelector("[data-project-review=diagnosis]")');
  await browser('click','[data-project-review="diagnosis"]');await wait('document.querySelector("#project-notice").textContent.includes("诊断已保存")');
- p=await loadProject(folder);assert.equal(p.diagnoses.length,1);assert.ok(p.diagnoses[0].policy.bundleHash);assert.equal(await read('document.querySelector("#project-native-frame")?.closest("section")?.hidden===false'),false);
+ p=await loadProject(folder);assert.equal(p.diagnoses.length,1);assert.equal(p.diagnoses[0].findings[0].id,'暗部 层次');assert.ok(p.diagnoses[0].policy.bundleHash);assert.equal(await read('document.querySelector("#project-native-frame")?.closest("section")?.hidden===false'),false);
  const made=await candidate([{type:'UpdateStepParameters',stepId:'light',parameters:{ev:.4}},{type:'AddStep',step:{id:'warm',title:'稍暖',tool:'color',toolVersion:2,parameters:{warmth:2}}}]);
  await wait(`document.querySelector('[data-review-version="${made.candidate.id}"]')`);await browser('click',`[data-review-version="${made.candidate.id}"]`);await wait('document.querySelector("[data-candidate-audit]").textContent.includes("审核通过")');
  await browser('uncheck','[data-project-item="item-1"]');await wait('document.querySelector("[data-candidate-audit]").textContent.includes("尚无有效审核")');
@@ -48,7 +49,7 @@ try{
  await browser('click','[data-project-review="audit"]:not([data-review-version])');await wait('document.querySelector("[data-project-audit-status]").textContent.includes("审核通过")');
  for(const width of [1280,390]){await browser('set','viewport',String(width),'800');assert.equal(await read('document.documentElement.scrollWidth>innerWidth'),false);if(screenshots)await browser('screenshot',join(screenshots,'review-current-'+width+'.png'));}
  p=await loadProject(folder);await setIntent(folder,{revision:p.revision,intent:'改为更暗的目标'});await wait('document.querySelector("[data-project-audit-status]").textContent.includes("尚无有效审核")');
- assert.equal((await loadProject(folder)).resultAudits.length,2);assert.equal(calls.length,3);assert.ok(calls.every(c=>c.instructions.includes('共同摄影与审核方法')));
+ const final=await loadProject(folder);assert.equal(final.resultAudits.length,2);assert.ok(final.resultAudits.every(a=>a.resolutions[0]?.findingId==='暗部 层次'));assert.ok(final.resultAudits.every(a=>a.diagnosisId===final.diagnoses[0].id));assert.equal(calls.length,3);assert.ok(calls.every(c=>c.instructions.includes('共同摄影与审核方法')));
  if(screenshots)await browser('screenshot',join(screenshots,'review-target-changed.png'));
  console.log('Shared retouch UI passed: current diagnosis, shared policy, selectable candidate audit invalidation, direct human acceptance, reviewed document in standard editor, goal invalidation and responsive layout. Model content was a deterministic UI fixture.');
 }catch(error){console.error('Visible failure state:',await browser('eval',`JSON.stringify({url:location.href,body:document.body.innerText.slice(0,2800),notice:document.querySelector('#project-notice')?.textContent,previewNote:document.querySelector('#project-preview-note')?.textContent,images:[...document.querySelectorAll('#project-preview img')].map(i=>({src:i.src,complete:i.complete,width:i.naturalWidth})),status:document.querySelector('#project-sync-status')?.textContent})`).catch(()=>''));throw error;}finally{await browser('close').catch(()=>{});if(server&&server.exitCode===null){server.kill('SIGTERM');await new Promise(r=>server.once('exit',r));}await new Promise(r=>provider.close(r));await rm(scratch,{recursive:true,force:true});}
