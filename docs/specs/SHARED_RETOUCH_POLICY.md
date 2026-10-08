@@ -1,6 +1,6 @@
 # Shared retouch policy and workflow
 
-Status: implementation in progress. Baseline: `6d5008b` (`origin/main`, fetched and rebased 2026-10-08). Historical review: `50597e2`.
+Status: implemented and locally validated; PR checks are the final merge gate. Baseline: `6d5008b` (`origin/main`, fetched and rebased 2026-10-08). Historical review: `50597e2`.
 
 ## Scope and authority
 
@@ -40,4 +40,11 @@ Run a fixed small matrix using the local logged-in Codex subscription, model `gp
 
 ## Validation record
 
-To be filled from completed runs, including failures and remaining limits.
+- Shared source: `skills/photo-retouch/policy/` and `retouch-policy.mjs`; Web/CLI/host inputs record the same policy version and actual reference hashes. Advisor document/legacy prompts are separate; analysis/reassessment adapters only explain their output fields.
+- Shared planner: `edit-stack/planning.js` delegates to the original compiler and rejects hard dependencies without concrete created resources. Existing recipes and pixel kernels remain unchanged. Preview tuning preserves visual metadata and depends only on the resources it actually uses.
+- Shared records: `review-protocol.js`, project runtime and Web project-review adapter. Current audit queries now include target/diagnosis/source identity; historical records remain. Whole-frame preview dimensions stay explicit. Plan generation and human acceptance have separate provenance.
+- Standard editor now supports reviewed document projects through explicit diagnosis/audit buttons. Legacy reviewed state, RAW masters, lettering, final protection and unmatched local ranges retain native fallback. A browser test exposed a selection/file-event race; previews now read the committed revision before loading images.
+- Local complete regression: 659 tests passed. Architecture, 45-module shared checks, knowledge, both plugin bundles and photography-eye checks passed. Browser suites passed for collaboration, editable stack, inspector, export, shared collections, navigation, website and the new shared review flow. New UI tests use a local fixture and remain subscription-free in CI.
+- Real subscription matrix: five of six scenarios completed contract verification; scoped EV follow-up timed out at the fixed 240-second limit and was not retried. The result audit said `revise`, and Agent delivery was blocked. Raw outputs and all limitations are in the [acceptance evidence](evidence/shared-retouch-20261008/README.md).
+- RAW: generated DNG and checksum-bound public NEF passed actual backend/master export checks; failed decoding preserved the existing project. A valid black proxy did not change 16-bit master output.
+- No aesthetic equivalence across models is claimed. Policy loading and hashes establish supplied material and identities, not visual attention, an authenticated independent reviewer, or universal image quality. No merge or release was performed.

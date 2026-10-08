@@ -1,0 +1,143 @@
+{
+  "reply": "下面恰好三项，可分别勾选预览，暂不接受。\n\n两侧塔架和底部云层较暗，火箭受光面与地面灯光已较亮。第一项试提亮 0.3 EV，并用亮度蒙版逐渐排除亮处。",
+  "principle": "暖色灯光与蓝色天空已有区别，warmth +2 仅作为轻微加暖的对照，不代表原片白平衡需要校正。",
+  "clarification": {
+    "question": "",
+    "choices": []
+  },
+  "action": {
+    "kind": "document",
+    "label": "预览三项独立调整",
+    "goal": "分别比较暗部亮度、轻微加暖与旋转效果。",
+    "tradeoff": "亮度蒙版只约束曝光步骤；同时勾选加暖时，亮灯的颜色仍可能轻微变化。",
+    "proposal": {
+      "baseRevision": 0,
+      "baseHash": "acdbc01cb68d32d07040681acdf24e726a22906e67dda39d8f3e9ed02e15c83e",
+      "requestId": null,
+      "name": "三项独立试片",
+      "goal": null,
+      "tradeoff": null,
+      "items": [
+        {
+          "id": "trial-shadow-lift",
+          "title": "暗部稍亮，保护已有亮处",
+          "visual": {
+            "goal": "小幅提高暗部可读性。",
+            "benefit": "让两侧塔架和底部云层的轮廓更容易辨认。",
+            "tradeoff": "深蓝天空也会稍亮，暗部噪点可能更明显；预览时检查实际蒙版、灯头、光晕和过渡。",
+            "findingIds": []
+          },
+          "commands": [
+            {
+              "type": "AddStep",
+              "step": {
+                "id": "exposure-shadow-trial",
+                "title": "暗部曝光 +0.3 EV",
+                "tool": "exposure",
+                "toolVersion": 2,
+                "kernelVersion": 1,
+                "parameters": {
+                  "ev": 0.3,
+                  "headroomPolicy": "limit-positive-gain"
+                },
+                "enabled": true,
+                "opacity": 1,
+                "maskRef": null,
+                "dependsOn": null,
+                "groupId": null
+              },
+              "index": null
+            },
+            {
+              "type": "ReplaceStepMask",
+              "stepId": "exposure-shadow-trial",
+              "mask": {
+                "expression": {
+                  "kind": "luminance",
+                  "mode": "exclude-highlights",
+                  "start": 0.1,
+                  "end": 0.35
+                },
+                "reference": {
+                  "kind": "live-input"
+                }
+              },
+              "shared": null
+            }
+          ],
+          "dependsOn": null
+        },
+        {
+          "id": "trial-warmth-plus-two",
+          "title": "色温 warmth 增加 2",
+          "visual": {
+            "goal": "将 warmth 从当前默认值 0 增至 2。",
+            "benefit": "提供轻微加暖的版本，便于与原色比较。",
+            "tradeoff": "加暖作用于全图；检查蓝色天空是否仍符合想保留的夜色。",
+            "findingIds": []
+          },
+          "commands": [
+            {
+              "type": "AddStep",
+              "step": {
+                "id": "color-warmth-trial",
+                "title": "warmth +2",
+                "tool": "color",
+                "toolVersion": 2,
+                "kernelVersion": 2,
+                "parameters": {
+                  "warmth": 2,
+                  "tint": 0,
+                  "saturation": 0,
+                  "vibrance": 0,
+                  "monochrome": 0,
+                  "orangeHue": 0,
+                  "greenHue": 0,
+                  "blueHue": 0,
+                  "orangeSaturation": 0,
+                  "greenSaturation": 0,
+                  "blueSaturation": 0,
+                  "orangeLuminance": 0,
+                  "greenLuminance": 0,
+                  "blueLuminance": 0
+                },
+                "enabled": true,
+                "opacity": 1,
+                "maskRef": null,
+                "dependsOn": null,
+                "groupId": null
+              },
+              "index": null
+            }
+          ],
+          "dependsOn": null
+        },
+        {
+          "id": "trial-clockwise-rotation",
+          "title": "单独顺时针旋转 0.5°",
+          "visual": {
+            "goal": "试看片顺时针旋转 0.5° 的效果。",
+            "benefit": "便于核对火箭中轴和两侧塔架的倾斜感。",
+            "tradeoff": "四角可能出现空边或轻微裁切，需在预览中核对。",
+            "findingIds": []
+          },
+          "commands": [
+            {
+              "type": "UpdateGeometry",
+              "geometry": {
+                "crop": {
+                  "x": 0,
+                  "y": 0,
+                  "width": 1,
+                  "height": 1,
+                  "angle": 0.5
+                }
+              }
+            }
+          ],
+          "dependsOn": null
+        }
+      ]
+    }
+  }
+}

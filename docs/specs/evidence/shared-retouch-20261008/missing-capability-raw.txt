@@ -1,0 +1,14 @@
+{
+  "reply": "当前不能执行。现有工具无法自动精准分割天空，也无法删除左侧高塔、补全背景并生成新云层。本次不创建像素编辑提案，不用近似选区、调色或裁剪替代。",
+  "principle": "",
+  "clarification": {
+    "question": "",
+    "choices": []
+  },
+  "action": {
+    "kind": "none",
+    "label": "当前能力不支持",
+    "goal": "",
+    "tradeoff": ""
+  }
+}

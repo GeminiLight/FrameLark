@@ -1,0 +1,68 @@
+{
+  "schema": 3,
+  "documentId": "doc-1982230c-df9d-4be6-94e0-31fa59b8169b",
+  "revision": 0,
+  "source": {
+    "assetId": "1982230c-df9d-4be6-94e0-31fa59b8169b",
+    "contentHash": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+    "normalizedHash": "8c678228cc2f77d7c027f38041b272e377ada9d2430509c8d422edbe438b46cb",
+    "width": 640,
+    "height": 427
+  },
+  "pipeline": {
+    "id": "edit-stack-linear-v2",
+    "colorSpace": "linear-srgb",
+    "kernelVersion": 1
+  },
+  "geometry": {
+    "crop": null
+  },
+  "base": {
+    "kind": "legacy-v1",
+    "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1",
+    "state": {
+      "settings": {
+        "exposure": 0,
+        "contrast": 0,
+        "highlights": 0,
+        "shadows": 0,
+        "whites": 0,
+        "blacks": 0,
+        "vibrance": 0,
+        "saturation": 0,
+        "warmth": 0,
+        "tint": 0,
+        "fade": 0,
+        "vignette": 0,
+        "grain": 0,
+        "orangeSaturation": 0,
+        "greenSaturation": 0,
+        "blueSaturation": 0,
+        "monochrome": 0,
+        "curveShadows": 0,
+        "curveMidtones": 0,
+        "curveHighlights": 0,
+        "orangeHue": 0,
+        "greenHue": 0,
+        "blueHue": 0,
+        "orangeLuminance": 0,
+        "greenLuminance": 0,
+        "blueLuminance": 0,
+        "texture": 0,
+        "clarity": 0,
+        "dehaze": 0,
+        "sharpen": 0,
+        "denoise": 0
+      },
+      "style": null,
+      "crop": null,
+      "locals": []
+    },
+    "stateHash": "b913ff5c2aba3307abe529808aa10cdbbfe8b1e3cc359f5ee940a516d9250b6d",
+    "presetHash": null
+  },
+  "steps": [],
+  "masks": [],
+  "groups": [],
+  "receipts": []
+}

@@ -44,6 +44,8 @@
     "plugin:install:photography-eye:github": "node scripts/install-photography-eye.mjs",
     "install:skills": "node scripts/install-photo-skill.mjs --all",
     "install:photography-eye": "node scripts/install-photo-skill.mjs --skill photography-eye",
-    "test:collections": "node scripts/check-shared-collections.mjs"
+    "test:collections": "node scripts/check-shared-collections.mjs",
+    "test:retouch-semantics": "node scripts/check-retouch-semantics.mjs",
+    "test:shared-retouch-ui": "node scripts/check-shared-retouch-ui.mjs"
   }
 }

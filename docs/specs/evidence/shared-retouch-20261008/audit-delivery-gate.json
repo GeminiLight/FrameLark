@@ -1,0 +1,6 @@
+{
+  "decision": "revise",
+  "acceptedBy": "agent",
+  "rejectedWith": "RESULT_AUDIT_REQUIRED",
+  "projectUnchangedAfterAttempt": true
+}
