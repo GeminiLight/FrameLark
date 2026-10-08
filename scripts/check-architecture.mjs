@@ -46,6 +46,11 @@ for(const pattern of ignored.filter(line=>/^[\w.-]+\/$/.test(line))){
 }
 assert.equal(manifest.scripts.start,'node apps/studio/server/index.mjs');
 assert.equal(deployment.outputDirectory,'apps/studio/public');
-for(const options of Object.values(deployment.functions))assert.equal(await exists(resolve(root,options.includeFiles)),true,'Vercel probe image is packaged');
+for(const options of Object.values(deployment.functions)){
+  const patterns=options.includeFiles.startsWith('{')?options.includeFiles.slice(1,-1).split(','):[options.includeFiles];
+  for(const pattern of patterns)assert.equal(await exists(resolve(root,pattern.replace(/\/\*\*$/, ''))),true,'Vercel explicit resource exists: '+pattern);
+  assert.ok(patterns.includes('apps/studio/public/assets/vision-probe.png'),'Vercel probe image is packaged');
+  for(const name of ['policy','references'])assert.ok(patterns.includes('skills/photo-retouch/'+name+'/**'),'Vercel shared policy material is packaged: '+name);
+}
 if(errors.length)throw new Error(errors.join('\n'));
 console.log(`Architecture checks passed: ${files.length} repository files, assigned root entries, portable skills and resolved application/documentation references.`);

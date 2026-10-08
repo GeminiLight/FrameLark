@@ -5,6 +5,9 @@ ENV NODE_ENV=production HOST=0.0.0.0 PORT=3177
 COPY --chown=node:node package.json ./
 COPY --chown=node:node apps/studio/ ./apps/studio/
 COPY --chown=node:node api/ ./api/
+COPY --chown=node:node skills/photo-retouch/scripts/retouch-policy.mjs ./skills/photo-retouch/scripts/retouch-policy.mjs
+COPY --chown=node:node skills/photo-retouch/policy/ ./skills/photo-retouch/policy/
+COPY --chown=node:node skills/photo-retouch/references/ ./skills/photo-retouch/references/
 RUN mkdir -p /app/.guangjian && chown node:node /app/.guangjian
 USER node
 EXPOSE 3177

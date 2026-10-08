@@ -1,7 +1,5 @@
 import {readFile} from 'node:fs/promises';
 import {loadRetouchPolicy,policyTopics} from '../../../../skills/photo-retouch/scripts/retouch-policy.mjs';
-import {activeDiagnosis} from '../../../../skills/photo-retouch/scripts/workflow-state.mjs';
-import {recordDiagnosis} from '../../../../skills/photo-retouch/scripts/workflow.mjs';
 import {diagnosisContentSchema,auditContentSchema,normalizeDiagnosisContent,normalizeAuditContent} from '../../public/edit-stack/review-protocol.js';
 import {strictProviderSchema} from '../../public/edit-stack/planner.js';
 import {VisionError} from './vision.mjs';
@@ -11,6 +9,7 @@ import {VisionError} from './vision.mjs';
 export async function prepareProjectReview(bridge,id,kind,value,{signal}={}) {
   if(!['diagnosis','audit'].includes(kind))throw new VisionError('INVALID_REQUEST','未知审片任务。',{status:400});
   const {runtime,p,path}=await bridge.resolve(id);
+  const {activeDiagnosis}=await import('../../../../skills/photo-retouch/scripts/workflow-state.mjs');
   if(value.revision!==p.revision)throw new VisionError('STALE_REVISION','项目已更新，请重新审片。',{status:409});
   const version=runtime.findVersion(p,value.versionId||'current');
   if(kind==='diagnosis'&&version.id!==p.currentId)throw new VisionError('DIAGNOSIS_STALE','先诊断当前已保存版本。',{status:409});
@@ -26,6 +25,7 @@ export async function prepareProjectReview(bridge,id,kind,value,{signal}={}) {
 
 export async function persistProjectReview(bridge,packet,result,{signal}={}) {
   const {runtime,project:p,path,version,frame,policy,kind}=packet;
+  const {recordDiagnosis}=await import('../../../../skills/photo-retouch/scripts/workflow.mjs');
   signal?.throwIfAborted();
   const identity={revision:p.revision,versionId:version.id,maxSide:frame.maxSide||1400,pixelHash:frame.pixelHash,frameSpecHash:frame.frameSpecHash,policy:policy.provenance};
   const actorId='studio-advisor',renderPreview=(root,key,options)=>bridge.render('preview',root,key,{...options,revision:p.revision,selectionHash:version.selectionHash},signal);
