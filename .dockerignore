@@ -6,3 +6,11 @@
 !apps/studio/**
 !api/
 !api/**
+!skills/
+!skills/photo-retouch/
+!skills/photo-retouch/scripts/
+!skills/photo-retouch/scripts/retouch-policy.mjs
+!skills/photo-retouch/policy/
+!skills/photo-retouch/policy/**
+!skills/photo-retouch/references/
+!skills/photo-retouch/references/**

@@ -1,3 +1,5 @@
+import {normalizeDiagnosisContent} from './engine/edit-stack/review-protocol.js';
+import {verifyPolicyProvenance} from './retouch-policy.mjs';
 import {randomUUID} from 'node:crypto';
 import {loadProject,mutateProject,findVersion,createCandidate,publicProject} from './project.mjs';
 import {contextHash,activeDiagnosis,workflowStatus} from './workflow-state.mjs';
@@ -12,21 +14,17 @@ export async function configureWorkflow(folder,value){
   if(!Number.isInteger(value.revision)||!['manual','reviewed'].includes(value.mode)||value.independent!==undefined&&typeof value.independent!=='boolean')fail('WORKFLOW_INVALID','流程需最新 revision、manual/reviewed 和可选 independent。');
   return mutateProject(folder,value.revision,p=>{p.workflow={mode:value.mode,independent:value.mode==='reviewed'&&value.independent===true};return {workflow:workflowStatus(p)};});
 }
-export async function recordDiagnosis(folder,value){
-  object(value,['revision','versionId','maxSide','pixelHash','frameSpecHash','actorId','preserve','goal','findings','colorIntent','checked'],'DIAGNOSIS_INVALID');
-  if(!Number.isInteger(value.revision)||!required(value.actorId,80)||!required(value.goal,500)||!Number.isInteger(value.maxSide)||value.maxSide<512||value.maxSide>8192||!Array.isArray(value.preserve)||!value.preserve.length||value.preserve.length>6||value.preserve.some(s=>!required(s))||!Array.isArray(value.checked)||!value.checked.length||value.checked.length>8||value.checked.some(s=>!required(s))||!Array.isArray(value.findings)||value.findings.length>12)fail('DIAGNOSIS_INVALID','诊断需实际预览身份、审片者、目标、保留关系和检查范围；findings 可以为空。');
-  const findings=value.findings.map(f=>{
-    object(f,['id','dimension','area','rect','observation','impact','action','check','tradeoff','priority','confidence'],'DIAGNOSIS_INVALID');
-    if(!required(f.id,80)||!dimensions.includes(f.dimension)||!['blocking','optional'].includes(f.priority)||!['high','medium','low'].includes(f.confidence)||['area','observation','impact','action','check','tradeoff'].some(k=>!required(f[k])))fail('DIAGNOSIS_INVALID','每个观察需位置、依据、影响、处理、检查点、代价和不确定性。');
-    return {...f,...(f.rect?{rect:cleanRect(f.rect)}:{})};
-  });
-  if(new Set(findings.map(f=>f.id)).size!==findings.length)fail('DIAGNOSIS_INVALID','诊断问题编号重复。');
-  if(value.colorIntent!==undefined){object(value.colorIntent,['main','accent','neutralReferences','avoid'],'DIAGNOSIS_INVALID');if(['main','accent','avoid'].some(k=>!required(value.colorIntent[k]))||!Array.isArray(value.colorIntent.neutralReferences)||value.colorIntent.neutralReferences.length>4||value.colorIntent.neutralReferences.some(s=>!required(s)))fail('DIAGNOSIS_INVALID','配色关系需主色、辅色、参考材料与回退现象；可以没有可靠中性参照。');}
+export async function recordDiagnosis(folder,value,{signal,renderPreview=previewPhoto}={}){
+  object(value,['revision','versionId','maxSide','pixelHash','frameSpecHash','actorId','preserve','goal','findings','colorIntent','checked','policy'],'DIAGNOSIS_INVALID');
+  if(!Number.isInteger(value.revision)||!required(value.actorId,80)||!Number.isInteger(value.maxSide)||value.maxSide<512||value.maxSide>8192)fail('DIAGNOSIS_INVALID','诊断需实际预览身份、审片者和查看尺寸。');
+  const content=normalizeDiagnosisContent(Object.fromEntries(['goal','preserve','findings','colorIntent','checked'].filter(k=>value[k]!==undefined).map(k=>[k,value[k]]))),findings=content.findings;
+  const policy=value.policy?await verifyPolicyProvenance(value.policy):null;
   return mutateProject(folder,value.revision,async(p,root)=>{
     if(value.versionId!==p.currentId)fail('DIAGNOSIS_STALE','诊断应对应当前已保存版本。');
-    const preview=await previewPhoto(root,p.currentId,{maxSide:value.maxSide});
+    const preview=await renderPreview(root,p.currentId,{maxSide:value.maxSide});
     if(value.pixelHash!==preview.pixelHash||value.frameSpecHash!==preview.frameSpecHash)fail('DIAGNOSIS_PREVIEW_MISMATCH','诊断与当前实际图像不一致，请重新查看。');
-    const diagnosis={id:randomUUID(),versionId:p.currentId,intent:p.intent,contextHash:contextHash(p),source:'host-visual-observation',createdAt:new Date().toISOString(),actorId:value.actorId,goal:value.goal,preserve:value.preserve,findings,colorIntent:value.colorIntent||null,checked:value.checked,maxSide:value.maxSide,pixelHash:preview.pixelHash,frameSpecHash:preview.frameSpecHash};
+    signal?.throwIfAborted();
+    const diagnosis={...content,policy,id:randomUUID(),versionId:p.currentId,intent:p.intent,contextHash:contextHash(p),source:'host-visual-observation',createdAt:new Date().toISOString(),actorId:value.actorId,goal:value.goal,preserve:value.preserve,findings,colorIntent:value.colorIntent||null,checked:content.checked,maxSide:value.maxSide,pixelHash:preview.pixelHash,frameSpecHash:preview.frameSpecHash};
     p.diagnoses=[...(p.diagnoses||[]),diagnosis].slice(-30);return {diagnosis,workflow:workflowStatus(p)};
   });
 }

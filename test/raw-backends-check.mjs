@@ -1,6 +1,6 @@
 // Opt-in real decoder gate. npm test remains independent of Python/Swift setup.
 import assert from 'node:assert/strict';
-import {mkdtemp,writeFile,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,writeFile,readFile,rm,stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {createRequire} from 'node:module';
@@ -29,9 +29,11 @@ try{
   assert.equal(await hashFile(input.file),before);assert.equal(await hashFile(join(folder,'source','original.bin')),before);
   evidence.push({sample:index?'public-camera':'generated-DNG',backend,decoderVersion:project.source.raw.decoderVersion,width:project.source.width,height:project.source.height,importMs:initial.ms,firstPreviewMs:first.ms,warmPreviewMs:warm.ms,editedPreviewMs:changed.ms,shareMs:share.ms,masterMs:master.ms,sourceUnchanged:true,tiffDepth:metadata.depth});
  }
+ const invalid=join(scratch,'invalid.dng'),failedFolder=join(scratch,'failed-import'),existing=join(scratch,'0-rawpy','project.json'),savedHash=await hashFile(existing);await writeFile(invalid,'invalid RAW bytes');
+ await assert.rejects(initProject(invalid,failedFolder),error=>Boolean(error.code));assert.equal(await hashFile(existing),savedHash);assert.equal(await readFile(invalid,'utf8'),'invalid RAW bytes');assert.equal(await stat(failedFolder).catch(()=>null),null);
  if(process.platform==='darwin'){
   const file=join(scratch,'gradient.f32');await runRawProcess(await appleExecutable(),['--self-test',file]);const b=await readFile(file),p=new Float32Array(b.buffer,b.byteOffset,b.length/4);
   assert.ok(p[0]<p[299*17*4]);for(let y=1;y<300;y++){const delta=p[y*17*4]-p[(y-1)*17*4];assert.ok(delta>=0&&delta<.01,'Apple top-down bands must stay continuous');}
  }
- console.log(JSON.stringify({platform:process.platform,backends:caps.backends,results:evidence},null,2));
+ console.log(JSON.stringify({platform:process.platform,backends:caps.backends,results:evidence,decodeFailurePreservedExistingProject:true},null,2));
 }finally{await rm(scratch,{recursive:true,force:true});}

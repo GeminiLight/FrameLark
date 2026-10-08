@@ -97,6 +97,12 @@ flowchart LR
 
 ## 维护规则
 
+单图摄影策略维护在 `skills/photo-retouch/policy/`，`retouch-policy.mjs` 为网页服务与独立 Skill 加载同一核心及按任务选择的参考，返回版本和实际内容哈希。网页 `ai/advisor-policy.mjs` 分别适配 document 与 legacy 协议，`ai/review-prompts.mjs` 只解释网页输出字段。参数契约仍来自工具注册表与 Schema。
+
+`edit-stack/planning.js` 是共享计划边界，保留每项视觉目标并调用现有原子编译器；CLI `plan`、宿主 `frameyn_plan` 和网页顾问使用这一边界。`edit-stack/review-protocol.js` 校验共同诊断/审核内容。文件项目的图像身份、目标、批注、组合、查看尺寸和接受来源仍由项目运行时验证，网页 `ai/project-review.mjs` 只提供实际渲染图、调用模型并提交记录。普通网页分析与复评分数是无文件项目身份的预览草稿，不能替代 Agent 交付审核。
+
+`edit-stack/capabilities.js` 区分工具、工作流、源精度与导出能力，`workspaceSupport()` 给出具体能力缺口。带 document 配方的 reviewed 项目可以使用常规界面的诊断、复审和人工接受；旧 reviewed 配方、RAW、文字、最终像素保护及独立局部范围继续使用原生编辑器。普通来源的 8 位限制不再覆盖 RAW 母版说明。共享检查覆盖这些分发模块，但不将哈希或校验成功视为审美证明。
+
 新增运行代码先确定所属应用或 Skill；新增服务端能力放入工作台的对应服务目录。根目录用于项目入口与平台配置。修改路径后运行 `npm run architecture:check`，再检查共享引擎、测试、浏览器和部署。
 
 领域术语见 [照片编辑领域](DOMAIN.md)，运行方式见 [部署说明](DEPLOYMENT.md)，修图工具契约见 [工具架构](PHOTO_TOOLS_ARCHITECTURE.md)。

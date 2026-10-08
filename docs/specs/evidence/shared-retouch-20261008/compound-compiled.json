@@ -1,0 +1,558 @@
+{
+  "document": {
+    "schema": 3,
+    "documentId": "doc-d683b741-40e9-43f3-8b61-d4215565bed8",
+    "revision": 1,
+    "source": {
+      "assetId": "d683b741-40e9-43f3-8b61-d4215565bed8",
+      "contentHash": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+      "normalizedHash": "8c678228cc2f77d7c027f38041b272e377ada9d2430509c8d422edbe438b46cb",
+      "width": 640,
+      "height": 427
+    },
+    "pipeline": {
+      "id": "edit-stack-linear-v2",
+      "colorSpace": "linear-srgb",
+      "kernelVersion": 1
+    },
+    "geometry": {
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 1,
+        "height": 1,
+        "angle": 0.5
+      }
+    },
+    "base": {
+      "kind": "legacy-v1",
+      "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1",
+      "state": {
+        "settings": {
+          "exposure": 0,
+          "contrast": 0,
+          "highlights": 0,
+          "shadows": 0,
+          "whites": 0,
+          "blacks": 0,
+          "vibrance": 0,
+          "saturation": 0,
+          "warmth": 0,
+          "tint": 0,
+          "fade": 0,
+          "vignette": 0,
+          "grain": 0,
+          "orangeSaturation": 0,
+          "greenSaturation": 0,
+          "blueSaturation": 0,
+          "monochrome": 0,
+          "curveShadows": 0,
+          "curveMidtones": 0,
+          "curveHighlights": 0,
+          "orangeHue": 0,
+          "greenHue": 0,
+          "blueHue": 0,
+          "orangeLuminance": 0,
+          "greenLuminance": 0,
+          "blueLuminance": 0,
+          "texture": 0,
+          "clarity": 0,
+          "dehaze": 0,
+          "sharpen": 0,
+          "denoise": 0
+        },
+        "style": null,
+        "crop": null,
+        "locals": []
+      },
+      "stateHash": "b913ff5c2aba3307abe529808aa10cdbbfe8b1e3cc359f5ee940a516d9250b6d",
+      "presetHash": null
+    },
+    "steps": [
+      {
+        "id": "exposure-shadow-trial",
+        "title": "暗部曝光 +0.3 EV",
+        "tool": "exposure",
+        "toolVersion": 2,
+        "kernelVersion": 1,
+        "parameters": {
+          "ev": 0.3,
+          "headroomPolicy": "limit-positive-gain"
+        },
+        "enabled": true,
+        "opacity": 1,
+        "maskRef": {
+          "id": "mask-exposure-shadow-trial",
+          "version": 1
+        },
+        "groupId": null,
+        "dependsOn": []
+      },
+      {
+        "id": "color-warmth-trial",
+        "title": "warmth +2",
+        "tool": "color",
+        "toolVersion": 2,
+        "kernelVersion": 2,
+        "parameters": {
+          "warmth": 2,
+          "tint": 0,
+          "saturation": 0,
+          "vibrance": 0,
+          "monochrome": 0,
+          "orangeHue": 0,
+          "greenHue": 0,
+          "blueHue": 0,
+          "orangeSaturation": 0,
+          "greenSaturation": 0,
+          "blueSaturation": 0,
+          "orangeLuminance": 0,
+          "greenLuminance": 0,
+          "blueLuminance": 0
+        },
+        "enabled": true,
+        "opacity": 1,
+        "maskRef": null,
+        "groupId": null,
+        "dependsOn": []
+      }
+    ],
+    "masks": [
+      {
+        "id": "mask-exposure-shadow-trial",
+        "version": 1,
+        "expression": {
+          "kind": "luminance",
+          "mode": "exclude-highlights",
+          "start": 0.1,
+          "end": 0.35
+        },
+        "reference": {
+          "kind": "live-input"
+        }
+      }
+    ],
+    "groups": [],
+    "receipts": [
+      {
+        "id": "proposal-61c9d51b7aef",
+        "commandsHash": "5f383a51acca46dd7196e9692983467357faaab4dfc3965cb35b49548a653fdb",
+        "beforeHash": "acdbc01cb68d32d07040681acdf24e726a22906e67dda39d8f3e9ed02e15c83e",
+        "afterHash": "38ea764c4e790d15907eeabb81f03f519a8a23ba8daa5e0fe9e9bc20497e66e4",
+        "revision": 1
+      }
+    ]
+  },
+  "items": [
+    {
+      "id": "trial-shadow-lift",
+      "title": "暗部稍亮，保护已有亮处",
+      "visual": {
+        "goal": "小幅提高暗部可读性。",
+        "benefit": "让两侧塔架和底部云层的轮廓更容易辨认。",
+        "tradeoff": "深蓝天空也会稍亮，暗部噪点可能更明显；预览时检查实际蒙版、灯头、光晕和过渡。",
+        "findingIds": []
+      },
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "exposure-shadow-trial",
+            "title": "暗部曝光 +0.3 EV",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "kernelVersion": 1,
+            "parameters": {
+              "ev": 0.3,
+              "headroomPolicy": "limit-positive-gain"
+            },
+            "enabled": true,
+            "opacity": 1,
+            "maskRef": null,
+            "groupId": null
+          }
+        },
+        {
+          "type": "ReplaceStepMask",
+          "stepId": "exposure-shadow-trial",
+          "mask": {
+            "expression": {
+              "kind": "luminance",
+              "mode": "exclude-highlights",
+              "start": 0.1,
+              "end": 0.35
+            },
+            "reference": {
+              "kind": "live-input"
+            }
+          }
+        }
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "trial-warmth-plus-two",
+      "title": "色温 warmth 增加 2",
+      "visual": {
+        "goal": "将 warmth 从当前默认值 0 增至 2。",
+        "benefit": "提供轻微加暖的版本，便于与原色比较。",
+        "tradeoff": "加暖作用于全图；检查蓝色天空是否仍符合想保留的夜色。",
+        "findingIds": []
+      },
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "color-warmth-trial",
+            "title": "warmth +2",
+            "tool": "color",
+            "toolVersion": 2,
+            "kernelVersion": 2,
+            "parameters": {
+              "warmth": 2,
+              "tint": 0,
+              "saturation": 0,
+              "vibrance": 0,
+              "monochrome": 0,
+              "orangeHue": 0,
+              "greenHue": 0,
+              "blueHue": 0,
+              "orangeSaturation": 0,
+              "greenSaturation": 0,
+              "blueSaturation": 0,
+              "orangeLuminance": 0,
+              "greenLuminance": 0,
+              "blueLuminance": 0
+            },
+            "enabled": true,
+            "opacity": 1,
+            "maskRef": null,
+            "groupId": null
+          }
+        }
+      ],
+      "dependsOn": []
+    },
+    {
+      "id": "trial-clockwise-rotation",
+      "title": "单独顺时针旋转 0.5°",
+      "visual": {
+        "goal": "试看片顺时针旋转 0.5° 的效果。",
+        "benefit": "便于核对火箭中轴和两侧塔架的倾斜感。",
+        "tradeoff": "四角可能出现空边或轻微裁切，需在预览中核对。",
+        "findingIds": []
+      },
+      "commands": [
+        {
+          "type": "UpdateGeometry",
+          "geometry": {
+            "crop": {
+              "x": 0,
+              "y": 0,
+              "width": 1,
+              "height": 1,
+              "angle": 0.5
+            }
+          }
+        }
+      ],
+      "dependsOn": []
+    }
+  ],
+  "selectionHash": "c64b1e9fc318bde4550d4ce053c9c32373211a514287a768f9125c16aeb9c0f5",
+  "transaction": {
+    "id": "proposal-61c9d51b7aef",
+    "documentId": "doc-d683b741-40e9-43f3-8b61-d4215565bed8",
+    "beforeHash": "acdbc01cb68d32d07040681acdf24e726a22906e67dda39d8f3e9ed02e15c83e",
+    "afterHash": "38ea764c4e790d15907eeabb81f03f519a8a23ba8daa5e0fe9e9bc20497e66e4",
+    "commands": [
+      {
+        "type": "AddStep",
+        "step": {
+          "id": "exposure-shadow-trial",
+          "title": "暗部曝光 +0.3 EV",
+          "tool": "exposure",
+          "toolVersion": 2,
+          "kernelVersion": 1,
+          "parameters": {
+            "ev": 0.3,
+            "headroomPolicy": "limit-positive-gain"
+          },
+          "enabled": true,
+          "opacity": 1,
+          "maskRef": null,
+          "groupId": null
+        }
+      },
+      {
+        "type": "ReplaceStepMask",
+        "stepId": "exposure-shadow-trial",
+        "mask": {
+          "expression": {
+            "kind": "luminance",
+            "mode": "exclude-highlights",
+            "start": 0.1,
+            "end": 0.35
+          },
+          "reference": {
+            "kind": "live-input"
+          }
+        }
+      },
+      {
+        "type": "AddStep",
+        "step": {
+          "id": "color-warmth-trial",
+          "title": "warmth +2",
+          "tool": "color",
+          "toolVersion": 2,
+          "kernelVersion": 2,
+          "parameters": {
+            "warmth": 2,
+            "tint": 0,
+            "saturation": 0,
+            "vibrance": 0,
+            "monochrome": 0,
+            "orangeHue": 0,
+            "greenHue": 0,
+            "blueHue": 0,
+            "orangeSaturation": 0,
+            "greenSaturation": 0,
+            "blueSaturation": 0,
+            "orangeLuminance": 0,
+            "greenLuminance": 0,
+            "blueLuminance": 0
+          },
+          "enabled": true,
+          "opacity": 1,
+          "maskRef": null,
+          "groupId": null
+        }
+      },
+      {
+        "type": "UpdateGeometry",
+        "geometry": {
+          "crop": {
+            "x": 0,
+            "y": 0,
+            "width": 1,
+            "height": 1,
+            "angle": 0.5
+          }
+        }
+      }
+    ],
+    "before": {
+      "schema": 3,
+      "documentId": "doc-d683b741-40e9-43f3-8b61-d4215565bed8",
+      "revision": 0,
+      "source": {
+        "assetId": "d683b741-40e9-43f3-8b61-d4215565bed8",
+        "contentHash": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+        "normalizedHash": "8c678228cc2f77d7c027f38041b272e377ada9d2430509c8d422edbe438b46cb",
+        "width": 640,
+        "height": 427
+      },
+      "pipeline": {
+        "id": "edit-stack-linear-v2",
+        "colorSpace": "linear-srgb",
+        "kernelVersion": 1
+      },
+      "geometry": {
+        "crop": null
+      },
+      "base": {
+        "kind": "legacy-v1",
+        "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1",
+        "state": {
+          "settings": {
+            "exposure": 0,
+            "contrast": 0,
+            "highlights": 0,
+            "shadows": 0,
+            "whites": 0,
+            "blacks": 0,
+            "vibrance": 0,
+            "saturation": 0,
+            "warmth": 0,
+            "tint": 0,
+            "fade": 0,
+            "vignette": 0,
+            "grain": 0,
+            "orangeSaturation": 0,
+            "greenSaturation": 0,
+            "blueSaturation": 0,
+            "monochrome": 0,
+            "curveShadows": 0,
+            "curveMidtones": 0,
+            "curveHighlights": 0,
+            "orangeHue": 0,
+            "greenHue": 0,
+            "blueHue": 0,
+            "orangeLuminance": 0,
+            "greenLuminance": 0,
+            "blueLuminance": 0,
+            "texture": 0,
+            "clarity": 0,
+            "dehaze": 0,
+            "sharpen": 0,
+            "denoise": 0
+          },
+          "style": null,
+          "crop": null,
+          "locals": []
+        },
+        "stateHash": "b913ff5c2aba3307abe529808aa10cdbbfe8b1e3cc359f5ee940a516d9250b6d",
+        "presetHash": null
+      },
+      "steps": [],
+      "masks": [],
+      "groups": [],
+      "receipts": []
+    },
+    "after": {
+      "schema": 3,
+      "documentId": "doc-d683b741-40e9-43f3-8b61-d4215565bed8",
+      "revision": 1,
+      "source": {
+        "assetId": "d683b741-40e9-43f3-8b61-d4215565bed8",
+        "contentHash": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+        "normalizedHash": "8c678228cc2f77d7c027f38041b272e377ada9d2430509c8d422edbe438b46cb",
+        "width": 640,
+        "height": 427
+      },
+      "pipeline": {
+        "id": "edit-stack-linear-v2",
+        "colorSpace": "linear-srgb",
+        "kernelVersion": 1
+      },
+      "geometry": {
+        "crop": {
+          "x": 0,
+          "y": 0,
+          "width": 1,
+          "height": 1,
+          "angle": 0.5
+        }
+      },
+      "base": {
+        "kind": "legacy-v1",
+        "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1",
+        "state": {
+          "settings": {
+            "exposure": 0,
+            "contrast": 0,
+            "highlights": 0,
+            "shadows": 0,
+            "whites": 0,
+            "blacks": 0,
+            "vibrance": 0,
+            "saturation": 0,
+            "warmth": 0,
+            "tint": 0,
+            "fade": 0,
+            "vignette": 0,
+            "grain": 0,
+            "orangeSaturation": 0,
+            "greenSaturation": 0,
+            "blueSaturation": 0,
+            "monochrome": 0,
+            "curveShadows": 0,
+            "curveMidtones": 0,
+            "curveHighlights": 0,
+            "orangeHue": 0,
+            "greenHue": 0,
+            "blueHue": 0,
+            "orangeLuminance": 0,
+            "greenLuminance": 0,
+            "blueLuminance": 0,
+            "texture": 0,
+            "clarity": 0,
+            "dehaze": 0,
+            "sharpen": 0,
+            "denoise": 0
+          },
+          "style": null,
+          "crop": null,
+          "locals": []
+        },
+        "stateHash": "b913ff5c2aba3307abe529808aa10cdbbfe8b1e3cc359f5ee940a516d9250b6d",
+        "presetHash": null
+      },
+      "steps": [
+        {
+          "id": "exposure-shadow-trial",
+          "title": "暗部曝光 +0.3 EV",
+          "tool": "exposure",
+          "toolVersion": 2,
+          "kernelVersion": 1,
+          "parameters": {
+            "ev": 0.3,
+            "headroomPolicy": "limit-positive-gain"
+          },
+          "enabled": true,
+          "opacity": 1,
+          "maskRef": {
+            "id": "mask-exposure-shadow-trial",
+            "version": 1
+          },
+          "groupId": null,
+          "dependsOn": []
+        },
+        {
+          "id": "color-warmth-trial",
+          "title": "warmth +2",
+          "tool": "color",
+          "toolVersion": 2,
+          "kernelVersion": 2,
+          "parameters": {
+            "warmth": 2,
+            "tint": 0,
+            "saturation": 0,
+            "vibrance": 0,
+            "monochrome": 0,
+            "orangeHue": 0,
+            "greenHue": 0,
+            "blueHue": 0,
+            "orangeSaturation": 0,
+            "greenSaturation": 0,
+            "blueSaturation": 0,
+            "orangeLuminance": 0,
+            "greenLuminance": 0,
+            "blueLuminance": 0
+          },
+          "enabled": true,
+          "opacity": 1,
+          "maskRef": null,
+          "groupId": null,
+          "dependsOn": []
+        }
+      ],
+      "masks": [
+        {
+          "id": "mask-exposure-shadow-trial",
+          "version": 1,
+          "expression": {
+            "kind": "luminance",
+            "mode": "exclude-highlights",
+            "start": 0.1,
+            "end": 0.35
+          },
+          "reference": {
+            "kind": "live-input"
+          }
+        }
+      ],
+      "groups": [],
+      "receipts": [
+        {
+          "id": "proposal-61c9d51b7aef",
+          "commandsHash": "5f383a51acca46dd7196e9692983467357faaab4dfc3965cb35b49548a653fdb",
+          "beforeHash": "acdbc01cb68d32d07040681acdf24e726a22906e67dda39d8f3e9ed02e15c83e",
+          "afterHash": "38ea764c4e790d15907eeabb81f03f519a8a23ba8daa5e0fe9e9bc20497e66e4",
+          "revision": 1
+        }
+      ]
+    }
+  }
+}

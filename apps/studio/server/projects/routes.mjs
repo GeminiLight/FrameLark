@@ -1,5 +1,5 @@
 const json=(response,status,value)=>{if(response.destroyed)return;response.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});response.end(JSON.stringify(value));};
-export async function handleProjectRoutes(request,response,url,{bridge,readBody,allowed,cloud}) {
+export async function handleProjectRoutes(request,response,url,{bridge,readBody,allowed,cloud,review}) {
   if(url.pathname==='/api/local-capabilities'&&request.method==='GET'){
     if(cloud)return json(response,200,{local:false,projects:false,heic:false}),true;
     if(!allowed(request,false))return json(response,403,{error:{code:'FORBIDDEN_ORIGIN',message:'请使用本机工作台地址。'}}),true;
@@ -44,6 +44,7 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
       try{send({revision:(await bridge.get(id)).revision});}catch(error){close();throw error;}
       return true;
     }
+    if(['diagnosis','audit'].includes(operation)&&request.method==='POST'){if(!review)throw Object.assign(new Error('当前入口没有视觉审核服务。'),{code:'REVIEW_UNAVAILABLE'});json(response,200,await review(id,operation,await body(),{signal:controller.signal}));return true;}
     if(operation==='save'&&request.method==='POST'){json(response,200,await bridge.save(id,await body(4*1024*1024)));return true;}
     if(operation==='handoff'&&request.method==='POST'){
       const value=await body();if(!['request','cancel'].includes(value.action))throw Object.assign(new Error('请由 Agent 工具接手或报告进度。'),{code:'HANDOFF_INVALID'});

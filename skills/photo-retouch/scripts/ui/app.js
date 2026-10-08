@@ -40,8 +40,8 @@ function renderAudit(){
   const v=showing(),validId=v.stale?null:v.id===project.currentId?project.currentAudit?.id:project.workflowStatus?.trials.find(t=>t.id===v.id)?.audit?.id;
   const audit=(project.resultAudits||[]).find(a=>a.id===validId);
   $('#audit-section').hidden=!audit;if(!audit)return;
-  $('#audit-decision').textContent=(v.id===project.currentId?'已保存版本 · ':'')+{ready:'审核通过',revise:'需要返修',reject:'建议撤回'}[audit.decision];
-  $('#audit-summary').textContent=audit.summary;$('#audit-reviewer').textContent=audit.reviewer?`${audit.reviewer.mode==='independent'?'独立复审':'Agent 自审'} · ${audit.reviewer.id}`:'来自 Agent 的复评';
+  $('#audit-decision').textContent=(v.id===project.currentId?'已保存版本 · ':'')+{ready:'预览审核通过',revise:'需要返修',reject:'建议撤回'}[audit.decision];
+  $('#audit-summary').textContent=audit.summary+`（查看尺寸 ${audit.width} × ${audit.height}；原尺寸导出细节需另查。）`;$('#audit-reviewer').textContent=audit.reviewer?`${audit.reviewer.mode==='independent'?'独立复审':'Agent 自审'} · ${audit.reviewer.id}`:'来自 Agent 的复评';
   $('#audit-issues').replaceChildren(...audit.issues.map(issue=>node('li','',`${issue.area}：${issue.observation} · ${issue.nextAction}`)));
 }
 $('#handoff-request').addEventListener('click',()=>perform(async()=>{

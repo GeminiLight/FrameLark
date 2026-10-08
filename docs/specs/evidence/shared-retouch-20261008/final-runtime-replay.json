@@ -1,0 +1,32 @@
+{
+  "modelCalls": 0,
+  "note": "Revalidate the same raw responses with final runtime; no response edits and no model retries.",
+  "results": [
+    {
+      "id": "protected-lift",
+      "rawOutputUnmodified": true,
+      "currentSchemaValid": true,
+      "action": "document"
+    },
+    {
+      "id": "compound",
+      "rawOutputUnmodified": true,
+      "currentSchemaValid": true,
+      "action": "document"
+    },
+    {
+      "id": "missing-capability",
+      "rawOutputUnmodified": true,
+      "currentSchemaValid": true,
+      "action": "none"
+    },
+    {
+      "id": "audit",
+      "rawOutputUnmodified": true,
+      "currentRuntimeValid": true,
+      "decision": "revise",
+      "agentDelivery": "rejected:RESULT_AUDIT_REQUIRED",
+      "sourceBound": true
+    }
+  ]
+}

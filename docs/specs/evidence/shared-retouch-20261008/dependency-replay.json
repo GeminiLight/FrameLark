@@ -1,0 +1,17 @@
+{
+  "modelCalls": 0,
+  "results": [
+    {
+      "id": "protected-lift",
+      "rawOutputUnmodified": true,
+      "resourceDependenciesValid": true,
+      "items": 1
+    },
+    {
+      "id": "compound",
+      "rawOutputUnmodified": true,
+      "resourceDependenciesValid": true,
+      "items": 3
+    }
+  ]
+}

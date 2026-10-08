@@ -27,6 +27,14 @@ async function fixture(t){
 test('16-bit RAW master retains neighboring levels and carries an ICC profile',async t=>{
  const f=await fixture(t),result=await rawMasterExport(f.folder,f.project,f.version),metadata=await sharp(result.bytes).metadata();assert.equal(metadata.depth,'ushort');assert.ok(metadata.icc?.length);assert.equal(metadata.width,64);const {data}=await sharp(result.bytes).toColourspace('rgb16').raw({depth:'ushort'}).toBuffer({resolveWithObject:true});assert.notEqual(data.readUInt16LE(0),data.readUInt16LE(6));assert.equal(await readFile(join(f.folder,'source','original.bin'),'utf8'),'synthetic original');
 });
+test('RAW master export is independent of a valid but visibly different display proxy',async t=>{
+ const f=await fixture(t),before=await rawMasterExport(f.folder,f.project,f.version),proxy=new Float32Array(f.pixels.length);
+ for(let i=3;i<proxy.length;i+=4)proxy[i]=255;
+ const bytes=Buffer.from(proxy.buffer),manifest=JSON.parse(await readFile(join(f.folder,'source','raw.json'),'utf8'));manifest.proxyHash=rawHash(bytes);
+ await writeFile(join(f.folder,'source','proxy.f32'),bytes);await writeFile(join(f.folder,'source','raw.json'),JSON.stringify(manifest));f.project.source.raw.manifestHash=rawHash(Buffer.from(JSON.stringify(manifest)));
+ const after=await rawMasterExport(f.folder,f.project,f.version);assert.equal(after.pixelHash,before.pixelHash);
+ const preview=await createRawRenderSession(f.folder,f.project,{master:false}),g=rawGeometry(null,64,48),shown=await preview.renderTile(f.version,g,{x:0,y:0,width:64,height:48},null,{});assert.equal(shown.pixels[0],0);assert.ok(f.pixels[0]>0);
+});
 test('tiled RAW render agrees with a single grid across detail, grain, masks and rotation',async t=>{
  const f=await fixture(t);f.version.recipe=applyCommands(f.version.recipe,[{type:'AddStep',step:{id:'detail',title:'detail',tool:'detail',toolVersion:2,parameters:{clarity:10,sharpen:7}}},{type:'AddStep',step:{id:'light',title:'light',tool:'exposure',toolVersion:2,parameters:{ev:.2}}},{type:'ReplaceStepMask',stepId:'light',mask:{expression:{kind:'luminance',mode:'exclude-highlights',start:.5,end:.8},reference:{kind:'frozen-source',sourceHash:f.project.source.checksum}}},{type:'AddStep',step:{id:'grain',title:'grain',tool:'finish',toolVersion:2,parameters:{grain:4,vignette:5}}},{type:'UpdateGeometry',geometry:{crop:{x:.1,y:.1,width:.8,height:.8,angle:3}}}]).next;f.version.state.crop=f.version.recipe.geometry.crop;
  const g=rawGeometry(f.version.state.crop,64,48,2048),session=await createRawRenderSession(f.folder,f.project,{master:true}),full=await session.renderTile(f.version,g,{x:0,y:0,width:g.width,height:g.height},f.version.state.crop,{}),tiled=await renderTiles(session,f.project,f.version,g,{depth:16,tileSide:11});assert.deepEqual(tiled,displayPixels(full.working,{depth:16}));

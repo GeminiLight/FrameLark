@@ -7,11 +7,11 @@
   "functions": {
     "api/*.mjs": {
       "maxDuration": 120,
-      "includeFiles": "apps/studio/public/assets/vision-probe.png"
+      "includeFiles": "{apps/studio/public/assets/vision-probe.png,skills/photo-retouch/policy/**,skills/photo-retouch/references/**}"
     },
     "api/photo-tools/*.mjs": {
       "maxDuration": 120,
-      "includeFiles": "apps/studio/public/assets/vision-probe.png"
+      "includeFiles": "{apps/studio/public/assets/vision-probe.png,skills/photo-retouch/policy/**,skills/photo-retouch/references/**}"
     }
   }
 }

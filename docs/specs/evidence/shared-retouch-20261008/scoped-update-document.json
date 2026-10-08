@@ -1,0 +1,138 @@
+{
+  "schema": 3,
+  "documentId": "doc-96b701d5-6416-441b-b46f-e7f78f590241",
+  "revision": 1,
+  "source": {
+    "assetId": "96b701d5-6416-441b-b46f-e7f78f590241",
+    "contentHash": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+    "normalizedHash": "8c678228cc2f77d7c027f38041b272e377ada9d2430509c8d422edbe438b46cb",
+    "width": 640,
+    "height": 427
+  },
+  "pipeline": {
+    "id": "edit-stack-linear-v2",
+    "colorSpace": "linear-srgb",
+    "kernelVersion": 1
+  },
+  "geometry": {
+    "crop": null
+  },
+  "base": {
+    "kind": "legacy-v1",
+    "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1",
+    "state": {
+      "settings": {
+        "exposure": 0,
+        "contrast": 0,
+        "highlights": 0,
+        "shadows": 0,
+        "whites": 0,
+        "blacks": 0,
+        "vibrance": 0,
+        "saturation": 0,
+        "warmth": 0,
+        "tint": 0,
+        "fade": 0,
+        "vignette": 0,
+        "grain": 0,
+        "orangeSaturation": 0,
+        "greenSaturation": 0,
+        "blueSaturation": 0,
+        "monochrome": 0,
+        "curveShadows": 0,
+        "curveMidtones": 0,
+        "curveHighlights": 0,
+        "orangeHue": 0,
+        "greenHue": 0,
+        "blueHue": 0,
+        "orangeLuminance": 0,
+        "greenLuminance": 0,
+        "blueLuminance": 0,
+        "texture": 0,
+        "clarity": 0,
+        "dehaze": 0,
+        "sharpen": 0,
+        "denoise": 0
+      },
+      "style": null,
+      "crop": null,
+      "locals": []
+    },
+    "stateHash": "b913ff5c2aba3307abe529808aa10cdbbfe8b1e3cc359f5ee940a516d9250b6d",
+    "presetHash": null
+  },
+  "steps": [
+    {
+      "id": "light",
+      "title": "已有提亮",
+      "tool": "exposure",
+      "toolVersion": 2,
+      "parameters": {
+        "ev": 0.35,
+        "headroomPolicy": "limit-positive-gain"
+      },
+      "opacity": 0.7,
+      "kernelVersion": 1,
+      "enabled": true,
+      "maskRef": {
+        "id": "mask-light",
+        "version": 1
+      },
+      "dependsOn": [],
+      "groupId": null
+    },
+    {
+      "id": "color",
+      "title": "独立色彩",
+      "tool": "color",
+      "toolVersion": 2,
+      "parameters": {
+        "warmth": 2,
+        "tint": 0,
+        "saturation": 0,
+        "vibrance": 0,
+        "monochrome": 0,
+        "orangeHue": 0,
+        "greenHue": 0,
+        "blueHue": 0,
+        "orangeSaturation": 0,
+        "greenSaturation": 0,
+        "blueSaturation": 0,
+        "orangeLuminance": 0,
+        "greenLuminance": 0,
+        "blueLuminance": 0
+      },
+      "kernelVersion": 2,
+      "enabled": true,
+      "opacity": 1,
+      "maskRef": null,
+      "dependsOn": [],
+      "groupId": null
+    }
+  ],
+  "masks": [
+    {
+      "id": "mask-light",
+      "version": 1,
+      "expression": {
+        "kind": "luminance",
+        "mode": "exclude-highlights",
+        "start": 0.45,
+        "end": 0.8
+      },
+      "reference": {
+        "kind": "live-input"
+      }
+    }
+  ],
+  "groups": [],
+  "receipts": [
+    {
+      "id": "proposal-1b7b65c2b90c",
+      "commandsHash": "2dafb84ea631f4276f9d4e842df8b5510d3863c78e1d20028ff3cd8931089010",
+      "beforeHash": "f911d23019932e5752ec7ac9bb360a99886d957c1e140f19868af33d75de17b7",
+      "afterHash": "111b5dd45037cc509b3353dae9b3718130cd3cb24ebf1574162a39c8089e9f4a",
+      "revision": 1
+    }
+  ]
+}

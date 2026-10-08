@@ -4,17 +4,63 @@ import {createProjectWorkspace} from '../../apps/studio/public/project-workspace
 import {createDocument} from '../../apps/studio/public/edit-stack/document.js';
 import {documentHash,sha256} from '../../apps/studio/public/edit-stack/identity.js';
 
-function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onLoad=()=>photo,onUpdate=()=>{},onOpenVersions,getVersions=()=>[],getPhotos=()=>[photo],getPatch=()=>patch}={}){
+function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,onLoad=()=>photo,onUpdate=()=>{},onOpenVersions,getVersions=()=>[],getPhotos=()=>[photo],getPhoto=()=>photo,getPatch=()=>patch}={}){
   const previous={document:globalThis.document,location:globalThis.location,history:globalThis.history,EventSource:globalThis.EventSource,fetch:globalThis.fetch};
   const nodes=new Map(),events=[];
   const node=id=>{if(!nodes.has(id))nodes.set(id,{hidden:false,listeners:{},addEventListener(type,fn){this.listeners[type]=fn;},insertAdjacentHTML(){},showModal(){this.open=true;},close(){this.open=false;}});return nodes.get(id);};
   globalThis.document={querySelector:node,getElementById:node,body:node('body')};globalThis.location={href:'http://localhost:3177/'};globalThis.history={replaceState(){}};
   globalThis.EventSource=class{constructor(){events.push(this);}close(){this.closed=true;}};globalThis.fetch=fetchImpl;
-  const workspace=createProjectWorkspace({getPhoto:()=>photo,getPhotos,getPatch,getVersions,onLoad,onUpdate,onOpenVersions,notify(){}});
+  const workspace=createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions,onLoad,onUpdate,onOpenVersions,notify(){}});
   t.after(()=>{workspace.close();Object.assign(globalThis,previous);});return {workspace,photo,patch,events,node};
 }
 const data=(revision=1)=>({id:'project',path:'/tmp/owned-project',name:'test',revision,currentId:'current',supported:true,current:{},candidates:[],versions:[],exports:[]});
 const response=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+for(const kind of ['diagnosis','audit'])test(`a late ${kind} refreshes its original photo without stealing the newer selection`,async t=>{
+  const a={id:'a'},b={id:'b'};let active=a,revision=1,loads=0,finish,arrive;const ready=new Promise(resolve=>{arrive=resolve;});
+  const current=()=>({...data(revision),currentAudit:revision>1?{decision:'ready',width:32,height:24}:null});
+  const env=fixture(t,{photo:a,getPhoto:()=>active,getPhotos:()=>[a,b],onLoad:()=>{loads++;active=a;return a;},fetchImpl:async(_url,options)=>{
+    if(options?.method==='POST')return new Promise(resolve=>{finish=()=>{revision=2;resolve(response(current()));};arrive();});return response(current());
+  }});
+  await env.workspace.load('project');
+  const reviewing=env.node('project-details').listeners.click({target:{closest:()=>({dataset:{projectReview:kind}})}});await ready;
+  env.node('project-dialog').close();active=b;finish();await reviewing;
+  assert.equal(active,b,'finishing a background review never activates its old photo');assert.equal(loads,1,'completion does not reload the editor');
+  assert.equal(a.projectRevision,2);assert.equal(a.projectData.currentAudit.decision,'ready');assert.equal(env.events.length,1,'the existing project subscription is retained');
+});
+test('review completion retains a dirty local patch while updating audit metadata',async t=>{
+  let revision=1,loads=0,finish,arrive;const ready=new Promise(resolve=>{arrive=resolve;}),current=()=>({...data(revision),currentAudit:revision>1?{decision:'ready',width:32,height:24}:null});
+  const env=fixture(t,{onLoad:()=>{loads++;return env.photo;},fetchImpl:async(_url,options)=>{
+    if(options?.method==='POST')return new Promise(resolve=>{finish=()=>{revision=2;resolve(response(current()));};arrive();});return response(current());
+  }});
+  await env.workspace.load('project');const reviewing=env.node('project-details').listeners.click({target:{closest:()=>({dataset:{projectReview:'audit'}})}});await ready;
+  env.patch.settings.exposure=.25;env.workspace.schedule(env.photo);finish();await reviewing;
+  assert.equal(env.patch.settings.exposure,.25);assert.equal(env.workspace.hasPending(),true);assert.equal(env.photo.projectRevision,2);assert.equal(env.photo.projectData.currentAudit.decision,'ready');assert.equal(loads,1);
+});
+test('review completion does not reopen a photo removed while the model was running',async t=>{
+  const a={id:'a'},b={id:'b'};let photos=[a,b],active=a,revision=1,loads=0,finish,arrive;const ready=new Promise(resolve=>{arrive=resolve;});
+  const env=fixture(t,{photo:a,getPhoto:()=>active,getPhotos:()=>photos,onLoad:()=>{loads++;active=a;return a;},fetchImpl:async(_url,options)=>{
+    if(options?.method==='POST')return new Promise(resolve=>{finish=()=>{revision=2;resolve(response(data(revision)));};arrive();});return response(data(revision));
+  }});
+  await env.workspace.load('project');const reviewing=env.node('project-details').listeners.click({target:{closest:()=>({dataset:{projectReview:'audit'}})}});await ready;
+  photos=[b];active=b;env.workspace.release(a);finish();await reviewing;
+  assert.equal(active,b);assert.deepEqual(photos,[b]);assert.equal(loads,1);
+});
+test('review completion preserves native editor input while refreshing audit metadata',async t=>{
+  let revision=1,finish,arrive;const ready=new Promise(resolve=>{arrive=resolve;}),current=()=>({...data(revision),supported:false,limitations:'文字',currentAudit:revision>1?{decision:'ready',width:32,height:24}:null});
+  const env=fixture(t,{fetchImpl:async(_url,options)=>{
+    if(options?.method==='POST')return new Promise(resolve=>{finish=()=>{revision=2;resolve(response(current()));};arrive();});return response(current());
+  }});
+  await env.workspace.load('project');const reviewing=env.node('project-details').listeners.click({target:{closest:()=>({dataset:{projectReview:'audit'}})}});await ready;
+  env.photo.projectNativePending=true;env.photo.nativeDraft='retain this unsubmitted text';finish();await reviewing;
+  assert.equal(env.photo.projectNativePending,true);assert.equal(env.photo.nativeDraft,'retain this unsubmitted text');assert.equal(env.photo.projectRevision,2);assert.equal(env.photo.projectData.currentAudit.decision,'ready');
+});
+test('candidate preview reads the committed selection even before the editor receives its file event',async t=>{
+  let reads=0;const candidate={id:'trial',name:'试片',goal:'提亮',tradeoff:'复看',items:[],selectedItemIds:[],selectionHash:'old'};
+  const env=fixture(t,{fetchImpl:async()=>response({...data(++reads),candidates:[{...candidate,selectionHash:reads===1?'old':'new'}]})});
+  await env.workspace.load('project');assert.equal(env.photo.projectRevision,1);
+  await env.node('project-details').listeners.click({target:{closest:()=>({dataset:{projectPreview:'trial'},hasAttribute:()=>false})}});
+  assert.equal(reads,2);assert.match(env.node('project-after').src,/revision=2$/);assert.match(env.node('project-before').src,/revision=2$/);
+});
 test('the project entry opens edition management for its current photo after closing the project dialog',async t=>{
   const opened=[],env=fixture(t,{onOpenVersions:photo=>{assert.equal(env.node('project-dialog').open,false);opened.push(photo);},fetchImpl:async url=>response(url==='/api/local-capabilities'?{local:true,projects:true}:{projects:[]})});
   await env.workspace.attach(env.photo,data());await env.workspace.open();

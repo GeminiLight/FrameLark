@@ -1,0 +1,87 @@
+{
+  "decision": "revise",
+  "summary": "深蓝夜色、暖亮火箭和灯光星芒保留良好，但相对基础版，下沿暗部的可读性收益仍不明确，尚不能确认完成目标。",
+  "checked": [
+    "对照两张640×427完整预览，检查主体、天空与两侧塔架的关系。",
+    "查看下沿云带、塔脚，以及灯光星芒和光晕周边。",
+    "未查看实际蒙版、原尺寸或导出；细小伪影、噪点及通道剪切未核验。"
+  ],
+  "strengths": [
+    "火箭暖亮外壳仍与深蓝天空清楚分离，两侧塔架保持暗色框景。",
+    "灯光继续明显亮于环境，星芒清楚；当前尺度未见明显新增暗圈或突兀过渡。",
+    "天空没有明显抬灰，夜间明暗关系得以保留。"
+  ],
+  "issues": [
+    {
+      "area": "下沿云带与塔架根部",
+      "observation": "未受灯照的云带与部分塔脚仍接近同一暗度；两版在这里的层次差异很小，难以确认“暗处更可读”的实际收益。",
+      "nextAction": "仅针对下沿暗部比较一次轻微局部提亮，并在同一调整中排除灯芯、星芒与光晕；检查实际蒙版和过渡。收益应是云带与塔脚更易分辨，代价是可能增加噪点、削弱灯光反差；若仍无净收益，撤回该项。",
+      "severity": "blocking"
+    }
+  ],
+  "resolutions": [
+    {
+      "findingId": "shadow-separation",
+      "status": "unresolved",
+      "evidence": "当前预览保住了夜色与亮灯，但下沿云带和塔脚的分离改善尚不明确；不能仅凭整体关系保持良好认定此项已解决。"
+    }
+  ],
+  "policy": {
+    "version": "retouch-policy-2026-10-08-v1",
+    "task": "audit",
+    "coreHash": "cd3d9a4234beb4536e06da3b1ee9fa11c600a76f974ec347291c23d0333ecf76",
+    "references": [
+      {
+        "id": "audit",
+        "path": "references/result-audit.md",
+        "hash": "81745d43f992f4dd31e5078ce07da13c533f2debb0c3733b3765663f34af43ab"
+      },
+      {
+        "id": "light-color",
+        "path": "references/light-color.md",
+        "hash": "ae797162542b11f86c6f4344f7ca7db01addf54563dda2ab199ddcb1896a29a4"
+      }
+    ],
+    "bundleHash": "4604f268d70a96a2f9492067fdf780f0928d4b5d379322bb66dea84ca306d4b4"
+  },
+  "targetHash": "e238785473fea1ed4119d29f4b8d08f10392ee0ffcda74cff0c203f294db0d8c",
+  "viewing": {
+    "kind": "preview",
+    "maxSide": 1400,
+    "width": 640,
+    "height": 427
+  },
+  "id": "c7eda783-6eab-452e-8e7f-987f70e3309a",
+  "versionId": "d2678e22-1903-4d10-9b46-5ce39c4d77e4",
+  "createdAt": "2026-10-08T04:29:22.296Z",
+  "contextHash": "ec0f12ce922a7b4d08de247ffecb9b55b9d03339ce51070cb50d6a952a2840a9",
+  "reviewer": {
+    "id": "studio-advisor",
+    "mode": "self"
+  },
+  "diagnosisId": "1913063b-c18a-4d3b-9517-d1491bc3bc24",
+  "source": "host-agent-result-audit",
+  "intent": "保持夜色，暗处更可读，保留亮灯",
+  "selectionHash": "1858fc36ff5d759a5cb50e1bfb85869f5e0f3d6fee0bfc4c22a75374ed8d66c8",
+  "stateHash": "2a37332635eb846e61a58f5205221c2519d633053701a88f4ed26bad33e2c75e",
+  "pixelHash": "1eede5ec08c8a340d4963340255bf0183eb5da3fdc94128d4f0aec1f8477716d",
+  "frameSpecHash": "560aab77c0d6e94a92245822dcc9cad029d0c9898e7de6ec9287d4fd68b739df",
+  "frameSpec": {
+    "sourceRect": {
+      "x": 0,
+      "y": 0,
+      "width": 640,
+      "height": 427
+    },
+    "width": 640,
+    "height": 427,
+    "angle": 0,
+    "pixelCenters": "half",
+    "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1+edit-stack-linear-v2-k1"
+  },
+  "maxSide": 1400,
+  "width": 640,
+  "height": 427,
+  "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1+edit-stack-linear-v2-k1",
+  "sourceChecksum": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f"
+}

@@ -1,0 +1,380 @@
+{
+  "document": {
+    "schema": 3,
+    "documentId": "doc-62640874-2391-4425-a09f-e72601aee5b7",
+    "revision": 1,
+    "source": {
+      "assetId": "62640874-2391-4425-a09f-e72601aee5b7",
+      "contentHash": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+      "normalizedHash": "8c678228cc2f77d7c027f38041b272e377ada9d2430509c8d422edbe438b46cb",
+      "width": 640,
+      "height": 427
+    },
+    "pipeline": {
+      "id": "edit-stack-linear-v2",
+      "colorSpace": "linear-srgb",
+      "kernelVersion": 1
+    },
+    "geometry": {
+      "crop": null
+    },
+    "base": {
+      "kind": "legacy-v1",
+      "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1",
+      "state": {
+        "settings": {
+          "exposure": 0,
+          "contrast": 0,
+          "highlights": 0,
+          "shadows": 0,
+          "whites": 0,
+          "blacks": 0,
+          "vibrance": 0,
+          "saturation": 0,
+          "warmth": 0,
+          "tint": 0,
+          "fade": 0,
+          "vignette": 0,
+          "grain": 0,
+          "orangeSaturation": 0,
+          "greenSaturation": 0,
+          "blueSaturation": 0,
+          "monochrome": 0,
+          "curveShadows": 0,
+          "curveMidtones": 0,
+          "curveHighlights": 0,
+          "orangeHue": 0,
+          "greenHue": 0,
+          "blueHue": 0,
+          "orangeLuminance": 0,
+          "greenLuminance": 0,
+          "blueLuminance": 0,
+          "texture": 0,
+          "clarity": 0,
+          "dehaze": 0,
+          "sharpen": 0,
+          "denoise": 0
+        },
+        "style": null,
+        "crop": null,
+        "locals": []
+      },
+      "stateHash": "b913ff5c2aba3307abe529808aa10cdbbfe8b1e3cc359f5ee940a516d9250b6d",
+      "presetHash": null
+    },
+    "steps": [
+      {
+        "id": "night-readability-exposure",
+        "title": "夜景中暗部 +0.4 EV",
+        "tool": "exposure",
+        "toolVersion": 2,
+        "kernelVersion": 1,
+        "parameters": {
+          "ev": 0.4,
+          "headroomPolicy": "limit-positive-gain"
+        },
+        "enabled": true,
+        "opacity": 1,
+        "maskRef": {
+          "id": "mask-night-readability-exposure",
+          "version": 1
+        },
+        "groupId": null,
+        "dependsOn": []
+      }
+    ],
+    "masks": [
+      {
+        "id": "mask-night-readability-exposure",
+        "version": 1,
+        "expression": {
+          "kind": "luminance",
+          "mode": "exclude-highlights",
+          "start": 0.08,
+          "end": 0.3
+        },
+        "reference": {
+          "kind": "live-input"
+        }
+      }
+    ],
+    "groups": [],
+    "receipts": [
+      {
+        "id": "proposal-8f01b3977a27",
+        "commandsHash": "6397ad897d27d1c25f4935a3842b566bc533b4b8c0a0945b161a64bfe648f0a8",
+        "beforeHash": "69194820f70a87e3aa49876aab43d07f1816c58f9a00cb56b160da776d6dfa24",
+        "afterHash": "db7d4ca9113a218714b4245e9e51cb6911536c57c5635175ebef4fca01b0c611",
+        "revision": 1
+      }
+    ]
+  },
+  "items": [
+    {
+      "id": "night-brightness",
+      "title": "提亮中暗部并排除亮灯",
+      "visual": {
+        "goal": "让两侧塔架和底部平台更容易辨认。",
+        "benefit": "预计塔架杆件和平台暗面的层次更清楚。",
+        "tradeoff": "较暗的光晕外围仍可能稍亮；预览时检查实际蒙版、灯头大小及光晕过渡，放大查看暗部噪点。",
+        "findingIds": []
+      },
+      "commands": [
+        {
+          "type": "AddStep",
+          "step": {
+            "id": "night-readability-exposure",
+            "title": "夜景中暗部 +0.4 EV",
+            "tool": "exposure",
+            "toolVersion": 2,
+            "kernelVersion": 1,
+            "parameters": {
+              "ev": 0.4,
+              "headroomPolicy": "limit-positive-gain"
+            },
+            "enabled": true,
+            "opacity": 1,
+            "maskRef": null,
+            "groupId": null
+          }
+        },
+        {
+          "type": "ReplaceStepMask",
+          "stepId": "night-readability-exposure",
+          "mask": {
+            "expression": {
+              "kind": "luminance",
+              "mode": "exclude-highlights",
+              "start": 0.08,
+              "end": 0.3
+            },
+            "reference": {
+              "kind": "live-input"
+            }
+          }
+        }
+      ],
+      "dependsOn": []
+    }
+  ],
+  "selectionHash": "49ddcdc3809ab377a580363cac10239575d6b326d862114a0ae9490baa355024",
+  "transaction": {
+    "id": "proposal-8f01b3977a27",
+    "documentId": "doc-62640874-2391-4425-a09f-e72601aee5b7",
+    "beforeHash": "69194820f70a87e3aa49876aab43d07f1816c58f9a00cb56b160da776d6dfa24",
+    "afterHash": "db7d4ca9113a218714b4245e9e51cb6911536c57c5635175ebef4fca01b0c611",
+    "commands": [
+      {
+        "type": "AddStep",
+        "step": {
+          "id": "night-readability-exposure",
+          "title": "夜景中暗部 +0.4 EV",
+          "tool": "exposure",
+          "toolVersion": 2,
+          "kernelVersion": 1,
+          "parameters": {
+            "ev": 0.4,
+            "headroomPolicy": "limit-positive-gain"
+          },
+          "enabled": true,
+          "opacity": 1,
+          "maskRef": null,
+          "groupId": null
+        }
+      },
+      {
+        "type": "ReplaceStepMask",
+        "stepId": "night-readability-exposure",
+        "mask": {
+          "expression": {
+            "kind": "luminance",
+            "mode": "exclude-highlights",
+            "start": 0.08,
+            "end": 0.3
+          },
+          "reference": {
+            "kind": "live-input"
+          }
+        }
+      }
+    ],
+    "before": {
+      "schema": 3,
+      "documentId": "doc-62640874-2391-4425-a09f-e72601aee5b7",
+      "revision": 0,
+      "source": {
+        "assetId": "62640874-2391-4425-a09f-e72601aee5b7",
+        "contentHash": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+        "normalizedHash": "8c678228cc2f77d7c027f38041b272e377ada9d2430509c8d422edbe438b46cb",
+        "width": 640,
+        "height": 427
+      },
+      "pipeline": {
+        "id": "edit-stack-linear-v2",
+        "colorSpace": "linear-srgb",
+        "kernelVersion": 1
+      },
+      "geometry": {
+        "crop": null
+      },
+      "base": {
+        "kind": "legacy-v1",
+        "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1",
+        "state": {
+          "settings": {
+            "exposure": 0,
+            "contrast": 0,
+            "highlights": 0,
+            "shadows": 0,
+            "whites": 0,
+            "blacks": 0,
+            "vibrance": 0,
+            "saturation": 0,
+            "warmth": 0,
+            "tint": 0,
+            "fade": 0,
+            "vignette": 0,
+            "grain": 0,
+            "orangeSaturation": 0,
+            "greenSaturation": 0,
+            "blueSaturation": 0,
+            "monochrome": 0,
+            "curveShadows": 0,
+            "curveMidtones": 0,
+            "curveHighlights": 0,
+            "orangeHue": 0,
+            "greenHue": 0,
+            "blueHue": 0,
+            "orangeLuminance": 0,
+            "greenLuminance": 0,
+            "blueLuminance": 0,
+            "texture": 0,
+            "clarity": 0,
+            "dehaze": 0,
+            "sharpen": 0,
+            "denoise": 0
+          },
+          "style": null,
+          "crop": null,
+          "locals": []
+        },
+        "stateHash": "b913ff5c2aba3307abe529808aa10cdbbfe8b1e3cc359f5ee940a516d9250b6d",
+        "presetHash": null
+      },
+      "steps": [],
+      "masks": [],
+      "groups": [],
+      "receipts": []
+    },
+    "after": {
+      "schema": 3,
+      "documentId": "doc-62640874-2391-4425-a09f-e72601aee5b7",
+      "revision": 1,
+      "source": {
+        "assetId": "62640874-2391-4425-a09f-e72601aee5b7",
+        "contentHash": "bff8e5689368fe318bd12f4c38fff5c07ac55ecbcf7099f73b95653c2a5b441f",
+        "normalizedHash": "8c678228cc2f77d7c027f38041b272e377ada9d2430509c8d422edbe438b46cb",
+        "width": 640,
+        "height": 427
+      },
+      "pipeline": {
+        "id": "edit-stack-linear-v2",
+        "colorSpace": "linear-srgb",
+        "kernelVersion": 1
+      },
+      "geometry": {
+        "crop": null
+      },
+      "base": {
+        "kind": "legacy-v1",
+        "pipeline": "photo-render-2026-09-30-masks+lettering-v1+protected-regions-v1",
+        "state": {
+          "settings": {
+            "exposure": 0,
+            "contrast": 0,
+            "highlights": 0,
+            "shadows": 0,
+            "whites": 0,
+            "blacks": 0,
+            "vibrance": 0,
+            "saturation": 0,
+            "warmth": 0,
+            "tint": 0,
+            "fade": 0,
+            "vignette": 0,
+            "grain": 0,
+            "orangeSaturation": 0,
+            "greenSaturation": 0,
+            "blueSaturation": 0,
+            "monochrome": 0,
+            "curveShadows": 0,
+            "curveMidtones": 0,
+            "curveHighlights": 0,
+            "orangeHue": 0,
+            "greenHue": 0,
+            "blueHue": 0,
+            "orangeLuminance": 0,
+            "greenLuminance": 0,
+            "blueLuminance": 0,
+            "texture": 0,
+            "clarity": 0,
+            "dehaze": 0,
+            "sharpen": 0,
+            "denoise": 0
+          },
+          "style": null,
+          "crop": null,
+          "locals": []
+        },
+        "stateHash": "b913ff5c2aba3307abe529808aa10cdbbfe8b1e3cc359f5ee940a516d9250b6d",
+        "presetHash": null
+      },
+      "steps": [
+        {
+          "id": "night-readability-exposure",
+          "title": "夜景中暗部 +0.4 EV",
+          "tool": "exposure",
+          "toolVersion": 2,
+          "kernelVersion": 1,
+          "parameters": {
+            "ev": 0.4,
+            "headroomPolicy": "limit-positive-gain"
+          },
+          "enabled": true,
+          "opacity": 1,
+          "maskRef": {
+            "id": "mask-night-readability-exposure",
+            "version": 1
+          },
+          "groupId": null,
+          "dependsOn": []
+        }
+      ],
+      "masks": [
+        {
+          "id": "mask-night-readability-exposure",
+          "version": 1,
+          "expression": {
+            "kind": "luminance",
+            "mode": "exclude-highlights",
+            "start": 0.08,
+            "end": 0.3
+          },
+          "reference": {
+            "kind": "live-input"
+          }
+        }
+      ],
+      "groups": [],
+      "receipts": [
+        {
+          "id": "proposal-8f01b3977a27",
+          "commandsHash": "6397ad897d27d1c25f4935a3842b566bc533b4b8c0a0945b161a64bfe648f0a8",
+          "beforeHash": "69194820f70a87e3aa49876aab43d07f1816c58f9a00cb56b160da776d6dfa24",
+          "afterHash": "db7d4ca9113a218714b4245e9e51cb6911536c57c5635175ebef4fca01b0c611",
+          "revision": 1
+        }
+      ]
+    }
+  }
+}

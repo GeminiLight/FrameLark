@@ -1,0 +1,73 @@
+{
+  "reply": "建议先预览 +0.4 EV 的提亮。两侧塔架和底部平台较暗，用亮度蒙版逐渐排除亮处，让暗部更易辨认，同时减少对灯头和明亮光晕的影响。曝光与蒙版放在同一项中，可整体撤回。",
+  "principle": "底部灯头已接近白亮，继续增加曝光容易扩大亮斑；随亮度升高逐渐减弱调整，可保留灯光与夜色的反差。",
+  "clarification": {
+    "question": "",
+    "choices": []
+  },
+  "action": {
+    "kind": "document",
+    "label": "预览夜景轻提亮",
+    "goal": "提高暗部可读性，保留已有亮灯。",
+    "tradeoff": "天空也会略亮，暗部噪点可能更明显。",
+    "proposal": {
+      "baseRevision": 0,
+      "baseHash": "69194820f70a87e3aa49876aab43d07f1816c58f9a00cb56b160da776d6dfa24",
+      "requestId": null,
+      "name": "夜景轻提亮",
+      "goal": null,
+      "tradeoff": null,
+      "items": [
+        {
+          "id": "night-brightness",
+          "title": "提亮中暗部并排除亮灯",
+          "visual": {
+            "goal": "让两侧塔架和底部平台更容易辨认。",
+            "benefit": "预计塔架杆件和平台暗面的层次更清楚。",
+            "tradeoff": "较暗的光晕外围仍可能稍亮；预览时检查实际蒙版、灯头大小及光晕过渡，放大查看暗部噪点。",
+            "findingIds": []
+          },
+          "commands": [
+            {
+              "type": "AddStep",
+              "step": {
+                "id": "night-readability-exposure",
+                "title": "夜景中暗部 +0.4 EV",
+                "tool": "exposure",
+                "toolVersion": 2,
+                "kernelVersion": 1,
+                "parameters": {
+                  "ev": 0.4,
+                  "headroomPolicy": "limit-positive-gain"
+                },
+                "enabled": true,
+                "opacity": 1,
+                "maskRef": null,
+                "dependsOn": null,
+                "groupId": null
+              },
+              "index": null
+            },
+            {
+              "type": "ReplaceStepMask",
+              "stepId": "night-readability-exposure",
+              "mask": {
+                "expression": {
+                  "kind": "luminance",
+                  "mode": "exclude-highlights",
+                  "start": 0.08,
+                  "end": 0.3
+                },
+                "reference": {
+                  "kind": "live-input"
+                }
+              },
+              "shared": null
+            }
+          ],
+          "dependsOn": null
+        }
+      ]
+    }
+  }
+}

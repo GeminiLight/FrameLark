@@ -1,0 +1,79 @@
+{
+  "platform": "darwin",
+  "backends": {
+    "apple": {
+      "backend": "apple",
+      "backendVersion": "Version 26.5 (Build 25F71)",
+      "cameraCount": 934,
+      "decoderVersion": "runtime-selected"
+    },
+    "rawpy": {
+      "backend": "rawpy",
+      "backendVersion": "0.27.1",
+      "decoderVersion": "0.22.1"
+    }
+  },
+  "results": [
+    {
+      "sample": "generated-DNG",
+      "backend": "rawpy",
+      "decoderVersion": "0.22.1",
+      "width": 256,
+      "height": 192,
+      "importMs": 104,
+      "firstPreviewMs": 32,
+      "warmPreviewMs": 6,
+      "editedPreviewMs": 28,
+      "shareMs": 33,
+      "masterMs": 40,
+      "sourceUnchanged": true,
+      "tiffDepth": "ushort"
+    },
+    {
+      "sample": "generated-DNG",
+      "backend": "auto",
+      "decoderVersion": "0.22.1",
+      "width": 256,
+      "height": 192,
+      "importMs": 246,
+      "firstPreviewMs": 22,
+      "warmPreviewMs": 3,
+      "editedPreviewMs": 26,
+      "shareMs": 19,
+      "masterMs": 40,
+      "sourceUnchanged": true,
+      "tiffDepth": "ushort"
+    },
+    {
+      "sample": "public-camera",
+      "backend": "apple",
+      "decoderVersion": "7",
+      "width": 4256,
+      "height": 2832,
+      "importMs": 1536,
+      "firstPreviewMs": 349,
+      "warmPreviewMs": 38,
+      "editedPreviewMs": 309,
+      "shareMs": 851,
+      "masterMs": 4777,
+      "sourceUnchanged": true,
+      "tiffDepth": "ushort"
+    },
+    {
+      "sample": "public-camera",
+      "backend": "rawpy",
+      "decoderVersion": "0.22.1",
+      "width": 4284,
+      "height": 2844,
+      "importMs": 1559,
+      "firstPreviewMs": 294,
+      "warmPreviewMs": 31,
+      "editedPreviewMs": 293,
+      "shareMs": 767,
+      "masterMs": 4616,
+      "sourceUnchanged": true,
+      "tiffDepth": "ushort"
+    }
+  ],
+  "decodeFailurePreservedExistingProject": true
+}

@@ -17,6 +17,14 @@ description: FrameLark 精修台：审阅并实际精修单张原片或已经选
 
 需要提升taste、按专家参考或反复修得平庸时，读 [作品精读](references/expert-visual-studies.md) 与 [有方向的精修](references/deliberate-finishing.md)。选择与当前距离、光线、材料和表达相关的具体作品，把一条发现落实到原片；明亮轻柔、清楚有力和浓郁深色都可成立。裁剪与同构图光色分别比较，保留看得见的收益，不把增加专家名字、参考数量或文档长度当成效果提升。
 
+## Web 与 Skill 的共同方法
+
+每次审片、编写计划或审核前，运行 `node <skill>/scripts/cli.mjs policy --task diagnosis|plan|audit`，读取返回的共同核心和按需参考；按当前问题用 `--topics light-color,detail,composition,expert,generated,subject` 选择最多三个主题。实际版本与每份参考的哈希在 `provenance`，随诊断、方案及审核的 `policy` 字段保留，不能填写未读取的参考。维护来源为 [共同摄影方法](policy/core.md) 与 [参考清单](policy/manifest.json)；网页直接使用同一加载器。下面的知识导航供额外题材检索，不另定义摄影判断标准。
+
+新文档方案先运行 `plan --project <project>`（修改指定步骤加 `--scope-step <id>`），读取当前步骤、能力、诊断、策略和真实 Schema。将视觉目标拆成可选提案项，每项 `visual` 写目标、收益、代价与 `findingIds`；提交 `plan --input` 时带最新项目身份、`action`、实际 `policy.provenance`、宿主身份及需要的 handoffId。旧 `document` 命令保留兼容；不把新栈覆盖成旧参数。机器能力中的语义分割与外部图片编辑默认不可用，宿主有独立外部能力时仍按派生图像路线处理。
+
+共同诊断和审核的内容格式由运行时校验；Web 的无身份建议只是草稿，不能直接冒充文件项目审核。目标、批注或组合变化后，旧审核留在历史中；只有当前有效的图像与目标绑定可用于交付。策略记录也不证明实际看图。
+
 ## 知识导航
 
 首次审片读审美判断，再按当前问题选题材或手段。只加载有关章节，不把全部知识塞进每次回答。以下是处理决策与检查标准，不能代替实际看图。

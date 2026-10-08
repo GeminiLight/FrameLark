@@ -1,0 +1,20 @@
+{
+  "version": "retouch-policy-2026-10-08-v1",
+  "core": "core.md",
+  "tasks": {
+    "diagnosis": ["judgment"],
+    "plan": ["finishing"],
+    "audit": ["audit"]
+  },
+  "references": {
+    "judgment": "aesthetic-judgment.md",
+    "finishing": "deliberate-finishing.md",
+    "audit": "result-audit.md",
+    "light-color": "light-color.md",
+    "detail": "detail-local-crop.md",
+    "composition": "composition-craft.md",
+    "expert": "expert-visual-studies.md",
+    "generated": "generated-reference.md",
+    "subject": "subject-playbooks.md"
+  }
+}

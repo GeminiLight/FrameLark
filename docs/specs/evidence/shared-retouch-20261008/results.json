@@ -1,0 +1,201 @@
+[
+  {
+    "id": "diagnosis",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "attempt": 1,
+    "startedAt": "2026-10-08T04:18:27.277Z",
+    "policy": {
+      "version": "retouch-policy-2026-10-08-v1",
+      "task": "diagnosis",
+      "coreHash": "cd3d9a4234beb4536e06da3b1ee9fa11c600a76f974ec347291c23d0333ecf76",
+      "references": [
+        {
+          "id": "judgment",
+          "path": "references/aesthetic-judgment.md",
+          "hash": "2e489c4b9dc5dba9d7ed3dafdc58ff1a795b6baacd1c93f1faaa5920685ef957"
+        },
+        {
+          "id": "light-color",
+          "path": "references/light-color.md",
+          "hash": "ae797162542b11f86c6f4344f7ca7db01addf54563dda2ab199ddcb1896a29a4"
+        }
+      ],
+      "bundleHash": "4961bcd23011152aca839fd25c9e4e30f36ae50576eb1e9c779ca2650dd5f2a1"
+    },
+    "actualModel": "gpt-6-astra",
+    "schemaValid": true,
+    "decision": null,
+    "status": "passed",
+    "finishedAt": "2026-10-08T04:19:31.678Z"
+  },
+  {
+    "id": "protected-lift",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "attempt": 1,
+    "startedAt": "2026-10-08T04:19:31.678Z",
+    "policy": {
+      "version": "retouch-policy-2026-10-08-v1",
+      "task": "plan",
+      "coreHash": "cd3d9a4234beb4536e06da3b1ee9fa11c600a76f974ec347291c23d0333ecf76",
+      "references": [
+        {
+          "id": "finishing",
+          "path": "references/deliberate-finishing.md",
+          "hash": "552556a460be25e66c4c5d867dbb429cde4fc3cb57b2229fdff75c42ee1d778d"
+        },
+        {
+          "id": "light-color",
+          "path": "references/light-color.md",
+          "hash": "ae797162542b11f86c6f4344f7ca7db01addf54563dda2ab199ddcb1896a29a4"
+        },
+        {
+          "id": "composition",
+          "path": "references/composition-craft.md",
+          "hash": "ec8bd6ddcf3d50f3291f5cf381667c3d908349c5916aa4e3f96f24003984e35a"
+        }
+      ],
+      "bundleHash": "272d27911429c92ff08080f925523035cb4b77ee0bceac7ff736bd34328b10ab"
+    },
+    "actualModel": "gpt-6-astra",
+    "schemaValid": true,
+    "pixelChecks": {
+      "darkMeanGain": 8.607582986856686,
+      "highlightMeanAbsoluteChange": 0,
+      "darkCount": 254227,
+      "highCount": 368
+    },
+    "status": "passed",
+    "finishedAt": "2026-10-08T04:21:56.031Z"
+  },
+  {
+    "id": "scoped-update",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "attempt": 1,
+    "startedAt": "2026-10-08T04:21:56.032Z",
+    "policy": {
+      "version": "retouch-policy-2026-10-08-v1",
+      "task": "plan",
+      "coreHash": "cd3d9a4234beb4536e06da3b1ee9fa11c600a76f974ec347291c23d0333ecf76",
+      "references": [
+        {
+          "id": "finishing",
+          "path": "references/deliberate-finishing.md",
+          "hash": "552556a460be25e66c4c5d867dbb429cde4fc3cb57b2229fdff75c42ee1d778d"
+        },
+        {
+          "id": "light-color",
+          "path": "references/light-color.md",
+          "hash": "ae797162542b11f86c6f4344f7ca7db01addf54563dda2ab199ddcb1896a29a4"
+        }
+      ],
+      "bundleHash": "fc189a655cbbbddb9fd4291c6a77ab19195a69e6b2d708170283edcd5d364fa5"
+    },
+    "status": "failed",
+    "error": {
+      "code": "CANCELLED",
+      "message": "本次回复已取消。"
+    },
+    "finishedAt": "2026-10-08T04:25:56.267Z"
+  },
+  {
+    "id": "compound",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "attempt": 1,
+    "startedAt": "2026-10-08T04:25:56.270Z",
+    "policy": {
+      "version": "retouch-policy-2026-10-08-v1",
+      "task": "plan",
+      "coreHash": "cd3d9a4234beb4536e06da3b1ee9fa11c600a76f974ec347291c23d0333ecf76",
+      "references": [
+        {
+          "id": "finishing",
+          "path": "references/deliberate-finishing.md",
+          "hash": "552556a460be25e66c4c5d867dbb429cde4fc3cb57b2229fdff75c42ee1d778d"
+        },
+        {
+          "id": "light-color",
+          "path": "references/light-color.md",
+          "hash": "ae797162542b11f86c6f4344f7ca7db01addf54563dda2ab199ddcb1896a29a4"
+        }
+      ],
+      "bundleHash": "fc189a655cbbbddb9fd4291c6a77ab19195a69e6b2d708170283edcd5d364fa5"
+    },
+    "actualModel": "gpt-6-astra",
+    "schemaValid": true,
+    "status": "passed",
+    "finishedAt": "2026-10-08T04:27:45.808Z"
+  },
+  {
+    "id": "missing-capability",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "attempt": 1,
+    "startedAt": "2026-10-08T04:27:45.809Z",
+    "policy": {
+      "version": "retouch-policy-2026-10-08-v1",
+      "task": "plan",
+      "coreHash": "cd3d9a4234beb4536e06da3b1ee9fa11c600a76f974ec347291c23d0333ecf76",
+      "references": [
+        {
+          "id": "finishing",
+          "path": "references/deliberate-finishing.md",
+          "hash": "552556a460be25e66c4c5d867dbb429cde4fc3cb57b2229fdff75c42ee1d778d"
+        },
+        {
+          "id": "light-color",
+          "path": "references/light-color.md",
+          "hash": "ae797162542b11f86c6f4344f7ca7db01addf54563dda2ab199ddcb1896a29a4"
+        },
+        {
+          "id": "composition",
+          "path": "references/composition-craft.md",
+          "hash": "ec8bd6ddcf3d50f3291f5cf381667c3d908349c5916aa4e3f96f24003984e35a"
+        },
+        {
+          "id": "generated",
+          "path": "references/generated-reference.md",
+          "hash": "6c02c262ff3f3f1a78ff4b3c6d14ff294cdb68e4010d859ab4cc4330a3a59c71"
+        }
+      ],
+      "bundleHash": "4bf34f9f5b5d5768a1033decb349c2a7fa95bd5853f7d71a9af090998f77a8b3"
+    },
+    "actualModel": "gpt-6-astra",
+    "schemaValid": true,
+    "status": "passed",
+    "finishedAt": "2026-10-08T04:28:18.126Z"
+  },
+  {
+    "id": "audit",
+    "model": "gpt-6-astra",
+    "effort": "xhigh",
+    "attempt": 1,
+    "startedAt": "2026-10-08T04:28:18.128Z",
+    "policy": {
+      "version": "retouch-policy-2026-10-08-v1",
+      "task": "audit",
+      "coreHash": "cd3d9a4234beb4536e06da3b1ee9fa11c600a76f974ec347291c23d0333ecf76",
+      "references": [
+        {
+          "id": "audit",
+          "path": "references/result-audit.md",
+          "hash": "81745d43f992f4dd31e5078ce07da13c533f2debb0c3733b3765663f34af43ab"
+        },
+        {
+          "id": "light-color",
+          "path": "references/light-color.md",
+          "hash": "ae797162542b11f86c6f4344f7ca7db01addf54563dda2ab199ddcb1896a29a4"
+        }
+      ],
+      "bundleHash": "4604f268d70a96a2f9492067fdf780f0928d4b5d379322bb66dea84ca306d4b4"
+    },
+    "actualModel": "gpt-6-astra",
+    "schemaValid": true,
+    "decision": "revise",
+    "status": "passed",
+    "finishedAt": "2026-10-08T04:29:22.315Z"
+  }
+]
