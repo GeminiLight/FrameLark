@@ -28,10 +28,10 @@ export async function persistProjectReview(bridge,packet,result,{signal}={}) {
   const {runtime,project:p,path,version,frame,policy,kind}=packet;
   signal?.throwIfAborted();
   const identity={revision:p.revision,versionId:version.id,maxSide:frame.maxSide||1400,pixelHash:frame.pixelHash,frameSpecHash:frame.frameSpecHash,policy:policy.provenance};
-  const actorId='studio-advisor';
+  const actorId='studio-advisor',renderPreview=(root,key,options)=>bridge.render('preview',root,key,{...options,revision:p.revision,selectionHash:version.selectionHash},signal);
   const saved=kind==='diagnosis'
-    ?await recordDiagnosis(path,{...identity,...normalizeDiagnosisContent(result.value),actorId},{signal})
-    :await runtime.saveResultAudit(path,{...identity,...normalizeAuditContent(result.value),selectionHash:frame.selectionHash,reviewer:{id:actorId,mode:'self'}},{signal});
+    ?await recordDiagnosis(path,{...identity,...normalizeDiagnosisContent(result.value),actorId},{signal,renderPreview})
+    :await runtime.saveResultAudit(path,{...identity,...normalizeAuditContent(result.value),selectionHash:frame.selectionHash,reviewer:{id:actorId,mode:'self'}},{signal,renderPreview});
   return {...await bridge.mutationView(runtime,saved.project,path),review:kind==='diagnosis'?saved.diagnosis:saved.audit,provenance:{...result.provenance,policy:policy.provenance}};
 }
 

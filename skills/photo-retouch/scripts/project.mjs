@@ -448,7 +448,7 @@ export const restoreVersion=(folder,value)=>mutateProject(folder,value.revision,
 });
 export const saveReview=(folder,value)=>mutateProject(folder,value.revision,p=>{const summary=text(value.summary,1200);if(!summary)fail('EMPTY_REVIEW','请写明实际画面观察或保留原片的依据。');
   const review={id:id(),versionId:p.currentId,intent:p.intent,createdAt:now(),source:'host-agent',summary,preserve:Array.isArray(value.preserve)?value.preserve.slice(0,6).map(x=>text(x)):[],model:text(value.model,80)};p.reviews.push(review);p.reviews=p.reviews.slice(-30);return {review};});
-export async function saveResultAudit(folder,value,{signal}={}){
+export async function saveResultAudit(folder,value,{signal,renderPreview}={}){
   object(value,['revision','versionId','maxSide','pixelHash','frameSpecHash','selectionHash','decision','summary','checked','strengths','issues','reviewer','resolutions','policy'],'AUDIT_INVALID');
   const nonempty=(s,max)=>typeof s==='string'&&s.trim().length>0&&s.length<=max;
   if(!Number.isInteger(value.revision)||!nonempty(value.versionId,80)||!Number.isInteger(value.maxSide)||value.maxSide<512||value.maxSide>8192)fail('AUDIT_INVALID','审核需真实版本与查看尺寸。');
@@ -458,7 +458,7 @@ export async function saveResultAudit(folder,value,{signal}={}){
     const version=findVersion(p,value.versionId);
     if(p.candidates.some(c=>c.id===version.id)&&version.baseFingerprint!==fingerprint(p))fail('STALE_CANDIDATE','审核目标已过期，请重新试片。');
     const {previewPhoto}=await import('./render.mjs');
-    const preview=await previewPhoto(root,version.id,{maxSide:value.maxSide});
+    const preview=await (renderPreview||previewPhoto)(root,version.id,{maxSide:value.maxSide});
     if(value.pixelHash!==preview.pixelHash||value.frameSpecHash!==preview.frameSpecHash||value.selectionHash!==preview.selectionHash)fail('AUDIT_PREVIEW_MISMATCH','审核的画面与当前组合不一致，请读取并实际查看最新预览。');
     let reviewer=null;
     if(value.reviewer){
