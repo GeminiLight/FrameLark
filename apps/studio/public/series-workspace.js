@@ -34,13 +34,13 @@ export function createSeriesWorkspace({getPhotos,canOpen=()=>true,onChange,onAcc
   enhanceSelectControls(dialog);enhanceSelectControls($('series-viewer'));
   const entry=document.createElement('button');entry.id='series-open';entry.className='series-entry';entry.type='button';entry.title='组图创作 · 分析整组照片、逐张调整';entry.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="M8 2h10a3 3 0 0 1 3 3v11M3 14l4-4 4 4 2-2 3 3"/></svg><span>组图</span>';
   $('add-photo-button').before(entry);
-  let saved=restoreSeries(null),review=null,plans=[],base='',provenance=null,generation=0,view='trial',renderReady=false,accepted=false,busy=false;
+  let saved=restoreSeries(null),review=null,plans=[],base='',provenance=null,generation=0,viewGeneration=0,view='trial',renderReady=false,accepted=false,busy=false,accepting=false;
   const photos=()=>getPhotos(),members=()=>saved.ids.map(id=>photos().find(p=>p.id===id)).filter(Boolean);
   const changed=()=>{saved={...saved,...seriesBrief({intent:$('series-intent').value,platform:$('series-platform').value,ratio:$('series-ratio').value,purpose:$('series-purpose').value,sequence:$('series-sequence').value})};updateExamples();onChange();};
   function updateExamples(){const element=$('series-intent-examples');if(element.dataset.purpose===saved.purpose)return;element.dataset.purpose=saved.purpose;element.innerHTML=intentExamples[saved.purpose].map(([label,intent])=>`<button type="button" data-series-intent="${escape(intent)}">${escape(label)}</button>`).join('');}
   const status=text=>{$('series-status').textContent=text;};
   function cancel(){requests.cancel('series');busy=false;$('series-cancel').hidden=true;$('series-review').disabled=members().length<2;}
-  function invalidate(){cancel();generation++;review=null;plans=[];renderReady=false;accepted=false;view='trial';dialog.classList.remove('has-series-review');$('series-brief-fields').hidden=false;$('series-brief-summary').hidden=true;dialog.querySelector('[data-series-view="current"]').textContent='当前版本';dialog.querySelector('[data-series-view="trial"]').textContent='整组预览';for(const button of dialog.querySelectorAll('[data-series-view]'))button.setAttribute('aria-pressed',String(button.dataset.seriesView===view));$('series-result').hidden=true;$('series-view-switch').hidden=true;$('series-accept').disabled=true;$('series-export').disabled=members().length<2;$('series-footer-note').textContent='先填写主题，再预览整组效果。';status('');}
+  function invalidate(){cancel();viewGeneration++;generation++;review=null;plans=[];renderReady=false;accepted=false;view='trial';dialog.classList.remove('has-series-review');$('series-brief-fields').hidden=false;$('series-brief-summary').hidden=true;dialog.querySelector('[data-series-view="current"]').textContent='当前版本';dialog.querySelector('[data-series-view="trial"]').textContent='整组预览';for(const button of dialog.querySelectorAll('[data-series-view]'))button.setAttribute('aria-pressed',String(button.dataset.seriesView===view));$('series-result').hidden=true;$('series-view-switch').hidden=true;$('series-accept').disabled=true;$('series-export').disabled=members().length<2;$('series-footer-note').textContent='先填写主题，再预览整组效果。';status('');}
   function refreshEntry(){entry.hidden=photos().length<2;entry.disabled=!canOpen();}
   function open(ids){
     cancel();const available=photos();saved=restoreSeries(saved,available.map(p=>p.id));
@@ -65,7 +65,7 @@ export function createSeriesWorkspace({getPhotos,canOpen=()=>true,onChange,onAcc
     const rect=cropPixelRect(snapshot.crop,photo.image.naturalWidth,photo.image.naturalHeight),scale=Math.min(1,maxSide/Math.max(rect.width,rect.height));
     const width=Math.max(1,Math.round(rect.width*scale)),height=Math.max(1,Math.round(rect.height*scale)),canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
     const ctx=canvas.getContext('2d',{willReadFrequently:true});drawPhotoSource(ctx,photo.image,snapshot.crop,width,height,rect);
-    const data=await renderer.render({pixels:ctx.getImageData(0,0,width,height).data,width,height,settings:snapshotSettings(snapshot),annotations:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers),crop:snapshot.crop,frame:{fullWidth:photo.image.naturalWidth,fullHeight:photo.image.naturalHeight,sourceRect:rect,angle:snapshot.crop?.angle||0}});
+    const data=await renderer.render({pixels:ctx.getImageData(0,0,width,height).data,width,height,settings:snapshotSettings(snapshot),document:snapshot.editDocument,annotations:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers),crop:snapshot.crop,frame:{fullWidth:photo.image.naturalWidth,fullHeight:photo.image.naturalHeight,sourceRect:rect,angle:snapshot.crop?.angle||0}});
     ctx.putImageData(new ImageData(data,width,height),0,0);return canvas;
   }
   async function renderGallery(){
@@ -82,7 +82,7 @@ export function createSeriesWorkspace({getPhotos,canOpen=()=>true,onChange,onAcc
   function result(){
     dialog.classList.add('has-series-review');$('series-brief-fields').hidden=true;$('series-brief-summary').hidden=false;$('series-brief-summary').innerHTML=`<strong>这组的表达</strong><p>${escape(saved.intent)}</p><small>${escape(seriesPurposes.find(p=>p.id===saved.purpose)?.label)} · ${escape(seriesSequences.find(p=>p.id===saved.sequence)?.label)}</small><small>${escape(seriesPlatforms.find(p=>p.id===saved.platform)?.label)} · ${saved.ratio==='original'?'保留原画幅':escape(saved.ratio)+' 构图参考'}</small><div><button type="button" data-series-brief-edit>修改主题</button><button type="button" data-series-review-again>重新审片</button></div>`;
     $('series-result').hidden=false;
-    $('series-result').innerHTML=`<span class="series-source">视觉审片 · ${escape(provenance?.model||'已连接模型')}</span><h3>${escape(review.title)}</h3><p>${escape(review.summary)}</p><div class="series-preserve"><strong>值得保留</strong><p>${escape(review.preserve)}</p></div><details><summary>整组风格与调整影响</summary><p>${escape(review.sharedStyle.reason)}</p><p>${escape(review.tradeoff)}</p></details>${review.sharedStyle.presetId!=='none'?`<label class="series-style-option"><input type="checkbox" id="series-use-style" checked/><span>共同风格 · ${escape(presetById(review.sharedStyle.presetId)?.name)} ${review.sharedStyle.amount}%<small>将替换每张照片的风格预设，保留手动调整、局部处理与裁剪。</small></span></label>`:''}`;
+    $('series-result').innerHTML=`<span class="series-source">视觉审片 · ${escape(provenance?.model||'已连接模型')}</span><h3>${escape(review.title)}</h3><p>${escape(review.summary)}</p><div class="series-preserve"><strong>值得保留</strong><p>${escape(review.preserve)}</p></div><details><summary>整组风格与调整影响</summary><p>${escape(review.sharedStyle.reason)}</p><p>${escape(review.tradeoff)}</p></details>${review.sharedStyle.presetId!=='none'?`<label class="series-style-option"><input type="checkbox" id="series-use-style" checked/><span>共同风格 · ${escape(presetById(review.sharedStyle.presetId)?.name)} ${review.sharedStyle.amount}%<small>逐张比较共同风格的变化，保留已有手动调整、局部处理与裁剪。</small></span></label>`:''}`;
     $('series-view-switch').hidden=false;$('series-footer-note').textContent='预览尚未应用 · 原片和当前编辑保持原样';
   }
   async function analyze(){
@@ -93,7 +93,7 @@ export function createSeriesWorkspace({getPhotos,canOpen=()=>true,onChange,onAcc
       const input=[];
       for(let i=0;i<list.length;i++){
         task.controller.signal.throwIfAborted();const photo=list[i],snapshot=photoSnapshot(photo),canvas=await pixels(photo,snapshot,800);
-        input.push({id:photo.id,name:photo.imageName,image:canvas.toDataURL('image/jpeg',.72),intent:photo.creativeIntent,settings:snapshotSettings(snapshot),crop:snapshot.crop,notes:snapshot.annotations.map(n=>({note:n.note,rect:n.rect}))});
+        input.push({id:photo.id,name:photo.imageName,image:canvas.toDataURL('image/jpeg',.72),intent:photo.creativeIntent,editProtocol:snapshot.editDocument?'frameyn-edit-stack/3':'frameyn-legacy/1',settings:snapshotSettings(snapshot),crop:snapshot.crop,notes:snapshot.annotations.map(n=>({note:n.note,rect:n.rect}))});
         status(`已准备 ${i+1} / ${list.length} 张，正在理解整组表达…`);
       }
       task.controller.signal.throwIfAborted();
@@ -107,9 +107,9 @@ export function createSeriesWorkspace({getPhotos,canOpen=()=>true,onChange,onAcc
     }catch(error){if(requests.owns(task))status(task.controller.signal.aborted && task.controller.signal.reason!=='timeout'?'审片已取消，可以继续整理或重试。':task.controller.signal.aborted || error.visionFailure || error instanceof TypeError ? requestFailure(error,task.controller.signal,'组图审片').message:error.message);}
     finally{if(requests.owns(task)){requests.finish(task);busy=false;$('series-cancel').hidden=true;$('series-review').disabled=members().length<2;}}
   }
-  function version(snapshot,id,label){return {id,label,settings:snapshotSettings(snapshot),annotations:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers),crop:snapshot.crop};}
+  function version(snapshot,id,label){return {id,label,settings:snapshotSettings(snapshot),document:snapshot.editDocument,annotations:effectiveAnnotations(snapshot.annotations,snapshot.advisorLayers),crop:snapshot.crop};}
   entry.addEventListener('click',()=>open());$('series-review').addEventListener('click',analyze);
-  $('series-close').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{cancel();generation++;});
+  $('series-close').addEventListener('click',()=>dialog.close());dialog.addEventListener('close',()=>{cancel();viewGeneration++;generation++;});
   $('series-cancel').addEventListener('click',()=>{cancel();status('审片已取消，当前编辑保留。');});
   for(const id of ['series-intent','series-platform','series-ratio','series-purpose','series-sequence'])$(id).addEventListener(id==='series-intent'?'input':'change',()=>{const hadReview=Boolean(review);changed();invalidate();if(hadReview)render();});
   dialog.addEventListener('click',event=>{
@@ -124,12 +124,18 @@ export function createSeriesWorkspace({getPhotos,canOpen=()=>true,onChange,onAcc
   });
   $('series-members').addEventListener('change',event=>{const input=event.target.closest('input');if(!input)return;if(input.checked&&saved.ids.length>=12){input.checked=false;notify('每组最多 12 张，可以先移出一张，再加入新照片。');return;}saved.ids=input.checked?[...saved.ids,input.value]:saved.ids.filter(id=>id!==input.value);onChange();invalidate();render();});
   $('series-result').addEventListener('change',()=>{if(!review)return;if(accepted||base!==seriesSignature(members(),saved)){invalidate();render();status('当前编辑已变化，请重新审片。');return;}const useStyle=$('series-use-style')?.checked??true;plans=members().map(photo=>({photo,...seriesCandidate(photo,review,{useStyle,layerId:`series-${crypto.randomUUID()}`})}));render();});
-  $('series-accept').addEventListener('click',()=>{
-    if(!review||!renderReady||accepted)return;
+  $('series-accept').addEventListener('click',async()=>{
+    if(!review||!renderReady||accepted||accepting)return;
     if(base!==seriesSignature(members(),saved)){invalidate();render();status('照片、批注或目标已变化，请重新审片；未覆盖任何调整。');return;}
     // New inactive review results do not change the preview; retain them when committing.
     const freshPlans=members().map(photo=>({photo,...seriesCandidate(photo,review,{useStyle:$('series-use-style')?.checked??true,layerId:`series-${crypto.randomUUID()}`})}));
-    onAccept(freshPlans);accepted=true;if($('series-use-style'))$('series-use-style').disabled=true;$('series-accept').disabled=true;$('series-export').disabled=false;dialog.querySelector('[data-series-view="current"]').textContent='应用前';dialog.querySelector('[data-series-view="trial"]').textContent='整组结果';$('series-footer-note').textContent='已应用 · 可逐张精调，或按当前顺序导出';status('已应用整组调整，可在图库撤销。');
+    const token=viewGeneration;accepting=true;$('series-accept').disabled=true;$('series-export').disabled=true;status('正在保存整组调整…');
+    try{
+      await onAccept(freshPlans);
+      if(token!==viewGeneration||!dialog.open)return;
+      accepted=true;if($('series-use-style'))$('series-use-style').disabled=true;$('series-export').disabled=false;dialog.querySelector('[data-series-view="current"]').textContent='应用前';dialog.querySelector('[data-series-view="trial"]').textContent='整组结果';$('series-footer-note').textContent='已应用 · 可逐张精调，或按当前顺序导出';status('已应用整组调整，可在图库撤销。');
+    }catch(error){if(token===viewGeneration&&dialog.open){invalidate();render();status(error.message);}notify(error.message);}
+    finally{accepting=false;}
   });
   $('series-export').addEventListener('click',()=>{if(review&&!accepted){notify('先应用或取消预览，再导出当前版本。');return;}dialog.close();onExport([...saved.ids]);});
   return {open,refresh:refreshEntry,draft:()=>structuredClone(saved),restore(value){cancel();saved=restoreSeries(value,photos().map(p=>p.id));invalidate();refreshEntry();}};

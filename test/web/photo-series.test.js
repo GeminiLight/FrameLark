@@ -53,3 +53,11 @@ test('purpose and sequencing are persistent context, and manual order is enforce
  const value=review(),vision={request:async()=>({value,provenance:{source:'vision'}})},photos=['a','b'].map(id=>({id,image:'data:image/png;base64,aGVsbG8='}));
  await assert.rejects(reviewPhotoSeries(vision,{intent:'商品真实颜色',purpose:'catalog',sequence:'manual',photos}),{code:'INVALID_SERIES_REVIEW'});
 });
+
+test('document series metadata describes legacy sliders as a base layer, not the current combined edits',async()=>{
+ let payload;const vision={request:async value=>{payload=value;return {value:review(),provenance:{source:'fixture'}};}};
+ await reviewPhotoSeries(vision,{intent:'保留当前效果',photos:['a','b'].map(id=>({id,image:'data:image/png;base64,aGVsbG8=',editProtocol:'frameyn-edit-stack/3',settings:{exposure:.2}}))});
+ const context=payload.input[0].content.filter(c=>c.type==='input_text'&&c.text.startsWith('{')).map(c=>JSON.parse(c.text));
+ assert.equal(context.length,2);assert.ok(context.every(c=>c.current.kind==='document-preview'));
+ assert.ok(context.every(c=>c.current.base.settings.exposure===.2&&!Object.hasOwn(c.current,'settings')),'base sliders cannot masquerade as aggregate sequential effects');
+});

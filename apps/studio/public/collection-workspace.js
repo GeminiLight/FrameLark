@@ -10,10 +10,11 @@ export function createCollectionWorkspace({onEdit,notify}){
   <dialog id="shared-collection-dialog" class="shared-collection-dialog" aria-labelledby="shared-collection-title"><header><div><small>共同编辑 · 组图册</small><h2 id="shared-collection-title">共享组图</h2></div><button type="button" data-collection-close="workspace" aria-label="关闭共享组图">×</button></header><div class="shared-collection-body"><section class="shared-collection-direction"><label>主题<input id="collection-theme" maxlength="600" /></label><label>用途<select id="collection-purpose"><option value="story">叙事分享</option><option value="travel">旅行随记</option><option value="portrait">人物交付</option><option value="event">活动记录</option><option value="catalog">商品展示</option><option value="portfolio">作品精选</option><option value="archive">留作记录</option></select></label><button type="button" id="collection-save-theme">保存主题</button><p id="collection-status" role="status" aria-live="polite"></p><div class="collection-recovery"><button type="button" id="collection-backup">保存草稿备份</button><button type="button" id="collection-reload">读取最新组图</button></div><details><summary>共同编辑的位置</summary><p id="collection-folder"></p><p>这里的主题、取舍和顺序与 Agent 使用同一份组图记录。候选效果需进入单图比较并接受。</p></details><section id="collection-downloads" aria-label="组图导出文件"></section></section><section class="shared-collection-board"><div class="collection-board-heading"><strong id="collection-count"></strong><span>按当前保存版本预览</span></div><div id="collection-grid" class="collection-grid"></div><nav class="collection-pages" aria-label="组图分页"><button id="collection-previous" type="button">上一页</button><span id="collection-page"></span><button id="collection-next" type="button">下一页</button></nav></section></div><footer><span id="collection-plan-status"></span><div><button type="button" id="collection-save-plan" class="primary-button">保存选片与顺序</button><button type="button" id="collection-export">按顺序导出</button></div></footer></dialog>`);
   const $=id=>document.getElementById(id),picker=$('collection-picker'),dialog=$('shared-collection-dialog');
   const entry=document.createElement('button');entry.id='collection-open';entry.className='series-entry';entry.type='button';entry.textContent='共享组图';entry.hidden=true;$('add-photo-button').before(entry);
-  let data=null,draft=null,page=1,dirtyTheme=false,dirtyPlan=false,conflict=false,backupMade=false,busy=false,stream=null,refreshing=null,queued=false,exportController=null;
+  let data=null,draft=null,page=1,dirtyTheme=false,dirtyPlan=false,conflict=false,backupMade=false,busy=false,stream=null,refreshing=null,queued=false,exportController=null,generation=0,loadGeneration=0;
   const dirty=()=>dirtyTheme||dirtyPlan;
   const status=text=>{$('collection-status').textContent=text;};
-  function stop(){stream?.close();stream=null;exportController?.abort();exportController=null;}
+  const current=scope=>scope.generation===generation&&scope.id===data?.id&&dialog.open;
+  function stop(){generation++;stream?.close();stream=null;exportController?.abort();exportController=null;busy=false;refreshing=null;queued=false;}
   function downloads(){
     const job=data.jobs?.at(-1);$('collection-downloads').innerHTML=job?`<strong>${escape(collectionExportStatus(data,job).label)}</strong>${job.items.filter(i=>i.status==='done').map(i=>`<a href="/api/collections/${data.id}/exports/${job.id}/${encodeURIComponent(i.result.path.split(/[\\/]/).at(-1))}">下载 ${escape(i.id)}</a>`).join('')}<a href="/api/collections/${data.id}/exports/${job.id}/manifest.json">下载顺序与版本记录</a>`:'';
   }
@@ -37,28 +38,33 @@ export function createCollectionWorkspace({onEdit,notify}){
   }
   function adopt(next){data=next;draft=collectionDraft(next);dirtyTheme=false;dirtyPlan=false;conflict=false;backupMade=false;render();}
   async function refresh(){
-    if(!data||!dialog.open)return;if(busy||refreshing){queued=true;return;}const id=data.id;
-    refreshing=(async()=>{
-      const next=await request('/api/collections/'+id);if(data.id!==id||!dialog.open)return;
+    if(!data||!dialog.open)return;if(busy||refreshing){queued=true;return;}const scope={id:data.id,generation};
+    const task=(async()=>{
+      const next=await request('/api/collections/'+scope.id);if(!current(scope))return;
       if(dirty()&&!sameCollectionContext(data,next)){conflict=true;status('Agent 或另一处已更新组图。你的未保存输入已保留，请先保存草稿备份，再读取最新组图。');render({preserveInputs:true});return;}
       if(dirty()){data=next;draft.revision=next.revision;render({preserveInputs:true});}else adopt(next);
-    })().catch(error=>status(error.message)).finally(()=>{refreshing=null;if(queued&&!busy){queued=false;refresh();}});
-    return refreshing;
+    })().catch(error=>{if(current(scope))status(error.message);}).finally(()=>{if(refreshing!==task)return;refreshing=null;if(current(scope)&&queued&&!busy){queued=false;refresh();}});
+    refreshing=task;return task;
   }
   async function show(next){
     if(data&&data.id!==next.id&&dirty()&&!backupMade)throw new Error('请先保存或备份当前组图草稿，再打开另一组。');
     stop();if(data?.id===next.id&&dirty()){if(sameCollectionContext(data,next)){data=next;draft.revision=next.revision;}else conflict=true;render();}
     else adopt(next);
-    picker.close();if(!dialog.open)dialog.showModal();
-    stream=new EventSource(`/api/collections/${data.id}/events`);
-    stream.onmessage=event=>{try{const value=JSON.parse(event.data);if(value.error)status(value.error);else if(value.revision!==data.revision||value.snapshotHash!==data.snapshotHash)refresh();}catch{status('组图更新通知无法读取，请重新打开。');}};
-    stream.onerror=()=>status('正在重连组图更新；现有照片与输入仍保留。');
+    picker.close();if(!dialog.open)dialog.showModal();status('');
+    const scope={id:data.id,generation};stream=new EventSource(`/api/collections/${scope.id}/events`);
+    stream.onmessage=event=>{if(!current(scope))return;try{const value=JSON.parse(event.data);if(value.error)status(value.error);else if(value.revision!==data.revision||value.snapshotHash!==data.snapshotHash)refresh();}catch{status('组图更新通知无法读取，请重新打开。');}};
+    stream.onerror=()=>{if(current(scope))status('正在重连组图更新；现有照片与输入仍保留。');};
   }
   async function operate(action){
-    if(busy)return;busy=true;render();
+    if(busy)return;const scope={id:data.id,generation,data,draft};busy=true;render();
     for(const input of dialog.querySelectorAll('input,select,[data-collection-move]'))input.disabled=true;
-    try{await action();}catch(error){status(error.name==='AbortError'?'导出已停止，已完成文件仍保留。':error.message);notify(error.name==='AbortError'?'导出已停止。':error.message);}
-    finally{busy=false;render();if(queued){queued=false;refresh();}}
+    try{await action(scope);}catch(error){if(current(scope)){status(error.name==='AbortError'?'导出已停止，已完成文件仍保留。':error.message);notify(error.name==='AbortError'?'导出已停止。':error.message);}}
+    finally{if(current(scope)){busy=false;render();if(queued){queued=false;refresh();}}}
+  }
+  async function load(path,value){
+    const token=++loadGeneration;
+    try{const next=await request(path,value);if(token===loadGeneration&&picker.open)await show(next);}
+    catch(error){if(token===loadGeneration&&picker.open)$('collection-picker-status').textContent=error.message;}
   }
   entry.addEventListener('click',async()=>{
     picker.showModal();$('collection-picker-status').textContent='';
@@ -66,12 +72,13 @@ export function createCollectionWorkspace({onEdit,notify}){
   });
   for(const button of document.querySelectorAll('[data-collection-close]'))button.addEventListener('click',()=>{button.dataset.collectionClose==='picker'?picker.close():dialog.close();});
   dialog.addEventListener('close',stop);
+  picker.addEventListener('close',()=>{loadGeneration++;});
   picker.addEventListener('click',async event=>{
     const id=event.target.closest('[data-collection-recent]')?.dataset.collectionRecent;if(!id)return;
-    try{await show(await request('/api/collections/'+id));}catch(error){$('collection-picker-status').textContent=error.message;}
+    await load('/api/collections/'+id);
   });
   for(const [id,path,body] of [['collection-load','register',()=>({path:$('collection-source').value})],['collection-create','create',()=>({directory:$('collection-images').value,brief:{theme:$('collection-new-theme').value}})]]){
-    $(id).addEventListener('click',async()=>{const button=$(id);button.disabled=true;try{await show(await request('/api/collections/'+path,body()));}catch(error){$('collection-picker-status').textContent=error.message;}finally{button.disabled=false;}});
+    $(id).addEventListener('click',async()=>{const button=$(id);button.disabled=true;try{await load('/api/collections/'+path,body());}finally{button.disabled=false;}});
   }
   for(const id of ['collection-theme','collection-purpose'])$(id).addEventListener('input',()=>{draft.brief.theme=$('collection-theme').value;draft.brief.purpose=$('collection-purpose').value;dirtyTheme=true;backupMade=false;$('collection-plan-status').textContent='主题尚未保存';$('collection-save-plan').disabled=true;$('collection-export').disabled=true;});
   $('collection-grid').addEventListener('change',event=>{
@@ -85,21 +92,22 @@ export function createCollectionWorkspace({onEdit,notify}){
     if(button.dataset.collectionEdit){if(dirty()&&!backupMade){notify('先保存或备份当前组图输入，再进入单图精修。');return;}dialog.close();onEdit(button.dataset.collectionEdit).catch(error=>notify(error.message));}
   });
   $('collection-previous').addEventListener('click',()=>{page--;render();});$('collection-next').addEventListener('click',()=>{page++;render();});
-  $('collection-save-theme').addEventListener('click',()=>operate(async()=>{
-    const next=await request(`/api/collections/${data.id}/brief`,{revision:data.revision,brief:draft.brief});
+  $('collection-save-theme').addEventListener('click',()=>operate(async scope=>{
+    const next=await request(`/api/collections/${scope.id}/brief`,{revision:scope.data.revision,brief:scope.draft.brief});if(!current(scope))return;
     data=next;draft.revision=next.revision;draft.snapshotHash=next.snapshotHash;draft.brief=structuredClone(next.brief);dirtyTheme=false;status('主题已保存，与 Agent 共用。');
   }));
-  $('collection-save-plan').addEventListener('click',()=>operate(async()=>{adopt(await request(`/api/collections/${data.id}/plan`,collectionPlan(draft,data)));status('选片与顺序已保存，与 Agent 共用。');}));
-  $('collection-export').addEventListener('click',()=>operate(async()=>{
-    exportController=new AbortController();status('正在按保存顺序导出，每张保留实际版本…');
-    const exported=await request(`/api/collections/${data.id}/export`,{revision:data.revision,snapshotHash:data.snapshotHash,preset:'share'},exportController.signal);
-    exportController=null;adopt(await request('/api/collections/'+data.id));const finished=collectionExportStatus(data,exported.job);
+  $('collection-save-plan').addEventListener('click',()=>operate(async scope=>{const next=await request(`/api/collections/${scope.id}/plan`,collectionPlan(scope.draft,scope.data));if(!current(scope))return;adopt(next);status('选片与顺序已保存，与 Agent 共用。');}));
+  $('collection-export').addEventListener('click',()=>operate(async scope=>{
+    const controller=new AbortController();exportController=controller;status('正在按保存顺序导出，每张保留实际版本…');
+    const exported=await request(`/api/collections/${scope.id}/export`,{revision:scope.data.revision,snapshotHash:scope.data.snapshotHash,preset:'share'},controller.signal);
+    if(exportController===controller)exportController=null;if(!current(scope))return;
+    const next=await request('/api/collections/'+scope.id);if(!current(scope))return;adopt(next);const finished=collectionExportStatus(data,exported.job);
     status(finished.complete?'整组已导出，可下载独立照片与顺序记录。':!finished.current?'导出文件对应任务开始时的版本；当前组图已更新，请复看并保存新方案后导出。':'部分导出未完成，已完成文件仍保留，请检查后重试。');
   }));
   $('collection-backup').addEventListener('click',()=>{
     const url=URL.createObjectURL(new Blob([JSON.stringify(draft,null,2)],{type:'application/json'})),a=document.createElement('a');a.href=url;a.download='framelark-collection-draft.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);backupMade=true;status('草稿备份已保存，可以读取最新组图。');
   });
-  $('collection-reload').addEventListener('click',()=>operate(async()=>{if(dirty()&&!backupMade)throw new Error('请先保存草稿备份，再读取最新组图。');adopt(await request('/api/collections/'+data.id));status('已读取最新组图。');}));
+  $('collection-reload').addEventListener('click',()=>operate(async scope=>{if(dirty()&&!backupMade)throw new Error('请先保存草稿备份，再读取最新组图。');const next=await request('/api/collections/'+scope.id);if(!current(scope))return;adopt(next);status('已读取最新组图。');}));
   window.addEventListener('beforeunload',event=>{if(dirty()&&!backupMade){event.preventDefault();event.returnValue='';}});
   request('/api/local-capabilities').then(c=>{entry.hidden=!c.local;entry.disabled=!c.projects;entry.title=c.projects?'主题、选片和顺序与 Agent 共用':'先准备本地修图工具';}).catch(()=>{});
   return {close(){dialog.close();picker.close();stop();}};

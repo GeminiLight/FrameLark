@@ -55,7 +55,7 @@ async function context(root,c){
   const photos=[];
   for(const p of c.photos){
     try{const project=await loadProject(projectPath(root,p));
-      photos.push({...p,revision:project.revision,versionId:project.currentId,stateHash:hash(project.versions.find(v=>v.id===project.currentId).state),source:project.source,intent:project.intent,notes:project.notes,acceptedId:project.acceptedId});
+      photos.push({...p,projectId:project.id,revision:project.revision,versionId:project.currentId,stateHash:hash(project.versions.find(v=>v.id===project.currentId).state),source:project.source,intent:project.intent,notes:project.notes,acceptedId:project.acceptedId});
     }catch(e){photos.push({...p,error:localFailure(e)});}
   }
   // Candidate browsing and export records do not alter the accepted image/context.
@@ -177,14 +177,23 @@ export async function exportCollection(folder,value,{collectionId}={}){
     const persist=async()=>{job.updatedAt=now();job.status=job.items.every(i=>i.status==='done')?'done':'partial';c.revision++;c.updatedAt=now();await writeState(root,c);await writeFile(path.join(root,job.folder,'manifest.json'),JSON.stringify({brief:plan.brief,title:plan.title,rationale:plan.rationale,order:plan.order,decisions:plan.decisions,unreviewed,job},null,2),{mode:0o600});};
     await persist();
     for(const item of job.items){
-      const output=path.join(root,job.folder,`${String(item.position).padStart(3,'0')}-${item.id}.${format==='jpeg'?'jpg':'png'}`);
+      const stem=`${String(item.position).padStart(3,'0')}-${item.id}`,extension=format==='jpeg'?'jpg':'png';
       try{
-        if(item.status==='done'){
+        if(item.status==='done'||item.result){
+          const name=typeof item.result?.path==='string'?item.result.path.split(/[\\/]/).at(-1):'';
+          if(!new RegExp(`^${stem}(?:-retry-[a-f0-9-]{36})?\\.${extension}$`).test(name)||item.result.versionId!==item.versionId||typeof item.result.fileHash!=='string')fail('COLLECTION_INVALID','已导出的记录与任务位置或版本不一致。');
+          const output=path.join(root,job.folder,name);
           if(hash(await readFile(output))!==item.result.fileHash)fail('COLLECTION_OUTPUT_CHANGED','已导出的文件被改变；请使用新的导出任务。');
+          item.result.path=output;item.status='done';delete item.error;
           continue;
         }
         const fresh=await context(root,c);
         if(fresh.snapshotHash!==ctx.snapshotHash)fail('STALE_COLLECTION','导出期间照片或批注已更新，剩余任务停止；请重新检查整组。');
+        // Reserve before rendering. A cancelled/failed attempt can leave a file
+        // without a result checkpoint; retry never reuses or deletes that path.
+        const attemptId=randomUUID(),name=value.retryJob?`${stem}-retry-${attemptId}.${extension}`:`${stem}.${extension}`;
+        item.outputAttempt={id:attemptId,name,createdAt:now()};item.status='pending';delete item.error;await persist();
+        const output=path.join(root,job.folder,name);
         const p=c.photos.find(p=>p.id===item.id);
         item.result=await exportPhoto(projectPath(root,p),item.versionId,{preset,format,output});item.status='done';delete item.error;
       }catch(e){item.status='failed';item.error=localFailure(e);}

@@ -1,6 +1,12 @@
 import {presets,presetById} from './presets.js';
 import {photoSnapshot,planStyle} from './batch-edits.js';
 import {cleanIntent} from './creative-intent.js';
+import {applyCommands} from './edit-stack/commands.js';
+import {presetCommands} from './edit-stack/styles.js';
+import {splitSettings} from './edit-stack/tools.js';
+import {derivedTitle} from './edit-stack/values.js';
+
+export const seriesPhotos=photos=>photos.filter(photo=>!photo.projectNativePending&&(!photo.projectId||photo.projectData?.supported&&!photo.preferNativeEditor));
 
 export const seriesPlatforms=[{id:'xiaohongshu',label:'小红书'},{id:'douyin',label:'抖音图文'},{id:'general',label:'其他 / 作品集'}];
 export const seriesPurposes=[{id:'story',label:'叙事分享'},{id:'travel',label:'旅行随记'},{id:'portrait',label:'人物交付'},{id:'event',label:'活动记录'},{id:'catalog',label:'商品展示'},{id:'portfolio',label:'作品精选'},{id:'archive',label:'留作记录'}];
@@ -48,6 +54,12 @@ export function seriesCandidate(photo,review,{useStyle=true,layerId='series-tria
   const before=photoSnapshot(photo),item=review.photos.find(p=>p.id===photo.id);
   if(!item)throw new Error('组图中缺少这张照片。');
   let candidate=structuredClone(before);
+  if(before.editDocument){
+    const commands=useStyle&&review.sharedStyle.presetId!=='none'?presetCommands(review.sharedStyle.presetId,review.sharedStyle.amount,{groupId:'look-'+crypto.randomUUID()}):[];
+    for(const value of splitSettings(Object.fromEntries(item.changes.map(c=>[c.key,c.value]))))commands.push({type:'AddStep',step:{...value,id:'series-'+crypto.randomUUID(),title:derivedTitle(review.title,{prefix:'组图 · '})}});
+    if(commands.length)candidate.editDocument=applyCommands(before.editDocument,commands).next;
+    return {before,candidate,item,commands,style:useStyle?presetById(review.sharedStyle.presetId):null};
+  }
   if(useStyle&&review.sharedStyle.presetId!=='none')candidate=planStyle(candidate,review.sharedStyle.presetId,review.sharedStyle.amount);
   if(item.changes.length)candidate.advisorLayers.push({id:layerId,source:'series',label:`组图 · ${review.title}`,settings:Object.fromEntries(item.changes.map(c=>[c.key,c.value]))});
   return {before,candidate,item,style:useStyle?presetById(review.sharedStyle.presetId):null};
