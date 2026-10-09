@@ -47,6 +47,7 @@
     "test:collections": "node scripts/check-shared-collections.mjs",
     "test:retouch-semantics": "node scripts/check-retouch-semantics.mjs",
     "test:shared-retouch-ui": "node scripts/check-shared-retouch-ui.mjs",
-    "test:series-documents": "node scripts/check-series-documents.mjs"
+    "test:series-documents": "node scripts/check-series-documents.mjs",
+    "test:series-inputs": "node scripts/check-series-inputs.mjs"
   }
 }

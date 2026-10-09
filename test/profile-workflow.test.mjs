@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,readFile,writeFile,rm} from 'node:fs/promises';
+import {mkdtemp,mkdir,readFile,writeFile,rm,stat,utimes} from 'node:fs/promises';
+import {spawn} from 'node:child_process';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
@@ -75,4 +76,40 @@ test('the same UTF-8 budget rejects a growing archive before changing its existi
 test('compatibility reads remain bounded before parsing an unreasonably large file',async t=>{
  const f=await fixture(t);await writeFile(f.profile,' '.repeat(8*1024*1024+1));
  await assert.rejects(f.call('profile-read'),{code:'PROFILE_INVALID'});
+});
+async function stoppedProfileUpdater(t,f){
+ const p=JSON.parse(await readFile(f.profile,'utf8'));p.retainedMetadata='x'.repeat(7*1024*1024);await writeFile(f.profile,JSON.stringify(p));
+ await f.call('profile-read');
+ const input=f.profile+'.edit.json';await writeFile(input,JSON.stringify({id:f.entry.id,reason:'interrupted write'}));
+ const cli=fileURLToPath(new URL('../skills/photo-retouch/scripts/cli.mjs',import.meta.url));
+ const child=spawn(process.execPath,[cli,'profile-edit','--profile',f.profile,'--input',input],{stdio:'ignore'});
+ const exited=new Promise(resolve=>child.on('exit',(code,signal)=>resolve({code,signal})));t.after(async()=>{child.kill('SIGKILL');await exited;});
+ let stopped=false;
+ for(let n=0;n<1000&&!stopped;n++){
+   if(await stat(f.profile+'.lock').catch(e=>{if(e.code==='ENOENT')return null;throw e;})){stopped=child.kill('SIGSTOP');break;}
+   await new Promise(resolve=>setTimeout(resolve,1));
+ }
+ assert.ok(stopped,'the real CLI updater must acquire its profile lock');
+ assert.ok((await stat(f.profile+'.lock')).isDirectory());return {child,exited};
+}
+test('public profile editing recovers after the real updater dies while holding its lock',{skip:process.platform==='win32'},async t=>{
+ const f=await fixture(t),{child,exited}=await stoppedProfileUpdater(t,f),before=await readFile(f.profile);
+ child.kill('SIGKILL');assert.equal((await exited).signal,'SIGKILL');
+ // Legacy profile locks have no owner. Advance their recovery age without a
+ // five-second sleep; active writer locks below retain their actual timestamp.
+ const stale=new Date(Date.now()-10_000);await utimes(f.profile+'.lock',stale,stale);
+ assert.deepEqual(await readFile(f.profile),before);assert.equal((await f.call('profile-read')).profile.entries.length,1);
+ await f.call('profile-edit',{id:f.entry.id,reason:'recovered write'});
+ assert.equal((await f.call('profile-read')).profile.entries[0].reason,'recovered write');
+ await f.call('profile-edit',{id:f.entry.id,remove:true});assert.equal((await f.call('profile-read')).profile.entries.length,0);
+});
+test('an active profile updater remains mutually exclusive and does not change saved preferences',{skip:process.platform==='win32'},async t=>{
+ const f=await fixture(t);await stoppedProfileUpdater(t,f);const before=await readFile(f.profile);
+ await assert.rejects(f.call('profile-edit',{id:f.entry.id,reason:'another writer'}),{code:'PROFILE_BUSY'});
+ assert.deepEqual(await readFile(f.profile),before);
+});
+test('a stale legacy profile lock without owner metadata can be recovered by an ordinary edit',async t=>{
+ const f=await fixture(t),lock=f.profile+'.lock';await mkdir(lock);const stale=new Date(Date.now()-10_000);await utimes(lock,stale,stale);
+ await f.call('profile-edit',{id:f.entry.id,reason:'legacy recovery'});
+ assert.equal((await f.call('profile-read')).profile.entries[0].reason,'legacy recovery');
 });

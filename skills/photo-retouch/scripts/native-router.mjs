@@ -1,8 +1,8 @@
 import {readFile} from 'node:fs/promises';
-import path from 'node:path';
 import {loadProject,publicProject,createCandidate,selectCandidateItems,changeGuards,saveNote,deleteNote,setIntent,acceptCandidate,discardCandidate,restoreVersion,saveReview,recordExport,fail} from './project.mjs';
 import {editSources} from './workflow.mjs';
 import {handoffProject} from './handoff.mjs';
+import {readRecordedExport,projectExportFolder} from './recorded-export.mjs';
 
 const ui=new URL('./ui/',import.meta.url);
 const files={
@@ -33,8 +33,8 @@ export async function handleNativeProjectRoute(req,res,url,{folder,base='/',rend
       res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'no-store','X-Photo-Width':result.width,'X-Photo-Height':result.height,'X-Photo-Limited':String(result.limited),'X-Selection-Hash':result.selectionHash||'','X-Project-Revision':String(result.revision),'X-Frame-Spec':result.frameSpecHash});res.end(await readFile(result.path));return;
     }
     if(req.method==='GET'&&operation==='download'){
-      const p=await loadProject(folder),item=p.exports.find(x=>path.basename(x.path)===url.searchParams.get('file')&&path.dirname(x.path)===path.join(folder,'exports'));if(!item)fail('EXPORT_NOT_FOUND','成片未找到，请重新导出。');
-      res.writeHead(200,{'Content-Type':item.format==='tiff'?'image/tiff':item.format==='png'?'image/png':'image/jpeg','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(path.basename(item.path))}`,'Cache-Control':'no-store'});res.end(await readFile(item.path));return;
+      const file=await readRecordedExport(folder,await loadProject(folder),url.searchParams.get('file')),item=file.item;
+      res.writeHead(200,{'Content-Type':item.format==='tiff'?'image/tiff':item.format==='png'?'image/png':'image/jpeg','Content-Disposition':`attachment; filename*=UTF-8''${encodeURIComponent(file.name)}`,'Cache-Control':'no-store'});res.end(file.bytes);return;
     }
     if(req.method==='POST'){
       const value=await readBody(req),methods={candidate:createCandidate,'candidate-selection':selectCandidateItems,guards:changeGuards,note:saveNote,'delete-note':deleteNote,intent:setIntent,accept:acceptCandidate,discard:discardCandidate,restore:restoreVersion,review:saveReview,handoff:handoffProject};
@@ -45,7 +45,7 @@ export async function handleNativeProjectRoute(req,res,url,{folder,base='/',rend
         result=await handoffProject(folder,value);
       }
       else if(Object.hasOwn(methods,operation))result=await methods[operation](folder,operation==='candidate'?{...value,actorId:'workspace-user'}:value);
-      else if(operation==='export'){result=await render('export',value.version||'current',{preset:value.preset||'share',format:value.format,maxSide:value.maxSide,quality:value.quality,withoutText:value.withoutText===true});await recordExport(folder,result);}
+      else if(operation==='export'){await projectExportFolder(folder);result=await render('export',value.version||'current',{preset:value.preset||'share',format:value.format,maxSide:value.maxSide,quality:value.quality,withoutText:value.withoutText===true});await recordExport(folder,result);}
       else{json(res,404,{error:{message:'找不到这个操作。'}});return;}
       json(res,200,result);return;
     }

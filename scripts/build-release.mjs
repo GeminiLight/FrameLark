@@ -3,13 +3,14 @@ import {createHash,randomUUID} from 'node:crypto';
 import {resolve,join,relative,isAbsolute,dirname} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {realpathSync} from 'node:fs';
-import {buildPlugin,packageFiles,repositoryRoot} from './build-framelark-plugin.mjs';
+import {buildPlugin,packageFiles,repositoryRoot,validateBuildOutput} from './build-framelark-plugin.mjs';
 import {validateReleaseManifest} from './install-framelark-release.mjs';
 
 export async function buildRelease({root=repositoryRoot,tag,output=resolve(root,'dist/release')}={}){
   const version=JSON.parse(await readFile(join(root,'plugin.json'),'utf8')).version;
   tag??='v'+version;if(tag!=='v'+version)throw Error('Release tag must match the unified plugin version.');
   output=resolve(output);const relation=relative(resolve(root,'dist'),output);if(!relation||relation.startsWith('..')||isAbsolute(relation))throw Error('Release output must be under dist.');
+  await validateBuildOutput(root,output);
   await mkdir(dirname(output),{recursive:true});
   const stage=await mkdtemp(join(dirname(output),'.release-'));
   try{
@@ -28,6 +29,7 @@ export async function buildRelease({root=repositoryRoot,tag,output=resolve(root,
     const checksums=[];for(const name of assets)checksums.push(sha256(await readFile(join(stage,name)))+'  '+name);
     await writeFile(join(stage,'SHA256SUMS'),checksums.join('\n')+'\n');
     // Replace a complete validated asset set, keeping the previous build if promotion fails.
+    await validateBuildOutput(root,output);
     const backup=output+'.previous-'+randomUUID();let previous=false;
     try{await rename(output,backup);previous=true;}catch(error){if(error.code!=='ENOENT')throw error;}
     try{await rename(stage,output);}catch(error){if(previous)await rename(backup,output);throw error;}

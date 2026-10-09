@@ -11,7 +11,7 @@ const catalog={
   'photography-eye':{label:'摄影眼',setup:false},
   'photo-series':{label:'组图册',setup:false}
 };
-const help=`FrameLark 独立 Skill 安装\n\n默认精修台：node scripts/install-photo-skill.mjs [目标目录] [--update]\n单独摄影眼：node scripts/install-photo-skill.mjs --skill photography-eye [目标目录] [--update]\n组图册与精修引擎：node scripts/install-photo-skill.mjs --skill photo-series [宿主的 skills 根目录] [--update]\n三套一起：node scripts/install-photo-skill.mjs --all [宿主的 skills 根目录] [--update]\n\n组图册共享 photo-retouch 引擎，因此一起安装；不指定目录时安装到 ~/.codex/skills/，更新前保存旧版备份。`;
+const help=`FrameLark 独立 Skill 安装\n\n默认精修台：node scripts/install-photo-skill.mjs [目标目录] [--update]\n单独摄影眼：node scripts/install-photo-skill.mjs --skill photography-eye [目标目录] [--update]\n组图册与精修引擎：node scripts/install-photo-skill.mjs --skill photo-series [宿主的 skills 根目录] [--update]\n三套一起：node scripts/install-photo-skill.mjs --all [宿主的 skills 根目录] [--update]\n\n组图册共享 photo-retouch 引擎，因此一起安装；不指定目录时安装到当前 $CODEX_HOME/skills/（默认 ~/.codex/skills/），legacy 迁移和备份使用同一环境，更新前保存旧版备份。`;
 async function exists(folder){try{await access(folder);return true;}catch(e){if(e.code!=='ENOENT')throw e;return false;}}
 function options(args){
   let skill='photo-retouch',all=false,update=false,destination,selected=false;
@@ -28,7 +28,8 @@ function options(args){
   return {names:all?Object.keys(catalog):skill==='photo-series'?['photo-retouch','photo-series']:[skill],all,update,destination};
 }
 async function install({names,all,update,destination}){
-  const defaultHome=path.join(os.homedir(),'.codex','skills');
+  const codexRoot=path.resolve(process.env.CODEX_HOME||path.join(os.homedir(),'.codex'));
+  const defaultHome=path.join(codexRoot,'skills');
   const root=destination?path.resolve(destination):defaultHome;
   const entries=[];
   // Validate all existing destinations before preparing or replacing either skill.
@@ -60,7 +61,7 @@ async function install({names,all,update,destination}){
     }
     for(const entry of entries){
       if(entry.prior){
-        const backupRoot=destination?path.join(path.dirname(entry.target),'.framelark-skill-backups'):path.join(os.homedir(),'.codex','skill-backups');
+        const backupRoot=destination?path.join(path.dirname(entry.target),'.framelark-skill-backups'):path.join(codexRoot,'skill-backups');
         await mkdir(backupRoot,{recursive:true});
         entry.backup=path.join(backupRoot,path.basename(entry.prior)+'-'+Date.now()+'-'+randomUUID());
         await rename(entry.prior,entry.backup);

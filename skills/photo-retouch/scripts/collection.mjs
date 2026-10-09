@@ -6,6 +6,7 @@ import {initProject,loadProject,hash,fail,localFailure} from './project.mjs';
 import {previewPhoto,exportPhoto} from './render.mjs';
 import {object} from './engine/edit-values.js';
 import {pipelineVersion} from './engine/edit-identity.js';
+import {withFileLock} from './file-lock.mjs';
 
 export const collectionPurposes=['story','travel','portrait','event','catalog','portfolio','archive'];
 export const collectionSequences=['visual','chronological','emotional','manual'];
@@ -36,18 +37,7 @@ export async function loadCollection(folder){
   brief(c.brief);return c;
 }
 async function locked(folder,fn){
-  const root=path.resolve(folder),lock=path.join(root,'.collection-lock');let acquired=false;
-  for(let n=0;n<45&&!acquired;n++){
-    try{await mkdir(lock);acquired=true;await writeFile(path.join(lock,'owner'),String(process.pid));}
-    catch(e){if(e.code!=='EEXIST')throw e;
-      const owner=Number(await readFile(path.join(lock,'owner'),'utf8').catch(()=>0));
-      if(owner){try{process.kill(owner,0);}catch(e){if(e.code==='ESRCH')await rm(lock,{recursive:true,force:true});}}
-      else {const s=await stat(lock).catch(()=>null);if(s&&Date.now()-s.mtimeMs>5000)await rm(lock,{recursive:true,force:true});}
-      await new Promise(resolve=>setTimeout(resolve,70));
-    }
-  }
-  if(!acquired)fail('COLLECTION_BUSY','组图正在保存或导出，请稍后重试。');
-  try{return await fn(root,await loadCollection(root));}finally{await rm(lock,{recursive:true,force:true});}
+  const root=path.resolve(folder);return withFileLock(path.join(root,'.collection-lock'),async()=>fn(root,await loadCollection(root)),{busyCode:'COLLECTION_BUSY',busyMessage:'组图正在保存或导出，请稍后重试。'});
 }
 function revision(c,value){if(!Number.isInteger(value)||value!==c.revision)fail('STALE_COLLECTION','组图已更新。请重新 collection-inspect，再提交。');}
 const projectPath=(root,p)=>path.join(root,p.project);

@@ -5,7 +5,7 @@ import {createHash,randomUUID} from 'node:crypto';
 import {buildPlugin,packageFiles,repositoryRoot} from './build-framelark-plugin.mjs';
 import {installationGuide} from './installation-guide.mjs';
 import {verifyInstalledPlugin} from './install-photography-eye.mjs';
-import {runReleaseCodex,withFrameLarkInstallLock,sourceCatalog,sourceSnapshot,sameRoot,moveRuntime,backupPluginInstallation,restorePluginInstallation,assertInstallSelection,assertRollbackSource,readInstallSelection} from './install-framelark-release.mjs';
+import {runReleaseCodex,withFrameLarkInstallLock,sourceCatalog,sourceSnapshot,sameRoot,moveRuntime,backupPluginInstallation,restorePluginInstallation,assertInstallSelection,assertRollbackSource,captureExpectedInstallSelection} from './install-framelark-release.mjs';
 
 const retry='npm run plugin:install:local'+(process.argv.includes('--photography-eye')?':photography-eye':''),codex=runReleaseCodex,digest=data=>createHash('sha256').update(data).digest('hex');
 const exists=path=>stat(path).then(()=>true,error=>{if(error.code==='ENOENT')return false;throw error;});
@@ -42,7 +42,7 @@ async function installLocal(){
       codex(['plugin','marketplace','add',built.marketplaceRoot]);
       attempted=true;const installed=codex(['plugin','add',pluginId]);
       if(installed.pluginId!==pluginId||!installed.installedPath||!isAbsolute(installed.installedPath))throw Error('Codex 返回了预期之外的本地安装目录。');
-      committedSelection=readInstallSelection({marketplaceName,pluginId,codex});
+      committedSelection=await captureExpectedInstallSelection({marketplaceName,pluginId,sourceRoot:built.marketplaceRoot,sourceFolder:built.folder,version:built.version,installedPath:installed.installedPath,files,codex});
       if(!eyeOnly){
         const target=join(installed.installedPath,'skills/photo-retouch/node_modules');
         if(await exists(runtime))await moveRuntime(runtime,target);
@@ -56,7 +56,8 @@ async function installLocal(){
       console.log(JSON.stringify({ok:true,...verified,retouchDependencies:eyeOnly?'not-required':'ready',next:'Open a new Codex chat to load the installed plugin.',gettingStarted:guide,...(installationBackup?{previousInstallationBackup:dirname(installationBackup.backupPath)}:{})},null,2));console.error(guide.message);
     }catch(error){
       const failures=[],attempt=async action=>{try{await action();return true;}catch(restore){failures.push(restore.message);return false;}};
-      if(changed){
+      if(changed&&error.code==='INSTALL_SELECTION_CHANGED')failures.push(error.message);
+      else if(changed){
         let active;const observed=await attempt(async()=>{active=codex(['plugin','marketplace','list']).marketplaces?.find(p=>p.name===marketplaceName);});
         let owned=observed&&(!active||sameRoot(active.root,built.marketplaceRoot)||current&&sameRoot(active.root,current.root));
         if(owned)owned=await attempt(async()=>{

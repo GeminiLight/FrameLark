@@ -35,6 +35,7 @@ export async function verifyReleasePlugin({pluginId,installedPath,skills,version
   if(JSON.stringify(actual)!==JSON.stringify([...skills].sort()))fail('安装后的 Skill 内容与预期不一致。');
   const status=codex(['plugin','list','--marketplace','framelark']).installed?.find(p=>p.pluginId===pluginId);
   if(status?.installed!==true||status.enabled!==true)fail('插件尚未安装或未启用，请在 Codex 插件页检查。');
+  if(status.version!==version)fail('当前选中的插件版本与安装副本不一致，未报告成功。');
   return {pluginId,installedPath,version,skills,installed:true,enabled:true};
 }
 async function download(url,maxBytes,fetchImpl){
@@ -182,6 +183,10 @@ export async function backupPluginInstallation(plugin,{pluginId=plugin.pluginId,
   const snapshot={pluginId,version:plugin.version,originalPath,backupPath,inventory};
   await writeFile(join(backupDirectory,'installation.json'),JSON.stringify(snapshot,null,2)+'\n',{mode:0o600});return snapshot;
 }
+function selectedCachePath(plugin,pluginId,cacheRoot=join(process.env.CODEX_HOME||join(homedir(),'.codex'),'plugins/cache')){
+  const [name,marketplace]=pluginId.split('@');
+  return plugin.installedPath||join(cacheRoot,marketplace,name,plugin.version);
+}
 export async function restorePluginInstallation(snapshot){
   if(!isDeepStrictEqual(await installationInventory(snapshot.backupPath),snapshot.inventory))fail('原安装备份发生变化，未覆盖现有安装。');
   if(await exists(snapshot.originalPath)){
@@ -198,9 +203,23 @@ function sourceIdentity(source){
   if(key&&typeof value[key]==='string'&&isAbsolute(value[key]))try{value[key]=realpathSync(value[key]);}catch{value[key]=resolve(value[key]);}
   return value;
 }
-const pluginChoice=plugin=>plugin?{installed:plugin.installed,enabled:plugin.enabled,version:plugin.version,installPolicy:plugin.installPolicy,authPolicy:plugin.authPolicy,source:sourceIdentity(plugin.source),marketplaceSource:sourceIdentity(plugin.marketplaceSource)}:null;
+const pluginChoice=plugin=>plugin?{installed:plugin.installed,enabled:plugin.enabled,version:plugin.version,installedPath:plugin.installedPath?sourceIdentity({source:'local',path:plugin.installedPath}).path:undefined,installPolicy:plugin.installPolicy,authPolicy:plugin.authPolicy,source:sourceIdentity(plugin.source),marketplaceSource:sourceIdentity(plugin.marketplaceSource)}:null;
 export function readInstallSelection({marketplaceName,pluginId,codex}){
   return {current:structuredClone(codex(['plugin','marketplace','list']).marketplaces?.find(p=>p.name===marketplaceName)),plugin:structuredClone(codex(['plugin','list','--marketplace',marketplaceName]).installed?.find(p=>p.pluginId===pluginId&&p.installed===true))};
+}
+export async function captureExpectedInstallSelection({marketplaceName,pluginId,sourceRoot,sourceFolder,version,installedPath,files,cacheRoot,codex}){
+  const observed=readInstallSelection({marketplaceName,pluginId,codex}),market=observed.current,plugin=observed.plugin;
+  const expectedSource=sourceIdentity({sourceType:'local',source:resolve(sourceRoot)});
+  const sameMarket=market&&sameRoot(market.root,sourceRoot)&&(!market.marketplaceSource||isDeepStrictEqual(sourceIdentity(market.marketplaceSource),expectedSource));
+  const samePlugin=plugin?.installed===true&&plugin.enabled===true&&plugin.version===version&&sameRoot(selectedCachePath(plugin,pluginId,cacheRoot),installedPath)&&(!plugin.source||isDeepStrictEqual(sourceIdentity(plugin.source),sourceIdentity({source:'local',path:resolve(sourceFolder)})))&&(!plugin.marketplaceSource||isDeepStrictEqual(sourceIdentity(plugin.marketplaceSource),expectedSource));
+  if(!sameMarket||!samePlugin)throw Object.assign(Error('安装回执对应的来源、版本、缓存或启用选择与本次目标不一致，已保留当前选择；请核对后重试。'),{code:'INSTALL_SELECTION_CHANGED'});
+  try{
+    for(const file of files)if(digest(await readFile(join(installedPath,file.path||file.name)))!==digest(file.data))throw Error('选中的安装副本与本次维护字节不一致。');
+  }catch(error){throw Object.assign(Error('无法核对选中缓存的本次维护字节，已保留当前选择：'+error.message,{cause:error}),{code:'INSTALL_SELECTION_CHANGED'});}
+  // Byte verification yields to the UI. Take ownership only if the same exact
+  // selection still holds when that verification has completed.
+  assertInstallSelection({marketplaceName,pluginId,codex,...observed});
+  return observed;
 }
 export function assertInstallSelection({marketplaceName,pluginId,current,plugin,codex}){
   const observed=readInstallSelection({marketplaceName,pluginId,codex}),market=observed.current;
@@ -332,7 +351,7 @@ async function installReleaseUnlocked({photographyEye=false,tag,root=process.env
     registered=true;codex(['plugin','marketplace','add',marketplaceRoot]);
     pluginAttempted=true;const installed=codex(['plugin','add',pluginId]);
     if(installed.pluginId!==pluginId||!installed.installedPath||!isAbsolute(installed.installedPath))fail('Codex 返回了预期之外的安装结果。');
-    committedSelection=readInstallSelection({marketplaceName:'framelark',pluginId,codex});
+    committedSelection=await captureExpectedInstallSelection({marketplaceName:'framelark',pluginId,sourceRoot:marketplaceRoot,sourceFolder:join(marketplaceRoot,'releases',releaseTag,name),version:pkg.version,installedPath:installed.installedPath,files:packages.find(p=>p.pkg.name===name).files,cacheRoot:installedCacheRoot,codex});
     if(!photographyEye){if(await exists(runtime))await moveRuntime(runtime,join(installed.installedPath,'skills/photo-retouch/node_modules'));await prepareRuntime(installed.installedPath);}
     for(const file of packages.find(p=>p.pkg.name===name).files)if(digest(await readFile(join(installed.installedPath,file.path)))!==digest(file.data))fail('安装副本与版本包内容不一致，未报告成功。');
     const verified=await verifyReleasePlugin({pluginId,installedPath:installed.installedPath,skills,version:pkg.version,codex});
@@ -341,6 +360,7 @@ async function installReleaseUnlocked({photographyEye=false,tag,root=process.env
   }catch(error){
     if(!catalogChanged)throw error;
     const recoveryMessage=reason=>'安装失败：'+error.message+'；原安装自动恢复未完成：'+reason+'。\n恢复记录：'+recoveryPath;
+    if(error.code==='INSTALL_SELECTION_CHANGED')throw Error(recoveryMessage(error.message),{cause:error});
     try{
       if(committedSelection)assertInstallSelection({marketplaceName:'framelark',pluginId,codex,...committedSelection});
       else assertRollbackSource({marketplaceName:'framelark',pluginId,current,plugin:priorPlugin,sourceRoot:marketplaceRoot,targetVersion:pkg.version,targetSource:join(marketplaceRoot,'releases',releaseTag,name),codex});

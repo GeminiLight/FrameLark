@@ -9,6 +9,7 @@ import {createPhotoRequests} from './photo-requests.js';
 import {presetById} from './presets.js';
 import {enhanceSelectControls} from './select-control.js?v=3';
 import {readServiceJSON,requestFailure} from './service-response.js';
+import {seriesInputLimits,seriesImageBudget,encodeSeriesPreview,seriesRequestBody} from './series-input.js';
 
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const names={exposure:'曝光',highlights:'高光',shadows:'阴影',whites:'白色',blacks:'黑色',warmth:'色温',tint:'色调',vibrance:'自然饱和度',saturation:'饱和度',contrast:'对比度'};
@@ -90,14 +91,16 @@ export function createSeriesWorkspace({getPhotos,canOpen=()=>true,onChange,onAcc
     const list=members(),requestedOrder=[...saved.ids];if(list.length<2)return;
     invalidate();base=seriesSignature(list,saved);const task=requests.start('series');busy=true;$('series-review').disabled=true;$('series-cancel').hidden=false;status('正在读取整组当前效果…');
     try{
-      const input=[];
-      for(let i=0;i<list.length;i++){
-        task.controller.signal.throwIfAborted();const photo=list[i],snapshot=photoSnapshot(photo),canvas=await pixels(photo,snapshot,800);
-        input.push({id:photo.id,name:photo.imageName,image:canvas.toDataURL('image/jpeg',.72),intent:photo.creativeIntent,editProtocol:snapshot.editDocument?'frameyn-edit-stack/3':'frameyn-legacy/1',settings:snapshotSettings(snapshot),crop:snapshot.crop,notes:snapshot.annotations.map(n=>({note:n.note,rect:n.rect}))});
+      const prepared=list.map(photo=>({photo,snapshot:photoSnapshot(photo)}));
+      const request={...seriesBrief(saved),photos:prepared.map(({photo,snapshot})=>({id:photo.id,name:photo.imageName,image:'',intent:photo.creativeIntent,editProtocol:snapshot.editDocument?'frameyn-edit-stack/3':'frameyn-legacy/1',settings:snapshotSettings(snapshot),crop:snapshot.crop,notes:snapshot.annotations.map(n=>({note:n.note,rect:n.rect}))}))};
+      const imageBudget=seriesImageBudget(request);
+      for(let i=0;i<prepared.length;i++){
+        task.controller.signal.throwIfAborted();const {photo,snapshot}=prepared[i],canvas=await pixels(photo,snapshot,seriesInputLimits.previewSide);
+        task.controller.signal.throwIfAborted();request.photos[i].image=encodeSeriesPreview(canvas,imageBudget);
         status(`已准备 ${i+1} / ${list.length} 张，正在理解整组表达…`);
       }
       task.controller.signal.throwIfAborted();
-      const response=await fetch('/api/series-review',{method:'POST',signal:task.controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({...seriesBrief(saved),photos:input})});
+      const response=await fetch('/api/series-review',{method:'POST',signal:task.controller.signal,headers:{'Content-Type':'application/json'},body:seriesRequestBody(request)});
       const value=await readServiceJSON(response,'组图审片');if(!response.ok)throw new Error(value.error?.message||'组图审片暂时不可用，请重试。');
       if(!requests.active(task))return;
       if(base!==seriesSignature(members(),saved))throw new Error('照片、批注或目标已变化，请根据当前版本重新审片。');
