@@ -1,7 +1,8 @@
-import {lstat,mkdir,readFile,readdir,writeFile,rm,realpath} from 'node:fs/promises';
+import {lstat,mkdir,readFile,readdir,writeFile,rm,realpath,rename} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
 import {realpathSync} from 'node:fs';
 import {execFileSync} from 'node:child_process';
-import {resolve,relative,join,sep,posix} from 'node:path';
+import {resolve,relative,join,sep,posix,dirname,basename,isAbsolute} from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {deflateRawSync} from 'node:zlib';
 
@@ -9,6 +10,31 @@ export const repositoryRoot=fileURLToPath(new URL('../',import.meta.url));
 const excluded=new Set(['node_modules','.raw-venv','__pycache__','.DS_Store']);
 const payloadRoots=['plugin.json','.codex-plugin','assets','skills/photo-retouch','skills/photography-eye','skills/photo-series'];
 const privateParts=new Set(['node_modules','.raw-venv','__pycache__','.DS_Store','.git','.guangjian','.vercel','photos','projects','exports','drafts','artifacts','coverage','dist']);
+async function canonicalPath(path){
+  try{return await realpath(path);}catch(error){
+    if(error.code!=='ENOENT')throw error;
+    const parent=dirname(path);if(parent===path)throw error;
+    return join(await canonicalPath(parent),basename(path));
+  }
+}
+const contains=(parent,child)=>{const part=relative(parent,child);return !part||!isAbsolute(part)&&part.split(sep)[0]!=='..';};
+export async function validateBuildOutput(root,output){
+  const destination=await canonicalPath(resolve(output));
+  const tracked=execFileSync('git',['ls-files','--cached','-z'],{cwd:root,encoding:'utf8'}).split('\0').filter(Boolean);
+  // A dist alias may intentionally point to another disk. It must never point
+  // into a maintained tree, or promotion could delete that tree as old output.
+  const inputs=new Set(['.git',...tracked.map(name=>name.split('/')[0])]);
+  const metadata=['--absolute-git-dir','--git-common-dir'].map(option=>resolve(root,execFileSync('git',['rev-parse',option],{cwd:root,encoding:'utf8'}).trim()));
+  for(const input of [...inputs].map(name=>join(root,name)).concat(metadata)){
+    const source=await canonicalPath(input);
+    if(contains(source,destination)||contains(destination,source))throw Error('Build output cannot overlap a maintained source directory or its ancestor: '+output);
+  }
+}
+async function writeOutputLeaf(path,data){
+  // Replacing the leaf prevents a regular hardlink from truncating its source.
+  const temporary=path+'.'+randomUUID()+'.tmp';
+  try{await writeFile(temporary,data,{flag:'wx'});await rename(temporary,path);}finally{await rm(temporary,{force:true});}
+}
 function isPrivateFile(name){
   return name.split('/').some(part=>privateParts.has(part)||/^\.env(?:\.|$)/.test(part)||/\.(?:log|tmp|pyc)$/.test(part));
 }
@@ -69,6 +95,7 @@ export async function buildPlugin({root=repositoryRoot,output,archive=true,varia
   output=resolve(output||resolve(root,'dist',name));
   const relation=relative(root,output);
   if(output===root||relation.split(sep)[0]!=='dist')throw Error('Build output must be under this repository’s dist directory.');
+  await validateBuildOutput(root,output);
   // Read and validate every input before replacing a previously good release.
   const metadataPath='plugins/framelark-eye/.codex-plugin/plugin.json';
   const sourceFiles=await maintainedPluginFiles(root,eyeOnly?['skills/photography-eye',metadataPath]:payloadRoots);
@@ -96,15 +123,20 @@ export async function buildPlugin({root=repositoryRoot,output,archive=true,varia
   marketplace.plugins=[{...entry,source:{source:'local',path:'./'+name}}];
   if(eyeOnly){marketplace.name=name;marketplace.interface={displayName:'FrameLark 摄影眼'};}
   const folder=join(output,'marketplace',name);
+  await validateBuildOutput(root,output);
+  await validateBuildOutput(root,folder);
+  const catalog=join(output,'marketplace/.agents/plugins/marketplace.json');
+  const zipPath=join(output,`${name}-${manifest.version}.zip`);
+  await validateBuildOutput(root,catalog);
+  if(archive)await validateBuildOutput(root,zipPath);
   await rm(folder,{recursive:true,force:true});await mkdir(folder,{recursive:true});
   for(const file of files){
     const destination=resolve(folder,file.name);
     await mkdir(resolve(destination,'..'),{recursive:true});
     await writeFile(destination,file.data);
   }
-  const catalog=join(output,'marketplace/.agents/plugins/marketplace.json');await mkdir(resolve(catalog,'..'),{recursive:true});await writeFile(catalog,JSON.stringify(marketplace,null,2)+'\n');
-  const zipPath=join(output,`${name}-${manifest.version}.zip`);
-  if(archive)await writeFile(zipPath,zip(files,name));
+  await validateBuildOutput(root,catalog);await mkdir(resolve(catalog,'..'),{recursive:true});await writeOutputLeaf(catalog,JSON.stringify(marketplace,null,2)+'\n');
+  if(archive){await validateBuildOutput(root,zipPath);await writeOutputLeaf(zipPath,zip(files,name));}
   return {name,skills,marketplaceName:marketplace.name,folder,marketplaceRoot:join(output,'marketplace'),marketplacePath:catalog,zipPath:archive?zipPath:null,files:files.length,version:manifest.version};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(realpathSync(process.argv[1])).href)console.log(JSON.stringify(await buildPlugin({variant:process.argv.includes('--photography-eye')?'photography-eye':'full'}),null,2));

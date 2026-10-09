@@ -1,0 +1,13 @@
+import vm from 'node:vm';
+import {readFile} from 'node:fs/promises';
+import {join} from 'node:path';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+const options=JSON.parse(await readFile(process.argv[2],'utf8'));
+const isolated={argv:['node',fileURLToPath(import.meta.url)],env:{CODEX_HOME:options.profile},versions:process.versions};
+const context=vm.createContext({process:isolated,console,Buffer,structuredClone,fetch,setTimeout,clearTimeout});
+const entry=new vm.SourceTextModule(await readFile(options.module,'utf8'),{context,initializeImportMeta:meta=>{meta.url=pathToFileURL(options.module).href;}});
+await entry.link(async spec=>{const namespace=await import(spec);return new vm.SyntheticModule(Object.keys(namespace),function(){for(const name of Object.keys(namespace))this.setExport(name,namespace[name]);},{context});});
+await entry.evaluate();
+const files=await Promise.all(options.paths.map(async name=>({name,data:await readFile(join(options.sourceFolder,name))})));
+const selection=await entry.namespace.captureExpectedInstallSelection({...options,files,codex:args=>args[1]==='marketplace'?{marketplaces:[options.market]}:{installed:[options.plugin]}});
+console.log(JSON.stringify({ok:true,version:selection.plugin.version,hadInstalledPath:Object.hasOwn(selection.plugin,'installedPath')}));

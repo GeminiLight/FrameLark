@@ -4,7 +4,7 @@ import {publicToolRun} from '../tools/results.mjs';
 import {FileRegistry} from './registry.mjs';
 import {readFile,writeFile,mkdir,rename,realpath,mkdtemp,rm,stat} from 'node:fs/promises';
 import {watch} from 'node:fs';
-import {resolve,join,basename,sep} from 'node:path';
+import {resolve,join,basename} from 'node:path';
 import {tmpdir} from 'node:os';
 import {documentHash} from '../../public/edit-stack/identity.js';
 import {createHash,randomUUID} from 'node:crypto';
@@ -15,6 +15,7 @@ export class ProjectBridge {
     try{return await import('../../../../skills/photo-retouch/scripts/project.mjs');}
     catch(error){if(error.code==='ERR_MODULE_NOT_FOUND')throw Object.assign(new Error('请在项目目录运行 npm run setup，安装本地图片处理依赖后重试。'),{code:'PROJECT_SETUP_REQUIRED'});throw error;}
   }
+  async exportFiles(){return import('../../../../skills/photo-retouch/scripts/recorded-export.mjs');}
   async capabilities(){try{const runtime=await this.runtime();const {rawCapabilities}=await import('../../../../skills/photo-retouch/scripts/raw/backends.mjs');const raw=await rawCapabilities();return {projects:true,heic:process.platform==='darwin',raw,retouch:runtime.retouchCapabilities({surface:'studio',rawDecode:raw.available})};}catch{return {projects:false,heic:process.platform==='darwin',raw:{available:false},setup:'npm run setup'};}}
   async registry(){return this.projectRegistry.read();}
   async register(folder){
@@ -37,10 +38,10 @@ export class ProjectBridge {
       capabilities:native.capabilities,workspaceSupport:native.workspaceSupport,currentAudit:native.currentAudit,supported:!limitations,limitations,editor:`/api/projects/${p.id}/editor/?embedded=1`,workflow:native.workflowStatus,collaboration:native.collaboration,
       diagnosis:p.diagnoses?.find(d=>d.id===native.workflowStatus.diagnosisId)||null,updatedAt:p.updatedAt,acceptedBy:current.acceptedBy||null,generatedBy:current.generatedBy||null,
       versions:p.versions.map((v,index)=>({id:v.id,requestId:v.requestId||null,name:v.name,at:v.createdAt,kind:index===0?'original':v.kind||'native',mode:v.mode,toolRuns:versionToolRuns(v),state:v.state,document:v.recipe||null,notes:v.workspaceNotes||p.notes,supported:!runtime.workspaceLimitations(p,v.state,v.workspaceNotes||p.notes)})),candidates:p.candidates.map(c=>({audit:native.workflowStatus.trials.find(t=>t.id===c.id)?.audit||null,id:c.id,name:c.name,goal:c.goal,tradeoff:c.tradeoff,actorId:c.actorId||null,handoffId:c.handoffId||null,document:c.recipe||null,selectionHash:c.selectionHash,selectedItemIds:c.selectedItemIds,policy:c.policy||null,generatedBy:c.generatedBy||null,items:c.items.map(({id,title,dependsOn,operation,execution,commands,visual})=>({id,title,dependsOn,operation,execution,commands,visual})),stale:c.baseFingerprint!==this.fingerprint(p),unsupported:c.mode==='guards'||Boolean(c.state.textOverlays?.length)})),
-      exports:(p.exports||[]).map(e=>({path:e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
+      exports:(p.exports||[]).map(e=>({path:this.exportRecordPath?this.exportRecordPath(path,e):e.path,versionId:e.versionId,width:e.width,height:e.height,at:e.createdAt})),conversation:p.workspaceConversation || []};
   }
   fingerprint(p){return this.contextHash?.(p);}
-  async mutationView(runtime,p,path){this.hash=runtime.hash;const {pipelineVersion}=await import('../../../../skills/photo-retouch/scripts/engine/edit-identity.js'),{contextHash}=await import('../../../../skills/photo-retouch/scripts/workflow-state.mjs');this.pipeline=pipelineVersion;this.contextHash=contextHash;return this.view(p,path,runtime);}
+  async mutationView(runtime,p,path){this.hash=runtime.hash;const {pipelineVersion}=await import('../../../../skills/photo-retouch/scripts/engine/edit-identity.js'),{contextHash}=await import('../../../../skills/photo-retouch/scripts/workflow-state.mjs');this.pipeline=pipelineVersion;this.contextHash=contextHash;this.exportRecordPath=(await this.exportFiles()).exportRecordPath;return this.view(p,path,runtime);}
   async get(id){const {runtime,p,path}=await this.resolve(id);return this.mutationView(runtime,p,path);}
   async list(){return Object.entries(await this.registry()).map(([id,r])=>({id,...r}));}
   async handoff(id,value){const {runtime,path}=await this.resolve(id);const {handoffProject}=await import('../../../../skills/photo-retouch/scripts/handoff.mjs');const result=await handoffProject(path,value);return this.mutationView(runtime,result.project,path);}
@@ -126,7 +127,7 @@ export class ProjectBridge {
   async export(id,{versionId,options={}},signal){
     const {runtime,p,path}=await this.resolve(id);if(!p.versions.some(v=>v.id===versionId))throw new Error('请先保存当前调整再导出。');
     const {maxSide,format,preset,quality,dpi,includeArtwork,author,copyright}=options;
-    const output=join(path,'exports',randomUUID()+(format==='tiff'?'.tif':format==='png'?'.png':'.jpg'));
+    const {projectExportFolder}=await this.exportFiles(),output=join(await projectExportFolder(path),randomUUID()+(format==='tiff'?'.tif':format==='png'?'.png':'.jpg'));
     let result;
     try{
       result=await this.render('export',path,versionId,{output,maxSide,format,preset,quality:quality<=1?quality*100:quality,dpi,includeArtwork,author,copyright,title:p.source.name},signal);
@@ -136,9 +137,7 @@ export class ProjectBridge {
     return {...result,download:`/api/projects/${id}/exports/${encodeURIComponent(basename(result.path))}`};
   }
   async exportedFile(id,name){
-    const {p,path}=await this.resolve(id);if(basename(name)!==name||!p.exports.some(e=>e.path===join(path,'exports',name)))throw new Error('找不到这份成片。');
-    const file=await realpath(join(path,'exports',name));if(!file.startsWith(join(path,'exports')+sep))throw new Error('成片路径无效。');
-    return {bytes:await readFile(file),name};
+    const {p,path}=await this.resolve(id),{readRecordedExport}=await this.exportFiles(),file=await readRecordedExport(path,p,name);return {bytes:file.bytes,name:file.name};
   }
   async subscribe(id,send){
     const {path}=await this.resolve(id);let timer,closed=false;

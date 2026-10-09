@@ -27,6 +27,7 @@ import {validPhotoMetering,meteringPrompt} from '../public/photo-metering.js';
 import {reviewContext,reviewContextPrompt,reviewBaseline,anchoredAssessment} from '../public/review-context.js';
 import {validReviewTrials,trialPrompt} from '../public/review-calibration.js';
 import {reviewPhotoSeries} from './ai/series.mjs';
+import {seriesInputLimits} from '../public/series-input.js';
 
 export const port = Number(process.env.PORT || 3177);
 export const host = process.env.HOST || '127.0.0.1';
@@ -247,7 +248,7 @@ async function routeRequest(request, response) {
   }
   if (url.pathname === '/api/series-review' && request.method === 'POST') {
     if(!vision.isConfigured())return sendJson(response,503,{error:new VisionError('AI_NOT_CONFIGURED','尚未连接视觉模型；可以先整理组图，连接后再一起审片。',{status:503}).toJSON()});
-    try{return sendJson(response,200,await reviewPhotoSeries(vision,await readJson(request,3_800_000),cancelOnDisconnect(response)));}
+    try{return sendJson(response,200,await reviewPhotoSeries(vision,await readJson(request,seriesInputLimits.requestBytes),cancelOnDisconnect(response)));}
     catch(error){return sendVisionFailure(response,error);}
   }
   if (url.pathname === '/api/design-chat' && request.method === 'POST') {

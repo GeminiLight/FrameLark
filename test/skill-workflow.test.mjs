@@ -108,3 +108,40 @@ test('independent review cannot reuse a packet for a different rendered frame, a
  await assert.rejects(audit(folder,c,{maxSide:513,pixelHash:other.pixelHash,frameSpecHash:other.frameSpecHash,reviewer:{id:'editor-b',mode:'independent',packetId:packet.id}}),{code:'REVIEW_PACKET_STALE'});
  p=await loadProject(folder);await saveNote(folder,{revision:p.revision,rect:{x:.2,y:.2,width:.3,height:.3},note:'最新批注'});assert.equal(workflowStatus(await loadProject(folder)).stage,'diagnosis');
 });
+
+test('a saved photo with unresolved blocking diagnosis findings is not delivered by a ready audit',async t=>{
+ const {folder}=await fixture(t);let p=await loadProject(folder);await configureWorkflow(folder,{revision:p.revision,mode:'reviewed'});await diagnose(folder);p=await loadProject(folder);
+ const saved=await audit(folder,{id:p.currentId},{reviewer:{id:'editor-a',mode:'self'},resolutions:[]});
+ assert.equal(saved.audit.decision,'ready');assert.notEqual((await runCLI(['workflow','--project',folder])).workflow.stage,'delivered');
+});
+test('independent workflow retains self audits without marking the saved photo delivered',async t=>{
+ const {folder}=await fixture(t);let p=await loadProject(folder);await configureWorkflow(folder,{revision:p.revision,mode:'reviewed',independent:true});await diagnose(folder);p=await loadProject(folder);
+ const saved=await audit(folder,{id:p.currentId},{reviewer:{id:'editor-a',mode:'self'},resolutions:[{findingId:'skin',status:'preserved',evidence:'保留现场暖光与肤色的关系'}]});
+ assert.equal(saved.audit.reviewer.mode,'self');assert.notEqual((await runCLI(['workflow','--project',folder])).workflow.stage,'delivered');
+});
+test('a saved photo is delivered by an applicable ready audit resolving its current blocking findings',async t=>{
+ const {folder}=await fixture(t);let p=await loadProject(folder);await configureWorkflow(folder,{revision:p.revision,mode:'reviewed'});await diagnose(folder);p=await loadProject(folder);
+ await audit(folder,{id:p.currentId},{reviewer:{id:'editor-a',mode:'self'},resolutions:[{findingId:'skin',status:'preserved',evidence:'保留现场暖光与肤色的关系'}]});
+ assert.equal((await runCLI(['workflow','--project',folder])).workflow.stage,'delivered');
+});
+test('accepted independent delivery remains complete when the base diagnosis is no longer active',async t=>{
+ const {folder}=await fixture(t);let p=await loadProject(folder);await configureWorkflow(folder,{revision:p.revision,mode:'reviewed',independent:true});await diagnose(folder);
+ const {candidate:c}=await candidate(folder);p=await loadProject(folder);const {packet}=await prepareReview(folder,{revision:p.revision,versionId:c.id,maxSide:800});
+ const reviewed=await audit(folder,c,{reviewer:{id:'editor-b',mode:'independent',packetId:packet.id},resolutions:[{findingId:'skin',status:'resolved',evidence:'脸与衣服的综合色调自然'}]});
+ const accepted=await acceptCandidate(folder,{id:c.id,revision:reviewed.project.revision,acceptedBy:'agent'});
+ const status=(await runCLI(['workflow','--project',folder])).workflow;assert.equal(status.diagnosisId,null);assert.equal(status.stage,'delivered');assert.equal(accepted.project.choices.length,0);
+});
+test('manual workflow and explicit user acceptance keep their existing direct behavior',async t=>{
+ const {folder}=await fixture(t);const {candidate:c}=await candidate(folder);await acceptCandidate(folder,{id:c.id,acceptedBy:'user'});
+ let p=await loadProject(folder);assert.equal(p.versions.at(-1).acceptedBy,'user');assert.equal(p.choices.length,1);
+ await diagnose(folder);await audit(folder,{id:p.currentId},{reviewer:{id:'editor-a',mode:'self'},resolutions:[]});
+ assert.equal((await runCLI(['workflow','--project',folder])).workflow.stage,'delivered');
+});
+test('explicit user acceptance and export stay available under reviewed independent workflow',async t=>{
+ const {folder,root}=await fixture(t);let p=await loadProject(folder);await configureWorkflow(folder,{revision:p.revision,mode:'reviewed',independent:true});await diagnose(folder);
+ const {candidate:c}=await candidate(folder);p=await loadProject(folder);
+ const accepted=await runCLI(['accept','--project',folder,'--id',c.id,'--revision',String(p.revision),'--by','user']);
+ assert.equal(accepted.version.acceptedBy,'user');assert.equal(accepted.project.choices.length,1);
+ const output=path.join(root,'explicit-user.png'),exported=await runCLI(['export','--project',folder,'--output',output]);
+ assert.equal(exported.versionId,c.id);assert.ok((await readFile(output)).length>0);assert.notEqual((await runCLI(['workflow','--project',folder])).workflow.stage,'delivered');
+});

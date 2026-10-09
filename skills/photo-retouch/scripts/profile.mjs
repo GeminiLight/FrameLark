@@ -1,9 +1,10 @@
-import {readFile,writeFile,rename,mkdir,rm,stat} from 'node:fs/promises';
+import {readFile,writeFile,rename,rm,stat} from 'node:fs/promises';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {loadProject,preferenceChoices} from './project.mjs';
 import {hash} from './engine/edit-identity.js';
 import {object,fail} from './engine/edit-values.js';
+import {withFileLock} from './file-lock.mjs';
 const text=(s,n=300)=>typeof s==='string'&&s.trim()&&s.length<=n;
 const textLimits={subject:120,lighting:120,reason:600};
 // 500 bounded legacy entries, including duplicated feedback/intent and JSON
@@ -20,14 +21,15 @@ async function readProfile(file){
   return validateProfile(p);
 }
 async function updateProfile(file,fn){
-  const lock=file+'.lock';try{await mkdir(lock);}catch(e){if(e.code==='EEXIST')fail('PROFILE_BUSY','另一项偏好更新正在进行；请检查进程后重试。');throw e;}
+  return withFileLock(file+'.lock',async()=>{
   const temp=file+'.'+randomUUID()+'.tmp';
   try{const p=await readProfile(file),result=await fn(p);p.updatedAt=new Date().toISOString();
     const serialized=JSON.stringify(validateProfile(p));
     if(Buffer.byteLength(serialized,'utf8')>byteLimit)fail('PROFILE_SIZE','偏好档案超过 8 MiB 保存上限，请删减记录或说明后重试；原文件保持不变。');
     validateProfile(JSON.parse(serialized));
     await writeFile(temp,serialized,{flag:'wx',mode:0o600});await rename(temp,file);return {profile:p,...result};}
-  finally{await rm(temp,{force:true});await rm(lock,{recursive:true,force:true});}
+  finally{await rm(temp,{force:true});}
+  },{busyCode:'PROFILE_BUSY',busyMessage:'另一项偏好更新正在进行，请稍后重试。'});
 }
 export async function initProfile(file,name='我的摄影偏好'){
   const profile={schema:'frameyn-preferences/1',id:randomUUID(),name:String(name).slice(0,80),createdAt:new Date().toISOString(),entries:[]};

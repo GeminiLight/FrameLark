@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {mkdtemp,mkdir,readFile,writeFile,rm,symlink,rename} from 'node:fs/promises';
+import {mkdtemp,mkdir,readFile,writeFile,rm,symlink,rename,link} from 'node:fs/promises';
 import {join,dirname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {inflateRawSync} from 'node:zlib';
@@ -88,4 +88,32 @@ test('a packaged Markdown link cannot depend on repository-only files',async t=>
 });
 test('packaged cross-skill links resolve inside the full skill bundle',async t=>{
  const {root,put}=await fixture(t);await put('skills/photo-series/SKILL.md','---\nname: photo-series\n---\nUse [retouch](../photo-retouch/SKILL.md).');execFileSync('git',['add','.'],{cwd:root});await buildPlugin({root});
+});
+
+test('an inner marketplace link cannot replace a tracked plugin directory',async t=>{
+ if(process.platform==='win32')return t.skip('Creating a directory symlink requires Windows privileges.');
+ const {root,put}=await fixture(t),output=join(root,'dist/custom');await put('plugins/framelark/maintained.md','keep maintained plugin');execFileSync('git',['add','plugins'],{cwd:root});await mkdir(output,{recursive:true});await symlink(join(root,'plugins'),join(output,'marketplace'),'dir');
+ await assert.rejects(buildPlugin({root,output}),/overlap.*source/i);assert.equal(await readFile(join(root,'plugins/framelark/maintained.md'),'utf8'),'keep maintained plugin');
+});
+test('an inner catalog link cannot rewrite the repository marketplace',async t=>{
+ if(process.platform==='win32')return t.skip('Creating a directory symlink requires Windows privileges.');
+ const {root}=await fixture(t),output=join(root,'dist/custom'),catalog=join(root,'.agents/plugins/marketplace.json'),before=await readFile(catalog);await mkdir(join(output,'marketplace'),{recursive:true});await symlink(join(root,'.agents'),join(output,'marketplace/.agents'),'dir');
+ await assert.rejects(buildPlugin({root,output}),/overlap.*source/i);assert.deepEqual(await readFile(catalog),before);
+});
+test('a dist link to a separate output disk remains usable when it does not overlap inputs',async t=>{
+ if(process.platform==='win32')return t.skip('Creating a directory symlink requires Windows privileges.');
+ const {root}=await fixture(t),external=await mkdtemp(join(tmpdir(),'framelark-output-disk-'));t.after(()=>rm(external,{recursive:true,force:true}));await symlink(external,join(root,'dist'),'dir');const built=await buildPlugin({root});assert.ok((await readFile(built.zipPath)).length);assert.equal((await packageFiles(built.folder)).length,6);
+});
+test('an archive link to a maintained manifest is rejected before replacing the previous plugin folder',async t=>{
+ if(process.platform==='win32')return t.skip('Creating a file symlink requires Windows privileges.');
+ const {root}=await fixture(t),built=await buildPlugin({root}),input=join(root,'plugin.json'),before=await readFile(input);await writeFile(join(built.folder,'old-marker.txt'),'preserve old package folder');await rm(built.zipPath);await symlink(input,built.zipPath);
+ await assert.rejects(buildPlugin({root}),/overlap.*source/i);assert.deepEqual(await readFile(input),before);assert.equal(await readFile(join(built.folder,'old-marker.txt'),'utf8'),'preserve old package folder');
+});
+test('a hardlinked archive is atomically replaced without modifying the maintained manifest',async t=>{
+ const {root}=await fixture(t),built=await buildPlugin({root}),input=join(root,'plugin.json'),before=await readFile(input);await rm(built.zipPath);await link(input,built.zipPath);
+ const next=await buildPlugin({root});assert.deepEqual(await readFile(input),before);assert.equal((await readFile(next.zipPath)).readUInt32LE(0),0x04034b50);assert.equal(archiveEntries(await readFile(next.zipPath)).length,6);
+});
+test('a hardlinked output catalog is atomically replaced without rewriting the repository marketplace',async t=>{
+ const {root}=await fixture(t),built=await buildPlugin({root}),input=join(root,'.agents/plugins/marketplace.json'),before=await readFile(input);await rm(built.marketplacePath);await link(input,built.marketplacePath);
+ const next=await buildPlugin({root});assert.deepEqual(await readFile(input),before);assert.deepEqual(JSON.parse(await readFile(next.marketplacePath)).plugins.map(p=>p.name),['framelark']);
 });

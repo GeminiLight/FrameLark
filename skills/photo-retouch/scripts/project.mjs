@@ -28,6 +28,8 @@ export {PhotoError,fail,cleanSettings,cleanRect,settingsBounds,hash,projectDocum
 const text=(v,max=300)=>String(v??'').trim().slice(0,max),id=()=>randomUUID(),now=()=>new Date().toISOString();
 import {contextHash,activeDiagnosis,workflowStatus,assertWorkflowDelivery,latestAudit,auditTargetHash,targetDiagnosis} from './workflow-state.mjs';
 import {handoffView} from './handoff-state.mjs';
+import {withFileLock} from './file-lock.mjs';
+import {portableExportRecord} from './recorded-export.mjs';
 const fingerprint=contextHash;
 export const currentVersion=p=>p.versions.find(v=>v.id===p.currentId);
 export function localFailure(error){
@@ -96,16 +98,7 @@ async function atomicWrite(folder,p) {
   try{await rename(temp,file);}catch(error){await rm(temp,{force:true});throw error;}
 }
 async function locked(folder,fn) {
-  folder=path.resolve(folder);const lock=path.join(folder,'.edit-lock');let acquired=false;
-  for(let i=0;i<45&&!acquired;i++) {
-    try{await mkdir(lock);await writeFile(path.join(lock,'owner'),String(process.pid));acquired=true;}
-    catch(error){if(error.code!=='EEXIST')throw error;
-      try{const pid=Number(await readFile(path.join(lock,'owner'),'utf8'));if(pid>0){try{process.kill(pid,0);}catch(e){if(e.code==='ESRCH')await rm(lock,{recursive:true,force:true});}}}catch(e){if(e.code==='ENOENT'){const info=await stat(lock).catch(()=>null);if(info&&Date.now()-info.mtimeMs>5000)await rm(lock,{recursive:true,force:true});}}
-      await new Promise(r=>setTimeout(r,70));
-    }
-  }
-  if(!acquired)fail('PROJECT_BUSY','另一项编辑正在保存，请稍后再试。');
-  try{return await fn(folder);}finally{await rm(lock,{recursive:true,force:true});}
+  folder=path.resolve(folder);return withFileLock(path.join(folder,'.edit-lock'),()=>fn(folder),{busyCode:'PROJECT_BUSY',busyMessage:'另一项编辑正在保存，请稍后再试。'});
 }
 const expect=(p,revision)=>{if(revision!==undefined && revision!==p.revision)fail('STALE_REVISION','照片或批注已更新。请重新读取上下文，再基于最新版本操作。');};
 export async function mutateProject(folder,revision,fn) {
@@ -497,7 +490,7 @@ export function preferenceChoices(p){
   const latest=new Map((p.feedback||[]).map(f=>[f.versionId,f]));
   return (p.choices||[]).filter(c=>{const feedback=latest.get(c.versionId);return feedback?feedback.verdict==='prefer':p.versions.find(v=>v.id===c.versionId)?.acceptedBy!=='agent';});
 }
-export const recordExport=(folder,value)=>mutateProject(folder,undefined,p=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...value,createdAt:now()});return {};});
+export const recordExport=(folder,value)=>mutateProject(folder,undefined,async(p,root)=>{if(!p.versions.some(v=>v.id===value.versionId))fail('VERSION_NOT_FOUND','导出版本必须已保存。');p.exports.push({...await portableExportRecord(root,value),createdAt:now()});return {};});
 export function publicProject(p) {
   const capabilities=retouchCapabilities({source:p.source});
   return {...p,capabilities,workspaceSupport:workspaceSupport(p),documentContext:projectDocument(p),currentAudit:currentVersion(p)?latestAudit(p,currentVersion(p))||null:null,collaboration:handoffView(p),workflowStatus:workflowStatus(p),preferenceChoices:preferenceChoices(p),protectionLimits,candidates:p.candidates.map(c=>({...c,stale:c.baseFingerprint!==fingerprint(p)})),lettering:letteringCapabilities(),styles:presets.map(({id,name,category,mood,groups,adjustments})=>({id,name,category,mood,groups,adjustments})),parameters:adjustmentKeys.map(key=>({key,range:settingsBounds(key)})),limitations:capabilities.limitations};

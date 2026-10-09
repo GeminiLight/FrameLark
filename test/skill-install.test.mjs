@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,readFile,writeFile,access,rm,mkdir,cp,symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {join} from 'node:path';
+import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFile,execFileSync} from 'node:child_process';
 import {promisify} from 'node:util';
@@ -84,4 +84,21 @@ test('standalone installation rejects knowledge links that would be missing outs
   const f=await sourceFixture(t),target=join(f.folder,'installed'),guide=join(f.source,'skills/photography-eye/references/repository-link.md');
   await writeFile(guide,'Read [local file](../../../notes.md).');execFileSync('git',['add','skills/photography-eye/references/repository-link.md'],{cwd:f.source});
   await assert.rejects(exec(process.execPath,[f.installer,'--skill','photography-eye',target]),/packaged Markdown link/);await assert.rejects(access(target));
+});
+
+async function isolatedInstall({folder,source,home,profile,args}){
+  const options=join(folder,'isolated-options.json');await writeFile(options,JSON.stringify({source,home,profile,args}));
+  const result=await exec(process.execPath,['--experimental-vm-modules',fileURLToPath(new URL('./helpers/isolated-skill-install.mjs',import.meta.url)),options]);return JSON.parse(result.stdout);
+}
+test('default Skill installation uses the selected Codex profile and leaves the default profile untouched',async t=>{
+  const folder=await fixture(t),home=join(folder,'user'),profile=join(folder,'selected-profile'),result=await isolatedInstall({folder,home,profile,source:installer,args:['--skill','photography-eye']});
+  assert.equal(result.code,0,result.messages.join('\n'));await access(join(profile,'skills/photography-eye/SKILL.md'));await assert.rejects(access(join(home,'.codex/skills/photography-eye')));
+});
+test('default legacy migration and its backup use the selected Codex profile',async t=>{
+  const f=await sourceFixture(t),home=join(f.folder,'user'),profile=join(f.folder,'selected-profile'),legacy=join(profile,'skills/guangjian-retouch'),other=join(home,'.codex/skills/guangjian-retouch');
+  for(const target of [legacy,other]){await mkdir(target,{recursive:true});await writeFile(join(target,'SKILL.md'),'---\nname: guangjian-retouch\n---\nPrior knowledge.');await writeFile(join(target,'local-note.txt'),target===legacy?'selected knowledge':'default knowledge');}
+  await writeFile(join(f.source,'skills/photo-retouch/scripts/setup.mjs'),'// Root/backup contract fixture; native installation is independently tested.');
+  const result=await isolatedInstall({folder:f.folder,home,profile,source:f.installer,args:['--update']});assert.equal(result.code,0,result.messages.join('\n'));
+  await access(join(profile,'skills/photo-retouch/SKILL.md'));await assert.rejects(access(legacy));assert.equal(await readFile(join(other,'local-note.txt'),'utf8'),'default knowledge');
+  const backup=result.messages.join('\n').match(/旧版备份：([^\n]+)/)?.[1];assert.equal(dirname(backup),join(profile,'skill-backups'));assert.equal(await readFile(join(backup,'local-note.txt'),'utf8'),'selected knowledge');
 });

@@ -78,6 +78,7 @@ jobs:
       - run: npm run test:inspector-ux
       - run: npm run test:shared-retouch-ui
       - run: npm run test:series-documents
+      - run: npm run test:series-inputs
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
