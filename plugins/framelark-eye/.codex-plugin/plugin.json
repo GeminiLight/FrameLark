@@ -6,7 +6,7 @@
     "name": "GeminiLight",
     "url": "https://github.com/GeminiLight"
   },
-  "homepage": "https://tianfuwang.tech/FrameLark/",
+  "homepage": "https://tianfu.wang/FrameLark/",
   "repository": "https://github.com/GeminiLight/FrameLark",
   "keywords": [
     "photography",
@@ -21,7 +21,7 @@
     "longDescription": "只包含 photography-eye 摄影眼 Skill。上传一张现场照，问这里咋拍，获得机位、构图、时机、拍摄参数与后期方向；宿主支持生图时交付五种拍法参考板。使用当前 Agent 的看图与生图能力，无需额外模型 Key。摄影指导无需本地修图依赖；照片精修与组图属于另一个可选插件。",
     "developerName": "GeminiLight",
     "category": "Creativity",
-    "websiteURL": "https://tianfuwang.tech/FrameLark/",
+    "websiteURL": "https://tianfu.wang/FrameLark/",
     "defaultPrompt": [
       "用 FrameLark 摄影眼看这张现场照，这里咋拍？",
       "喜欢 P3，具体站在哪里？",
