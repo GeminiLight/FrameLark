@@ -1,6 +1,6 @@
 # 帧好 · FrameLark
 
-**[访问官网](https://tianfuwang.tech/FrameLark/) · [在线基础修片](https://tianfuwang.tech/FrameLark/studio/)**
+**[访问官网](https://tianfu.wang/FrameLark/) · [在线基础修片](https://tianfu.wang/FrameLark/studio/)**
 
 ![帧好 · FrameLark：从看见，到成片。右侧是一只小帧](docs/images/framelark-banner.png)
 
@@ -28,7 +28,7 @@ FrameLark 提供 Codex 插件、独立 Skill 和浏览器工作台，陪你从�
 
 ### 在云端对话里启用摄影眼
 
-手机 ChatGPT、Work 或其他支持读文件与看图的助手，可以先使用[云端配置页](https://tianfuwang.tech/FrameLark/cloud.html)。这是当前对话或私有项目内的工作方式，不需要安装本地 Codex 或修图依赖，也不是全局插件安装。
+手机 ChatGPT、Work 或其他支持读文件与看图的助手，可以先使用[云端配置页](https://tianfu.wang/FrameLark/cloud.html)。这是当前对话或私有项目内的工作方式，不需要安装本地 Codex 或修图依赖，也不是全局插件安装。
 
 把下面这句话发给能够读取公开网页的助手：
 
@@ -40,7 +40,7 @@ FrameLark 提供 Codex 插件、独立 Skill 和浏览器工作台，陪你从�
 
 ### 只安装摄影眼
 
-**[打开摄影眼快速安装入口](https://tianfuwang.tech/FrameLark/install.html)**：点击打开本地 Codex，发送已填好的安装请求。不需要先克隆仓库；页面也提供可复制的终端安装命令。
+**[打开摄影眼快速安装入口](https://tianfu.wang/FrameLark/install.html)**：点击打开本地 Codex，发送已填好的安装请求。不需要先克隆仓库；页面也提供可复制的终端安装命令。
 
 独立插件名是 **FrameLark 摄影眼**（`framelark-eye`），只包含 `photography-eye` Skill、参考资料与小帧素材，摄影指导无需准备本地修图依赖。在支持插件的本地 Codex 中发送：
 
@@ -85,7 +85,7 @@ node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight
 | 入口 | 怎么开始 |
 | --- | --- |
 | <a id="agent-skill"></a>独立 Skill | 运行 `npm run install:skills`，默认安装到 `~/.codex/skills/`；[单独安装、其他宿主与更新](docs/INSTALLATION.md#独立安装-skill)。 |
-| <a id="web-ui"></a>浏览器工作台 | [在线基础修片](https://tianfuwang.tech/FrameLark/studio/)可直接用；完整本地工作台运行 `npm start`，打开 [localhost:3177](http://localhost:3177)。 |
+| <a id="web-ui"></a>浏览器工作台 | [在线基础修片](https://tianfu.wang/FrameLark/studio/)可直接用；完整本地工作台运行 `npm start`，打开 [localhost:3177](http://localhost:3177)。 |
 
 在线基础修片支持浏览器内调色、裁剪、风格、版本与导出；完整本地工作台的 AI 顾问需在设置中连接视觉模型。现场拍摄辅导目前通过摄影眼 Skill 使用。
 
@@ -126,7 +126,7 @@ node --input-type=module -e "const r=await fetch('https://github.com/GeminiLight
 
 </details>
 
-[案例过程与来源](docs/CASE_STUDIES.md) · [官网案例：看输入与交付](https://tianfuwang.tech/FrameLark/examples.html)。
+[案例过程与来源](docs/CASE_STUDIES.md) · [官网案例：看输入与交付](https://tianfu.wang/FrameLark/examples.html)。
 
 <a id="photo-retouch-demo"></a>
 

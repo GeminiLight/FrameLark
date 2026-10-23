@@ -32,7 +32,7 @@ Run the remaining npm commands in this repository directory.
 
 ## Photography Eye plugin only
 
-Open the [Photography Eye installation page](https://tianfuwang.tech/FrameLark/install.html) (Chinese) to start a local Codex chat with a prefilled installation request. Send the request to begin; the button does not send it automatically.
+Open the [Photography Eye installation page](https://tianfu.wang/FrameLark/install.html) (Chinese) to start a local Codex chat with a prefilled installation request. Send the request to begin; the button does not send it automatically.
 
 For a no-checkout terminal installation, Node.js 20.9+ and a plugin-capable Codex CLI are required. Download and execute the [release installer](../scripts/install-framelark-release.mjs):
 

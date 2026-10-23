@@ -2,7 +2,7 @@
 
 案例展示用户给什么、怎样问、小帧交付什么。摄影眼的 AI 图板是拍法与精修目标；精修的真实版本和组图操作分别标明，不把它们都称为“修后照片”。
 
-[返回 README](../README.md#使用示例) · [使用指南](USAGE.md) · [官网案例](https://tianfuwang.tech/FrameLark/examples.html) · 本地网站：`http://localhost:3177/examples.html`
+[返回 README](../README.md#使用示例) · [使用指南](USAGE.md) · [官网案例](https://tianfu.wang/FrameLark/examples.html) · 本地网站：`http://localhost:3177/examples.html`
 
 ## 光影拱廊 · 选定的 A 版式
 

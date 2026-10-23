@@ -1,6 +1,6 @@
 # FrameLark · 帧好
 
-**[Website](https://tianfuwang.tech/FrameLark/) · [Browser photo editor](https://tianfuwang.tech/FrameLark/studio/)**
+**[Website](https://tianfu.wang/FrameLark/) · [Browser photo editor](https://tianfu.wang/FrameLark/studio/)**
 
 ![FrameLark: From first look to finished image. With Xiaozhen, our photography companion](docs/images/framelark-banner.png)
 
@@ -28,7 +28,7 @@ Xiaozhen · 小帧 is FrameLark’s curious little bird and photography companio
 
 ### Use Photography Eye in your cloud chat
 
-Use the [cloud setup page](https://tianfuwang.tech/FrameLark/cloud.html) to load shooting guidance in a conversation or your own private project. This uses the assistant's existing vision and optional image-generation tools; it does not install a global plugin or local retouching runtime.
+Use the [cloud setup page](https://tianfu.wang/FrameLark/cloud.html) to load shooting guidance in a conversation or your own private project. This uses the assistant's existing vision and optional image-generation tools; it does not install a global plugin or local retouching runtime.
 
 Ask an assistant with public-web access to read [CLOUD.md](CLOUD.md) and follow its Photography Eye workflow in this conversation. If it cannot read the link, download the startup text file and attach it instead. Then upload a scene photo and ask how to shoot here. For ongoing use, add the guide and project instructions to your own private project. A new ordinary chat does not automatically inherit this setup. Account availability, tools and usage limits still apply.
 
@@ -36,7 +36,7 @@ Ask an assistant with public-web access to read [CLOUD.md](CLOUD.md) and follow 
 
 ### Install Photography Eye only
 
-**[Open the Photography Eye installer](https://tianfuwang.tech/FrameLark/install.html)** (Chinese): open a local Codex chat with the installation request already filled in, then send it. No checkout is required. A copyable terminal command is also available.
+**[Open the Photography Eye installer](https://tianfu.wang/FrameLark/install.html)** (Chinese): open a local Codex chat with the installation request already filled in, then send it. No checkout is required. A copyable terminal command is also available.
 
 The standalone **FrameLark Photography Eye** plugin (`framelark-eye`) contains only the `photography-eye` skill, reference material, and Xiaozhen assets. It does not prepare local retouching dependencies. In a local Codex client with plugin support, say:
 
@@ -83,7 +83,7 @@ For standalone skills or the browser studio, download this repository first and 
 | Entry point | How to start |
 | --- | --- |
 | <a id="agent-skill"></a>Standalone skills | Run `npm run install:skills` to install into `~/.codex/skills/` by default; [individual skills, other hosts, and updates](docs/INSTALLATION.en.md#standalone-skills). |
-| <a id="web-ui"></a>Browser studio | Use the [online basic editor](https://tianfuwang.tech/FrameLark/studio/), or run `npm start` and open [localhost:3177](http://localhost:3177) for the full local studio. |
+| <a id="web-ui"></a>Browser studio | Use the [online basic editor](https://tianfu.wang/FrameLark/studio/), or run `npm start` and open [localhost:3177](http://localhost:3177) for the full local studio. |
 
 The online basic editor supports browser-side color, cropping, looks, versions, and export. Connect a visual model in the full local studio for the AI advisor. Scene-scouting guidance is currently provided through the Photography Eye skill.
 
@@ -122,7 +122,7 @@ This first output has aspect-ratio and redrawn-detail deviations. Use it for dir
 
 </details>
 
-[Case process and sources](docs/CASE_STUDIES.md) (Chinese). [Website cases: inputs and deliveries](https://tianfuwang.tech/FrameLark/examples.html).
+[Case process and sources](docs/CASE_STUDIES.md) (Chinese). [Website cases: inputs and deliveries](https://tianfu.wang/FrameLark/examples.html).
 
 <a id="photo-retouch-demo"></a>
 
