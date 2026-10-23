@@ -28,7 +28,7 @@
 
 范围：普通对话需继续使用同一对话；新对话不会自动继承这次启用。项目模式以用户上传的项目文件和项目指令为准。平台的账户、地区、工具与额度限制仍适用；配置文件本身不收费。
 
-官网：https://tianfuwang.tech/FrameLark/cloud.html
+官网：https://tianfu.wang/FrameLark/cloud.html
 源码：https://github.com/GeminiLight/FrameLark
 维护来源：skills/photography-eye；来源内容 SHA-256：b663edbd577aec264e42e4c08fcb3933a963fc7ec4c5742f64cedabaefa7cb72
 
