@@ -1,4 +1,6 @@
-import {GlobalFonts,createCanvas} from '@napi-rs/canvas';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);
+const canvasRuntime=()=>require('@napi-rs/canvas');
 
 export const letteringVersion='lettering-v1';
 export const letteringStyles={
@@ -28,7 +30,7 @@ export function cleanTextOverlays(value=[]) {
   if(new Set(result.map(x=>x.id)).size!==result.length)error('TEXT_ID','文字层编号不能重复。');
   return result;
 }
-function installedFamilies(){return GlobalFonts.families.map(x=>x.family);}
+function installedFamilies(){return canvasRuntime().GlobalFonts.families.map(x=>x.family);}
 function fontChoices(){
   const families=installedFamilies(),pick=names=>names.find(n=>families.includes(n));
   const cjkSans=pick(['PingFang SC','Noto Sans CJK SC','Noto Sans SC','Microsoft YaHei','WenQuanYi Zen Hei','Source Han Sans SC','Arial Unicode MS']);
@@ -86,4 +88,4 @@ export function drawTextOverlays(context,layers,{width,height,compositionRect,so
   }
   return layouts;
 }
-export function validateTextComposition(layers,rect){return drawTextOverlays(createCanvas(1,1).getContext('2d'),layers,{width:1,height:1,compositionRect:rect,sourceRect:rect});}
+export function validateTextComposition(layers,rect){return drawTextOverlays(canvasRuntime().createCanvas(1,1).getContext('2d'),layers,{width:1,height:1,compositionRect:rect,sourceRect:rect});}

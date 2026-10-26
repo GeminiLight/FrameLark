@@ -62,7 +62,9 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     link.events.onerror=()=>{link.error='项目更新连接已断开，正在重连。';status();};
     link.events.onopen=()=>{link.error=null;status();};status(photo);
   }
-  function load(id){
+  /** Open a registered file project. @param {string} id */
+  function openProject(id){
+    if(typeof id!=='string'||!/^[-a-zA-Z0-9]{1,80}$/.test(id))throw Object.assign(new Error('项目编号无效，请从项目或组图入口重新打开。'),{code:'PROJECT_ID_INVALID'});
     if(pendingLoads.has(id))return pendingLoads.get(id);
     // Serialize different imports as well: capacity checks see every prior insertion.
     const pending=loadQueue.catch(()=>{}).then(()=>loadProject(id)).finally(()=>pendingLoads.delete(id));
@@ -204,7 +206,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     $('project-preview').showModal();
   }
   $('project-open').addEventListener('click',open);$('project-close').addEventListener('click',()=>$('project-dialog').close());
-  $('project-register').addEventListener('submit',async event=>{event.preventDefault();try{const data=await projectRequest('/api/projects/register',{method:'POST',value:{path:$('project-path').value.trim()}});await load(data.id);await recent();}catch(error){notice(error.message);}});
+  $('project-register').addEventListener('submit',async event=>{event.preventDefault();try{const data=await projectRequest('/api/projects/register',{method:'POST',value:{path:$('project-path').value.trim()}});await openProject(data.id);await recent();}catch(error){notice(error.message);}});
   async function createFileProject(photo=getPhoto()){
     if(!photo)return;$('project-create').disabled=true;notice('正在保存原片和项目…');
     try{
@@ -222,7 +224,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
     }finally{$('project-create').disabled=false;}
   }
   $('project-create').addEventListener('click',async()=>{try{await createFileProject();}catch(error){notice(error.message);}});
-  $('project-recent').addEventListener('click',async event=>{const id=event.target.closest('[data-project-load]')?.dataset.projectLoad;if(!id)return;try{await load(id);}catch(error){notice(error.message);}});
+  $('project-recent').addEventListener('click',async event=>{const id=event.target.closest('[data-project-load]')?.dataset.projectLoad;if(!id)return;try{await openProject(id);}catch(error){notice(error.message);}});
   $('project-details').addEventListener('click',async event=>{
     const button=event.target.closest('button');if(!button||!selected)return;
     try{
@@ -240,9 +242,9 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
       }
       if(button.hasAttribute('data-project-editions')){const photo=getPhoto();if(photo?.projectId!==selected.id||collaboration.isNative(photo)||dialogLoads||!onOpenVersions)return;$('project-dialog').close();await onOpenVersions(photo);return;}
       if(button.hasAttribute('data-project-copy')){await navigator.clipboard.writeText(`请用 FrameLark Skill 继续编辑这个项目：\n${selected.path}\n先 inspect 并查看当前预览与全部批注，基于最新 revision 生成候选。网页会同步候选，先让我比较再应用。`);notice('已复制项目位置和继续编辑说明。');return;}
-      if(button.hasAttribute('data-project-reload')){await load(selected.id);return;}
-      if(button.dataset.projectDiscard){await projectRequest(`/api/projects/${selected.id}/discard`,{method:'POST',value:{id:button.dataset.projectDiscard,revision:selected.revision}});await load(selected.id);return;}
-      if(button.dataset.projectRestore){await projectRequest(`/api/projects/${selected.id}/restore`,{method:'POST',value:{id:button.dataset.projectRestore,revision:selected.revision}});await load(selected.id);return;}
+      if(button.hasAttribute('data-project-reload')){await openProject(selected.id);return;}
+      if(button.dataset.projectDiscard){await projectRequest(`/api/projects/${selected.id}/discard`,{method:'POST',value:{id:button.dataset.projectDiscard,revision:selected.revision}});await openProject(selected.id);return;}
+      if(button.dataset.projectRestore){await projectRequest(`/api/projects/${selected.id}/restore`,{method:'POST',value:{id:button.dataset.projectRestore,revision:selected.revision}});await openProject(selected.id);return;}
       if(button.dataset.projectPreview)await previewCandidate(selected,button.dataset.projectPreview);
     }catch(error){notice(error.message);}finally{button.disabled=false;}
   });
@@ -255,7 +257,7 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
   $('project-preview').addEventListener('close',()=>{previewToken=null;});
   $('project-accept').addEventListener('click',async()=>{
     const token=previewToken;if(!token)return;$('project-accept').disabled=true;
-    try{await projectRequest(`/api/projects/${token.project}/accept`,{method:'POST',value:{id:token.id,revision:token.revision,selectionHash:token.selectionHash}});$('project-preview').close();await load(token.project);notify('已应用项目方案。');}catch(error){$('project-preview-note').textContent=error.message;}
+    try{await projectRequest(`/api/projects/${token.project}/accept`,{method:'POST',value:{id:token.id,revision:token.revision,selectionHash:token.selectionHash}});$('project-preview').close();await openProject(token.project);notify('已应用项目方案。');}catch(error){$('project-preview-note').textContent=error.message;}
   });
   async function renewDocumentToken(photo,token,signal){
     const link=links.get(photo.id);if(!link)throw Error('项目未连接。');const data=await projectRequest(`/api/projects/${photo.projectId}`,{signal}),candidate=data.candidates.find(candidate=>candidate.id===token.id);
@@ -264,10 +266,10 @@ export function createProjectWorkspace({getPhoto,getPhotos,getPatch,getVersions=
   }
   async function documentPreview(photo,token,{signal,attempt=0}={}){const response=await fetch(`/api/projects/${photo.projectId}/preview?version=${encodeURIComponent(token.id)}&revision=${token.revision}`,{signal});if(!response.ok){const failure=await response.json().catch(()=>null);if(failure?.error?.code==='STALE_REVISION'&&!attempt){await renewDocumentToken(photo,token,signal);return documentPreview(photo,token,{signal,attempt:1});}throw Object.assign(new Error(failure?.error?.message||'文件项目预览未完成。'),{code:failure?.error?.code});}const bytes=await response.arrayBuffer();if(!bytes.byteLength)throw new Error('文件项目预览为空。');if(response.headers.get('X-Project-Revision')!==String(token.revision)||response.headers.get('X-Version-Id')!==token.id||response.headers.get('X-Selection-Hash')!==token.selectionHash||response.headers.get('X-Document-Hash')!==token.documentHash||!response.headers.get('X-Frame-Spec'))throw new Error('预览与当前配方或所选组合不一致，请重新预览。');const checksum=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(n=>n.toString(16).padStart(2,'0')).join('');if(checksum!==response.headers.get('X-Png-Hash'))throw new Error('预览图像校验失败，请重新预览。');return bytes;}
   async function capabilities(){try{const result=await projectRequest('/api/local-capabilities');available=result.projects;collaboration.enable(Boolean(result.local&&result.projects));$('project-open').hidden=!result.local;return result;}catch{return {projects:false,heic:false};}}
-  return {open,load,attach,schedule,flush,status,capabilities,refresh,
+  return {open,openProject,load:openProject,attach,schedule,flush,status,capabilities,refresh,
     async saveEdition(photo,name,kind='manual'){const patch=JSON.parse(JSON.stringify(getPatch(photo)));await flush(photo);return mutate(photo,'versions',{revision:photo.projectRevision,baseVersion:photo.projectCurrentId,name,kind,patch});},
     async renameEdition(photo,id,name){await flush(photo);return mutate(photo,'versions/rename',{revision:photo.projectRevision,id,name});},
-    async restoreEdition(photo,id){await flush(photo);return mutate(photo,'restore',{revision:photo.projectRevision,id},null,{reload:true});},
+    async restoreEdition(photo,id,{signal}={}){await flush(photo);signal?.throwIfAborted();return mutate(photo,'restore',{revision:photo.projectRevision,id},null,{reload:true,signal});},
     async proposeTools(photo,value,{signal,onEvent}={}){
       await flush(photo);const data=await mutate(photo,'tools',{...value,revision:photo.projectRevision,baseVersion:photo.projectCurrentId},undefined,{signal,onEvent});
       const candidate=data.candidates.find(c=>c.id===data.candidateId);if(!candidate||!data.toolRun)throw new Error('工具候选已变化，请重新生成。');

@@ -16,7 +16,9 @@ export class ProjectBridge {
     catch(error){if(error.code==='ERR_MODULE_NOT_FOUND')throw Object.assign(new Error('请在项目目录运行 npm run setup，安装本地图片处理依赖后重试。'),{code:'PROJECT_SETUP_REQUIRED'});throw error;}
   }
   async exportFiles(){return import('../../../../skills/photo-retouch/scripts/recorded-export.mjs');}
-  async capabilities(){try{const runtime=await this.runtime();const {rawCapabilities}=await import('../../../../skills/photo-retouch/scripts/raw/backends.mjs');const raw=await rawCapabilities();return {projects:true,heic:process.platform==='darwin',raw,retouch:runtime.retouchCapabilities({surface:'studio',rawDecode:raw.available})};}catch{return {projects:false,heic:process.platform==='darwin',raw:{available:false},setup:'npm run setup'};}}
+  // Metadata can load without native libraries; advertise image editing only
+  // after its actual rendering adapter loads successfully.
+  async capabilities(){try{const runtime=await this.runtime();await import('../../../../skills/photo-retouch/scripts/render.mjs');const {rawCapabilities}=await import('../../../../skills/photo-retouch/scripts/raw/backends.mjs');const raw=await rawCapabilities();return {projects:true,heic:process.platform==='darwin',raw,retouch:runtime.retouchCapabilities({surface:'studio',rawDecode:raw.available})};}catch{return {projects:false,heic:process.platform==='darwin',raw:{available:false},setup:'npm run setup'};}}
   async registry(){return this.projectRegistry.read();}
   async register(folder){
     if(typeof folder!=='string'||!folder.trim()||folder.length>4096)throw Object.assign(new Error('请输入照片项目的文件夹路径。'),{code:'PROJECT_PATH'});

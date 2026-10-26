@@ -30,7 +30,7 @@ test('shared mask editing creates immutable versions and defaults to only the se
  d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'a',mask}]).next;
  d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'b',maskRef:d.steps[0].maskRef}]).next;
  const old=structuredClone(d.masks[0]);d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'a',mask:{...mask,expression:{...mask.expression,start:.4}}}]).next;
- assert.equal(d.steps[0].maskRef.version,2);assert.equal(d.steps[1].maskRef.version,1);assert.deepEqual(d.masks[0],old);
+ assert.ok(d.steps[0].maskRef.version>old.version);assert.equal(d.steps[1].maskRef.version,old.version);assert.deepEqual(d.masks[0],old);
  d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'a',maskRef:d.steps[1].maskRef}]).next;
  d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'a',mask,shared:true}]).next;assert.deepEqual(d.steps[0].maskRef,d.steps[1].maskRef);
 });
@@ -67,4 +67,33 @@ test('duplicating a maximum-length name reserves the suffix without changing the
  const d=applyCommands(document(),[{type:'AddStep',step:{...step('long'),title:'A'.repeat(120)}}]).next;
  const copy=applyCommands(d,duplicateCommands(d,'long','copy')).next.steps[1];
  assert.ok(copy.title.length<=120);assert.ok(copy.title.endsWith(' · 副本'));assert.equal(d.steps[0].title.length,120);assert.deepEqual(copy.parameters,d.steps[0].parameters);
+});
+
+test('repeated range edits and deletion reclaim unreachable masks without changing old snapshots',()=>{
+ let d=add(document()),history;
+ for(let i=0;i<300;i++){
+   const before=structuredClone(d),result=applyCommands(d,[{type:'ReplaceStepMask',stepId:'light',mask:{expression:{kind:'constant',value:(i%97)/96},reference:{kind:'live-input'}}}]);
+   assert.deepEqual(d,before);d=result.next;if(i===298)history=result.transaction;
+ }
+ assert.equal(d.masks.length,1);
+ const removed=applyCommands(d,[{type:'RemoveStep',stepId:'light'}]);assert.equal(removed.next.masks.length,0);
+ assert.equal(documentHash(restoreTransaction(removed.next,removed.transaction,'undo')),documentHash(d));
+ const recreated=applyCommands(removed.next,[{type:'AddStep',step:step('new')},{type:'ReplaceStepMask',stepId:'new',mask:{expression:{kind:'constant',value:.5},reference:{kind:'live-input'}}}]);assert.equal(recreated.next.masks.length,1);
+ assert.ok(history.before.masks.length);validateDocument(history.before);
+});
+test('range reclamation keeps transitively referenced and shared masks',()=>{
+ let d=add(add(document(),'a'),'b');
+ d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'a',mask:{expression:{kind:'constant',value:.3},reference:{kind:'live-input'}}}]).next;
+ const first=d.steps[0].maskRef;
+ d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'b',mask:{expression:{kind:'invert',input:{kind:'reference',...first}},reference:{kind:'live-input'}}}]).next;
+ d=applyCommands(d,[{type:'RemoveStep',stepId:'a'}]).next;assert.equal(d.masks.length,2);validateDocument(d);
+ d=applyCommands(d,[{type:'ReplaceStepMask',stepId:'b',maskRef:null}]).next;assert.equal(d.masks.length,0);
+});
+
+test('mask identities remain distinct after version rollover and multiple replacements in one transaction',()=>{
+ const d=add(document());d.revision=10001;
+ const command={type:'ReplaceStepMask',stepId:'light',mask:{expression:{kind:'constant',value:.4},reference:{kind:'live-input'}}};
+ const next=applyCommands(d,[command,command]).next;validateDocument(next);assert.equal(next.masks.length,1);
+ const again=applyCommands(next,[command]).next;assert.notDeepEqual(again.steps[0].maskRef,next.steps[0].maskRef);
+ assert.deepEqual(applyCommands(d,[command,command]).next,next);
 });

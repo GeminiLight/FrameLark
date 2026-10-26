@@ -56,3 +56,25 @@ test('queued commands preserve their submitted values while preparation is pendi
  const controller=createEditStackController({root:{},getPhoto:()=>photo,prepareDocument:async()=>{await gate;return recipe('initial');},getSnapshot:p=>({editDocument:structuredClone(p.editDocument)}),setSnapshot:(p,s)=>Object.assign(p,s),createView:()=>({render(){},setMessage(){}})});
  const commands=add('a'),job=controller.command(commands);assert.equal(controller.busy(photo),true);commands[0].step.parameters.ev=2;release();await job;assert.equal(photo.editDocument.steps[0].parameters.ev,.3);assert.equal(controller.busy(photo),false);
 });
+
+test('history restoration owns busy state, excludes duplicate operations and keeps its original photo',async()=>{
+ let release,signal;const gate=new Promise(r=>release=r),h=harness(),restored=[];
+ const pending=h.controller.restore(h.a,async options=>{signal=options.signal;await gate;return 'saved';},value=>restored.push([h.a.id,value]));
+ assert.equal(h.controller.busy(h.a),true);
+ assert.equal(await h.controller.restore(h.a,()=>assert.fail('duplicate restore')),false);
+ await new Promise(r=>setImmediate(r));assert.equal(await h.controller.command(add('competing')),false);
+ h.select(h.b);release();assert.equal(await pending,true);assert.equal(signal.aborted,false);
+ assert.deepEqual(restored,[['a','saved']]);assert.equal(h.controller.busy(h.a),false);assert.equal(h.b.editDocument.steps.length,0);
+});
+test('removal cancels a pending history restoration; a failed save cannot be bypassed with undo',async()=>{
+ let release,signal;const gate=new Promise(r=>release=r),h=harness();
+ const pending=h.controller.restore(h.a,async options=>{signal=options.signal;await gate;},()=>assert.fail('released history moved'));
+ await new Promise(r=>setImmediate(r));h.controller.release(h.a);release();assert.equal(await pending,false);assert.equal(signal.aborted,true);
+ const failed=harness(async()=>{throw Error('offline');});await failed.controller.command(add('light'));
+ assert.equal(await failed.controller.restore(failed.a,()=>assert.fail('unsaved edits discarded')),false);assert.ok(failed.a.editRetry);
+});
+test('failed history restoration retains the history and releases ownership for retry',async()=>{
+ const h=harness();assert.equal(await h.controller.restore(h.a,async()=>{throw Error('stale');},()=>assert.fail('history moved')),false);
+ assert.equal(h.controller.busy(h.a),false);assert.equal(h.a.editStackError,'stale');assert.equal(h.a.editRetry,undefined);
+ assert.equal(await h.controller.restore(h.a,async()=>true),true);
+});

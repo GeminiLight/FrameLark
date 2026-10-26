@@ -1,3 +1,4 @@
+import {projectLimits} from '../project-contract.js';
 import {neutralSettings} from '../editor-engine.js';
 import {presetById} from '../presets.js';
 import {validCrop} from '../crop-utils.js';
@@ -41,7 +42,7 @@ export function validateDocument(document){
   }
   if(!Array.isArray(document.receipts)||document.receipts.length>128)fail('INVALID_DOCUMENT','编辑请求记录超出限制。');
   for(const receipt of document.receipts){object(receipt,['id','commandsHash','beforeHash','afterHash','revision']);identifier(receipt.id);hashValue(receipt.commandsHash);hashValue(receipt.beforeHash);hashValue(receipt.afterHash);if(!Number.isSafeInteger(receipt.revision)||receipt.revision<1||receipt.revision>document.revision)fail('INVALID_DOCUMENT','编辑请求记录无效。');}
-  if(new TextEncoder().encode(JSON.stringify(document)).length>1024*1024)fail('DOCUMENT_TOO_LARGE','编辑文档超过保存预算。');return document;
+  if(new TextEncoder().encode(JSON.stringify(document)).length>projectLimits.documentBytes)fail('DOCUMENT_TOO_LARGE','编辑文档超过保存预算。');return document;
 }
 export function createDocument({documentId,source,base}){const document={schema:3,documentId,revision:0,source:clone(source),pipeline:{id:stackPipeline,colorSpace:'linear-srgb',kernelVersion:1},geometry:{crop:clone(base.crop||null)},base:captureLegacyBase(base),steps:[],masks:[],groups:[],receipts:[]};return validateDocument(document);}
 export function compileRenderPlan(document,frameSpec){validateDocument(document);const identities=[];let prefix=contentHash({source:document.source,base:document.base,geometry:document.geometry,pipeline:document.pipeline,frameSpec});

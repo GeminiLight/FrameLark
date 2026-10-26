@@ -2,7 +2,7 @@ import {derivedTitle} from './values.js';
 import {createDocument,validateDocument,canonicalStep,validateGeometry,captureLegacyBase} from './document.js';
 import {parametersFor} from './tools.js';
 import {object,identifier,number,title,bool,fail} from './values.js';
-import {validateMaskRef} from './masks.js';
+import {validateMaskRef,validateMasks,reachableMasks} from './masks.js';
 import {contentHash,documentHash,renderHash} from './identity.js';
 const clone=value=>structuredClone(value);
 const stepAt=(document,id)=>{identifier(id);const step=document.steps.find(step=>step.id===id);if(!step)fail('STEP_MISSING','这一步已删除，请重新读取当前编辑。',{stepId:id});return step;};
@@ -12,7 +12,7 @@ export function applyCommands(document,commands,{expectedRevision=document.revis
   if(requestId!==undefined){identifier(requestId);const receipt=document.receipts.find(receipt=>receipt.id===requestId);if(receipt){if(receipt.commandsHash!==commandsHash)fail('REQUEST_CONFLICT','同一请求编号不能提交不同编辑。');return {next:clone(document),receipt:clone(receipt),reused:true,transaction:null,invalidation:null};}}
   if(document.revision!==expectedRevision||documentHash(document)!==expectedHash)fail('STALE_REVISION','编辑内容已变化，请重新读取当前步骤。');
   const next=clone(document),beforeHash=documentHash(document),beforeRender=renderHash(document);
-  for(const command of commands){
+  for(const [commandIndex,command] of commands.entries()){
     if(!command||!commandTypes.includes(command.type))fail('INVALID_COMMANDS','不支持这个编辑命令。');
     switch(command.type){
       case 'AddStep':{object(command,['type','step','index'],['type','step']);const step=canonicalStep(command.step);if(next.steps.some(value=>value.id===step.id))fail('STEP_DUPLICATE','步骤编号已经存在。');const index=command.index??next.steps.length;if(!Number.isInteger(index)||index<0||index>next.steps.length)fail('INVALID_ORDER','插入位置无效。');next.steps.splice(index,0,step);break;}
@@ -30,7 +30,7 @@ export function applyCommands(document,commands,{expectedRevision=document.revis
         object(command,['type','stepId','maskRef','mask','shared'],['type','stepId']);const step=stepAt(next,command.stepId),old=step.maskRef;
         if(command.shared!==undefined)bool(command.shared);if(Object.hasOwn(command,'maskRef')===Object.hasOwn(command,'mask'))fail('INVALID_COMMANDS','请选择现有蒙版或创建新版本。');let ref;
         if(Object.hasOwn(command,'maskRef')){ref=clone(command.maskRef);if(ref!==null)validateMaskRef(ref);}
-        else {object(command.mask,['expression','reference','provenance'],['expression','reference']);const maskId=old?.id||('mask-'+step.id).slice(0,80),version=Math.max(0,...next.masks.filter(mask=>mask.id===maskId).map(mask=>mask.version))+1;next.masks.push({id:maskId,version,...clone(command.mask)});ref={id:maskId,version};}
+        else {object(command.mask,['expression','reference','provenance'],['expression','reference']);const serial=Math.max(document.revision,...next.masks.map(mask=>mask.version))+1,maskId=serial<=10000?(old?.id||('mask-'+step.id).slice(0,80)):'mask-'+contentHash({beforeHash,commandIndex,stepId:step.id,mask:command.mask}).slice(0,48),version=serial<=10000?serial:1;next.masks.push({id:maskId,version,...clone(command.mask)});ref={id:maskId,version};}
         const users=command.shared&&old?next.steps.filter(value=>value.maskRef?.id===old.id&&value.maskRef.version===old.version):[step];users.forEach(value=>value.maskRef=clone(ref));break;
       }
       case 'UpdateGeometry':object(command,['type','geometry']);next.geometry=clone(validateGeometry(command.geometry));break;
@@ -41,6 +41,8 @@ export function applyCommands(document,commands,{expectedRevision=document.revis
       case 'ClearSteps':object(command,['type']);next.steps=[];next.groups=[];next.masks=[];break;
     }
   }
+  validateMasks(next.masks,next.source,{maxRecords:280});
+  next.masks=reachableMasks(next);
   validateDocument(next);const afterHash=documentHash(next);if(afterHash===beforeHash)return {next:clone(document),transaction:null,invalidation:null,noChange:true};
   next.revision++;const receipt={id:requestId||('transaction-'+next.revision),commandsHash,beforeHash,afterHash,revision:next.revision};next.receipts=[...next.receipts,receipt].slice(-128);validateDocument(next);
   const changedRender=renderHash(next)!==beforeRender;let fromIndex=0;
