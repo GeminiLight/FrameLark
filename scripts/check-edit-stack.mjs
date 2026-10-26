@@ -42,6 +42,17 @@ try{
  const ids=await evaluate('JSON.stringify([...document.querySelectorAll("#edit-stack-mount [data-step-select]")].map(node=>node.dataset.stepSelect))');
  if(!ids.includes(firstId))throw Error('first edit was overwritten');
  console.log(JSON.stringify({case:'first-edit-admission',duplicateClickBlocked:preparing,actualStepIds:ids,firstStepPreserved:ids.includes(firstId)}));
+ // Observe the transient frame rather than racing its short idle deadline.
+ await evaluate(`(()=>{window.previewFrames=[];const canvas=document.querySelector('#edited-canvas');window.previewFullWidth=canvas.width;window.previewObserver=new MutationObserver(()=>{window.previewFrames.push({quality:canvas.dataset.previewQuality,width:canvas.width,exportDisabled:document.querySelector('#export-button').disabled});});window.previewObserver.observe(canvas,{attributes:true,attributeFilter:['data-preview-quality']});const input=document.querySelector('#edit-stack-mount [data-kind=parameter][data-field=ev]');input.value='.25';input.dispatchEvent(new Event('input',{bubbles:true}));return JSON.stringify(true);})()`);
+ await browser('wait','--fn','window.previewFrames.some(frame=>frame.quality==="quick")');
+ await evaluate(`(()=>{const input=document.querySelector('#edit-stack-mount [data-kind=parameter][data-field=ev]');input.dispatchEvent(new Event('change',{bubbles:true}));return JSON.stringify(true);})()`);
+ await browser('wait','--fn','document.querySelector("#edited-canvas").dataset.previewQuality==="full"&&!document.querySelector("#export-button").disabled');
+ const progressive=await evaluate('JSON.stringify({frames:window.previewFrames,width:document.querySelector("#edited-canvas").width,fullWidth:window.previewFullWidth})');
+ if(!progressive.frames.some(frame=>frame.quality==='quick'&&frame.exportDisabled&&frame.width<progressive.fullWidth)||progressive.width!==progressive.fullWidth)throw Error('quick previews must refine before export');
+ await evaluate('window.previewObserver.disconnect();JSON.stringify(true)');
+ await browser('click','#photo-undo');await browser('wait','--fn','!document.querySelector("#export-button").disabled');
+ console.log(JSON.stringify({case:'progressive-preview-export-gate',...progressive}));
+
  // Operate on a different row from the selected last step. A row menu must
  // retain its own stable ID rather than accidentally editing the inspector's ID.
  await browser('click',`#edit-stack-mount [data-action=more][data-step-id="${firstId}"]`);
@@ -53,8 +64,8 @@ try{
  await browser('open',base+'/?project='+reset.data.id);await browser('set','viewport','1280','800');
  await browser('wait','--fn','document.querySelector("#edit-stack-mount [data-action=legacy]")&&!document.querySelector("#export-button").disabled');
  await browser('click','#panel-adjust');await browser('click','#edit-stack-mount [data-action=legacy]');
- const projectControls=await evaluate('JSON.stringify({projectLabel:document.querySelector("#project-open").textContent,duplicateEntry:!!document.querySelector("#collaboration-project"),draftLabel:document.querySelector("#draft-status").textContent,versionShortcutHidden:document.querySelector("#versions-open").hidden})');
- if(projectControls.projectLabel!=='项目'||projectControls.duplicateEntry||projectControls.draftLabel!=='其他草稿'||!projectControls.versionShortcutHidden)throw Error('project access was not unified');
+ const projectControls=await evaluate('JSON.stringify({projectLabel:document.querySelector("#project-open").textContent,duplicateEntry:!!document.querySelector("#collaboration-project"),draftHidden:document.querySelector("#draft-status").hidden,versionShortcutHidden:document.querySelector("#versions-open").hidden})');
+ if(!projectControls.projectLabel.startsWith('项目 · ')||projectControls.duplicateEntry||!projectControls.draftHidden||!projectControls.versionShortcutHidden)throw Error('project access was not unified');
  console.log(JSON.stringify({case:'unified-project-controls',...projectControls}));
  const before=await evaluate('JSON.stringify({slider:document.querySelector("#slider-exposure").value,pixels:Array.from(document.querySelector("#edited-canvas").getContext("2d").getImageData(0,0,1,1).data)})');
  await browser('click','#clear-manual');await browser('wait','--fn','!document.querySelector("#export-button").disabled');

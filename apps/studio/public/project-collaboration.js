@@ -1,5 +1,6 @@
 const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const labels={idle:'等你说出下一步',queued:'等待 Agent 接手',running:'Agent 正在处理',completed:'Agent 已回应',failed:'这次处理未完成',cancelled:'接续已取消',stale:'照片已更新，请重新接手'};
+export const collaborationCandidates=data=>(data?.candidates||[]).filter(c=>!c.stale&&c.actorId!=='workspace-user');
 
 export function createProjectCollaboration({getPhoto,onRequest,onCancel,onPreview,onPending,onSwitchEditor,notify}){
   if(typeof window==='undefined')return {show(){},clear(){},enable(){},isNative:photo=>Boolean(photo?.projectId&&(!photo.projectData?.supported||photo.preferNativeEditor))};
@@ -12,6 +13,7 @@ export function createProjectCollaboration({getPhoto,onRequest,onCancel,onPrevie
   function show(photo,data){
     data=data||photo?.projectData||null;
     current=data||null;const native=Boolean(photo?.projectId&&(!data?.supported||photo.preferNativeEditor));
+    $('project-collaboration').classList.toggle('is-invitation',!data);
     document.querySelector('.workspace').classList.toggle('project-native',native);
     $('native-project-state').hidden=!native;$('project-native-back').hidden=!native||!data?.supported;
     if(native){photo.preferNativeEditor=true;$('native-project-state').textContent=data.exports.some(e=>e.versionId===data.currentId)?'已导出':data.currentId===data.versions[0]?.id?'原片':'已保存';}
@@ -24,17 +26,17 @@ export function createProjectCollaboration({getPhoto,onRequest,onCancel,onPrevie
     if(frameProject){$('project-native-frame').src='about:blank';frameProject=null;}
     $('project-native-open').hidden=!data;
     if(!data){
-      $('collaboration-status').textContent='让 Agent 接着你的编辑';$('collaboration-detail').textContent='把当前照片、调整与版本保存成共享项目，再交给 Agent 提出试片。';
-      $('collaboration-request').textContent='与 Agent 一起修';$('collaboration-request').disabled=!available;$('collaboration-cancel').hidden=true;$('collaboration-candidates').innerHTML='';return;
+      $('collaboration-status').textContent='在外部 Agent 中继续';$('collaboration-detail').textContent='保存当前照片与调整，复制项目说明给你的 Agent。';
+      $('collaboration-request').textContent='保存并复制接续说明';$('collaboration-request').disabled=!available;$('collaboration-cancel').hidden=true;$('collaboration-candidates').innerHTML='';return;
     }
     $('collaboration-request').textContent='交给 Agent 继续';
     const collaboration=data.collaboration||{status:'idle'},request=collaboration.request;
-    const fresh=data.candidates.filter(c=>!c.stale),accepted=(request?.candidateIds||[]).includes(data.currentId)&&data.acceptedBy==='user';
+    const fresh=collaborationCandidates(data),accepted=(request?.candidateIds||[]).includes(data.currentId)&&data.acceptedBy==='user';
     $('collaboration-status').textContent=accepted?'你已接受这版':collaboration.status==='idle'&&fresh.length?`${fresh.length} 份试片等你比较`:labels[collaboration.status]||labels.idle;
-    $('collaboration-detail').textContent=request?.summary||request?.message||'批注、试片与已保存版本共用一个项目。Agent 回应后，你可以逐项选择。';
+    $('collaboration-detail').textContent=collaboration.status==='queued'?'把项目说明粘贴给你的 Agent（可在项目中重新复制）；接手后，进度与试片会同步到这里。':request?.summary||request?.message||'批注、试片与已保存版本共用一个项目。Agent 回应后，你可以逐项选择。';
     const active=['queued','running'].includes(collaboration.status);
     $('collaboration-request').disabled=active;$('collaboration-cancel').hidden=!active;
-    $('collaboration-candidates').innerHTML=data.candidates.filter(c=>!c.stale).map(c=>`<button type="button" class="collaboration-candidate" data-collaboration-preview="${escape(c.id)}"><span><strong>${escape(c.name)}</strong><small>${c.handoffId?'Agent 接续 · ':c.actorId==='workspace-user'?'你的试片 · ':''}${escape(c.goal||'先比较，再决定')} · ${c.selectedItemIds.length} 项调整</small></span><span>比较效果 ↗</span></button>`).join('');
+    $('collaboration-candidates').innerHTML=fresh.map(c=>`<button type="button" class="collaboration-candidate" data-collaboration-preview="${escape(c.id)}"><span><strong>${escape(c.name)}</strong><small>${c.handoffId?'Agent 接续 · ':''}${escape(c.goal||'先比较，再决定')} · ${c.selectedItemIds.length} 项调整</small></span><span>比较效果 ↗</span></button>`).join('');
   }
   async function switchEditor(native){
     const photo=getPhoto();if(switching||!photo?.projectId||!native&&!photo.projectData?.supported)return;
