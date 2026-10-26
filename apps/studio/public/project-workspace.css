@@ -60,6 +60,11 @@
 .workspace.project-native #photo-state{display:none!important}
 .native-project-state{display:inline-block;margin-left:12px;padding:3px 6px;border:1px solid var(--line);color:var(--muted);font-size:10px;vertical-align:middle}
 .project-collaboration button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.project-collaboration.is-invitation{display:flex;flex-wrap:wrap;align-items:center;column-gap:18px;row-gap:4px;padding-top:12px}
+.project-collaboration.is-invitation .collaboration-heading{flex:1;min-width:180px}
+.project-collaboration.is-invitation .collaboration-eyebrow,.project-collaboration.is-invitation #collaboration-candidates{display:none}
+.project-collaboration.is-invitation #collaboration-detail{flex-basis:100%;order:2;margin:4px 0;color:var(--muted)}
+.project-collaboration.is-invitation .collaboration-actions button{background:transparent;color:var(--ink);border-color:var(--line)}
 @media(max-width:960px){.main-column:has(>.workspace.project-native){height:calc(100dvh - 74px)}.workspace.project-native{min-height:0}}
 @media(max-width:600px){
  .project-preview{height:calc(100dvh - 24px);padding:16px}

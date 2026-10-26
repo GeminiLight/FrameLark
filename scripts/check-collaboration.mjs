@@ -134,7 +134,7 @@ try{
   await browser('upload','#file-input',join(root,'test/web/fixtures/quality/portrait-cast.png'));
   await wait('!document.querySelector(".right-panel").hidden&&document.querySelector("#workspace-title").textContent==="portrait-cast"');
   releaseCapabilities();
-  await wait('document.querySelector("#collaboration-request").textContent==="与 Agent 一起修"&&!document.querySelector("#collaboration-request").disabled');
+  await wait('document.querySelector("#collaboration-request").textContent==="保存并复制接续说明"&&!document.querySelector("#collaboration-request").disabled');
   assert.equal(await evaluate('JSON.stringify(document.querySelector(".workspace").classList.contains("empty"))'),false,'Late startup discovery preserves the photo already imported by the user');
   await browser('click','#collaboration-request');
   await wait('document.querySelector("#collaboration-status").textContent==="等待 Agent 接手"');

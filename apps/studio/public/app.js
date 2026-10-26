@@ -1,4 +1,5 @@
 import {createProjectEditPersistence} from './project-edit-persistence.js';
+import {createPreviewPipeline,createPreviewSampler} from './preview-pipeline.js';
 import {compileRetouchPlan,withPreviewTuning} from './edit-stack/planning.js';
 import {createStyleThumbnails,renderPresetTrial} from './style-thumbnails.js';
 import {toolStateFromSnapshot,toolRunCandidate,requestToolRun} from './photo-tool-client.js';
@@ -118,7 +119,11 @@ enhanceSelectControls(document);
 const defaults = neutralSettings();
 const stackStyles=document.createElement('link');stackStyles.rel='stylesheet';stackStyles.href='/edit-stack.css';document.head.append(stackStyles);
 const photoRenderer = createPhotoRenderer();
-let renderRevision = 0,renderedFrameKey=null,renderedEffectKey=null;
+const previewSampler=createPreviewSampler();
+const previewPipeline=createPreviewPipeline({renderer:photoRenderer,resize:previewSampler.resize,onFrame:showPreviewFrame,onState:showPreviewState});
+window.addEventListener('pagehide',event=>{if(event.persisted)previewPipeline.cancel();else previewPipeline.dispose();previewSampler.clear();});
+window.addEventListener('pageshow',event=>{if(event.persisted)scheduleRender();});
+let renderedFrameKey=null,renderedEffectKey=null;
 let editStack=null,stackDrawing=null;
 let cachedCropPreview=null;
 const draftStore=createDraftStore();
@@ -141,7 +146,7 @@ const styleThumbnails=createStyleThumbnails({
   onReady:(results,request)=>{const photo=currentPhoto();if(photo?.id!==request.photoId)return;photo.presetThumbs=results;for(const image of document.querySelectorAll('[data-preset] img')){const id=image.closest('[data-preset]').dataset.preset;if(results[id])image.src=results[id];}},
   onError:()=>{$('#style-audition-help').textContent='部分风格缩略图未能更新，重新打开风格库即可重试。';}
 });
-window.addEventListener('pagehide',()=>styleThumbnails.dispose(),{once:true});
+window.addEventListener('pagehide',event=>{if(!event.persisted)styleThumbnails.dispose();});
 const auditionRenderer=createPhotoRenderer();
 let auditionTimer=null,keyboardInteraction=false,agentThreadPhoto=null;
 const agentReading=new Map();
@@ -356,7 +361,7 @@ editStack=createEditStackController({root:$('#edit-stack-mount'),getPhoto:curren
   getSnapshot:photo=>({...photoSnapshot(photo),projectVersionId:photo.projectCurrentId}),
   setSnapshot:(photo,snapshot)=>{if(photo===currentPhoto())restoreEdit(snapshot,{gesture:true});else Object.assign(photo,{editDocument:structuredClone(snapshot.editDocument||null),manual:{...snapshot.manual},crop:structuredClone(snapshot.crop),active:new Set(snapshot.active),advisorLayers:structuredClone(snapshot.advisorLayers),presetId:snapshot.presetId,presetAmount:snapshot.presetAmount,annotations:structuredClone(snapshot.annotations)});},
   onChange:photo=>{photo.active=new Set();photo.advisorLayers=[];photo.assessment=null;photo.exported=false;if(photo===currentPhoto()){sizePhotoStage();scheduleRender();refreshActions();}},
-  onBusy:photo=>{if(photo===currentPhoto())refreshActions();},
+  onBusy:photo=>{projectWorkspace.status(photo);if(photo===currentPhoto())refreshActions();},
   onHistory:(photo,before)=>{if(photo===currentPhoto())saveEdit(before);else{photo.history.past.push(before);photo.history.future=[];}scheduleDraftSave();},
   persist:createProjectEditPersistence(projectWorkspace),
   onError:(message,photo)=>{if(photo===currentPhoto())showToast(message);scheduleDraftSave();},
@@ -806,6 +811,7 @@ function finishRangeEdit() {
   if (!editHistory.range) return;
   saveEdit(editHistory.range.before);
   editHistory.range = null;
+  previewPipeline.finish();
 }
 
 function beginRangeEdit(key) {
@@ -1157,37 +1163,35 @@ function drawHistogram(data, width, height) {
 }
 
 function scheduleRender() {
-  if(currentPhoto()?.projectData?.source.raw){photoRenderer.cancel();state.renderPending=false;$('#render-status').hidden=true;return;}
+  if(currentPhoto()?.projectData?.source.raw||!state.previewData){previewPipeline.cancel();previewSampler.clear();state.renderPending=false;$('#render-status').hidden=true;return;}
   endStyleAudition();
-  renderRevision++;
   const frameKey=JSON.stringify({photo:currentPhotoId,crop:state.crop});
   if(frameKey!==renderedFrameKey) editedCanvas.hidden=true;
-  if(state.renderPending){photoRenderer.cancel();return;}if(!state.previewData)return;
-  state.renderPending = true;state.renderFailed=false;$('#render-retry').hidden=true;refreshActions();
-  $('#render-status').hidden = false;
-  $('#render-status-text').textContent='正在更新效果…';
   hideComparisonPopover();
-  requestAnimationFrame(async () => {
-    try {
-      while (state.previewData) {
-        if(currentPhoto()?.projectData?.source.raw)break;
-        const revision=renderRevision,photoId=currentPhotoId;
-        const source=currentPreviewPixels();
-        let output;try{output=await photoRenderer.render(currentRenderJob(source.data,source.width,source.height));}catch(error){if(error.name==='AbortError'&&(revision!==renderRevision||photoId!==currentPhotoId))continue;throw error;}
-        if (revision!==renderRevision || photoId!==currentPhotoId) continue;
-        editedCanvas.width=source.width;editedCanvas.height=source.height;
-        editedCanvas.getContext('2d',{willReadFrequently:true}).putImageData(new ImageData(output,source.width,source.height),0,0);
-        editedCanvas.hidden=false;renderedFrameKey=JSON.stringify({photo:currentPhotoId,crop:state.crop});renderedEffectKey=currentEffectSignature();
-        drawHistogram(output,source.width,source.height);renderToneCurve();
-        break;
-      }
-      $('#render-status').hidden=true;
-    } catch(error) {
-      state.renderFailed=true;$('#render-status-text').textContent='预览未更新 · 已有编辑保留';$('#render-retry').hidden=false;
-    } finally { state.renderPending=false;refreshActions();
-      const queued=exportAfterPreview;if(queued){exportAfterPreview=null;if(!state.renderFailed&&queued.photoId===currentPhotoId&&queued.signature===currentEffectSignature()&&!document.querySelector('dialog[open]'))openExportDialog();else showToast('已应用调整，请确认当前效果后再导出。');}
-    }
+  const source=currentPreviewPixels(),effectKey=currentEffectSignature(),maskView=editStack?.maskView(currentPhoto());
+  previewPipeline.request(currentRenderJob(source.data,source.width,source.height),{
+    key:JSON.stringify([effectKey,maskView]),context:frameKey,meta:{photoId:currentPhotoId,frameKey,effectKey},
+    interactive:Boolean(editHistory.range||currentPhoto()?.editGestureBefore)
   });
+}
+function showPreviewFrame({pixels,width,height,quality,meta}){
+  if(meta.photoId!==currentPhotoId||meta.frameKey!==JSON.stringify({photo:currentPhotoId,crop:state.crop}))return;
+  if(quality==='full'&&meta.effectKey!==currentEffectSignature())return;
+  editedCanvas.width=width;editedCanvas.height=height;
+  editedCanvas.getContext('2d',{willReadFrequently:true}).putImageData(new ImageData(pixels,width,height),0,0);
+  editedCanvas.hidden=false;editedCanvas.dataset.previewQuality=quality;renderedFrameKey=meta.frameKey;
+  renderedEffectKey=quality==='full'?meta.effectKey:null;
+  if(quality==='full'){drawHistogram(pixels,width,height);renderToneCurve();}
+}
+function showPreviewState(status,meta){
+  if(meta.photoId!==currentPhotoId)return;
+  state.renderPending=status==='quick'||status==='refining';state.renderFailed=status==='failed';
+  $('#render-status').hidden=status==='ready';$('#render-retry').hidden=!state.renderFailed;
+  $('#render-status-text').textContent=status==='quick'?'快速预览 · 停下后恢复清晰效果':status==='refining'?'正在生成清晰预览…':'预览未更新 · 已有编辑保留';
+  refreshActions();
+  if(!state.renderPending){
+    const queued=exportAfterPreview;if(queued){exportAfterPreview=null;if(!state.renderFailed&&queued.photoId===currentPhotoId&&queued.signature===currentEffectSignature()&&!document.querySelector('dialog[open]'))openExportDialog();else showToast('已应用调整，请确认当前效果后再导出。');}
+  }
 }
 
 function presetThumbnailSignature(){
@@ -3402,12 +3406,13 @@ $('#version-items').addEventListener('click',event=>{
 });
 
 function renderDraftStatus() {
-  if(currentPhoto()?.projectId){$('#draft-status').textContent='其他草稿';$('#draft-status').title='查看保存在此浏览器中的其他照片草稿。';$('#draft-status').classList.remove('save-failed');return;}
+  $('#draft-status').hidden=Boolean(currentPhoto()?.projectId);
+  if(currentPhoto()?.projectId){$('#draft-status').textContent='其他草稿';$('#draft-status').title='在工作台设置中管理其他浏览器草稿。';$('#draft-status').classList.remove('save-failed');return;}
   const own=Boolean(currentPhoto() && !currentPhoto().isDemo);
   const {savedAt:draftSavedAt,dirty:draftDirty,saving:draftSaving}=draftAutosave.status,draftFailed=draftAutosave.status.failed||draftListFailed;
-  $('#draft-status').textContent=draftFailed ? '保存失败 · 重试':draftSaving || draftDirty ? '正在保存草稿…':draftSavedAt && own ? '草稿已保存在此浏览器':own ? '草稿等待保存':'草稿';
+  $('#draft-status').textContent=draftFailed ? '草稿 · 保存失败':draftSaving || draftDirty ? '草稿 · 保存中':draftSavedAt && own ? '草稿 · 已保存':own ? '草稿 · 待保存':'草稿';
   $('#draft-status').classList.toggle('save-failed',draftFailed);
-  $('#draft-status').title=draftFailed ? '本次修改尚未保存；点击可重试或导出照片':draftSavedAt ? `上次保存 ${new Date(draftSavedAt).toLocaleString('zh-CN')}`:'查看、继续编辑或清理草稿';
+  $('#draft-status').title=draftFailed ? '本次修改尚未保存；点击可重试或导出照片':draftSavedAt ? `保存在此浏览器；上次保存 ${new Date(draftSavedAt).toLocaleString('zh-CN')}`:'查看、继续编辑或清理此浏览器中的草稿';
 }
 function scheduleDraftSave() {
   for(const photo of photoSessions)if(photo.projectId)projectWorkspace.schedule(photo);

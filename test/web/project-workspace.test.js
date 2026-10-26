@@ -15,6 +15,14 @@ function fixture(t,{photo={id:'photo'},patch={settings:{exposure:0}},fetchImpl,o
 }
 const data=(revision=1)=>({id:'project',path:'/tmp/owned-project',name:'test',revision,currentId:'current',supported:true,current:{},candidates:[],versions:[],exports:[]});
 const response=value=>new Response(JSON.stringify(value),{headers:{'Content-Type':'application/json'}});
+test('reopening the event stream cannot erase an unsaved write error',async t=>{
+  const env=fixture(t,{fetchImpl:async()=>new Response(JSON.stringify({error:{message:'disk full'}}),{status:500,headers:{'Content-Type':'application/json'}})});
+  await env.workspace.attach(env.photo,data());env.patch.settings.exposure=.2;
+  await assert.rejects(env.workspace.flush(env.photo),/disk full/);
+  env.events[0].onerror();env.events[0].onopen();
+  assert.equal(env.photo.projectPending,true);assert.equal(env.node('project-sync-status').textContent,'disk full');
+  assert.match(env.node('project-open').textContent,/保存失败/);
+});
 for(const kind of ['diagnosis','audit'])test(`a late ${kind} refreshes its original photo without stealing the newer selection`,async t=>{
   const a={id:'a'},b={id:'b'};let active=a,revision=1,loads=0,finish,arrive;const ready=new Promise(resolve=>{arrive=resolve;});
   const current=()=>({...data(revision),currentAudit:revision>1?{decision:'ready',width:32,height:24}:null});
