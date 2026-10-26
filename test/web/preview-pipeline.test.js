@@ -44,6 +44,12 @@ test('failure keeps the final-frame gate closed and a retry can complete',async(
   assert.equal(f.states.at(-1).state,'failed');assert.equal(f.frames.length,0);
   f.request('a',{interactive:false});await tick();f.jobs[1].resolve();await tick();assert.equal(f.states.at(-1).state,'ready');
 });
+test('replacing source pixels in the same photo context discards the old quick frame',async()=>{
+  const f=fixture();f.request('a');await tick();
+  f.pipeline.request({pixels:new Uint8ClampedArray(4),width:1400,height:1050},{key:'a',context:'photo-a',meta:{key:'replacement'},interactive:true});await tick();
+  assert.equal(f.cancellations,1);f.jobs[0].resolve();await tick();assert.equal(f.frames.length,0);
+  f.jobs[1].resolve();await tick();assert.equal(f.frames[0].meta.key,'replacement');f.pipeline.dispose();
+});
 test('cancel and dispose remove queued work and ignore late results',async()=>{
   for(const action of ['cancel','dispose']){
     const f=fixture();f.request('a');await tick();f.request('b');f.pipeline[action]();f.jobs[0].resolve();await tick();

@@ -24,7 +24,7 @@ export function createPreviewPipeline({renderer,resize,onFrame,onState,now=()=>p
         quickSide=Math.max(240,Math.min(640,Math.round(measured*Math.sqrt(100/elapsed)/40)*40));
       }
       const current=request.id===latest.id;
-      if(current||quality==='quick'&&request.context===latest.context){
+      if(current||quality==='quick'&&request.context===latest.context&&request.job.pixels===latest.job.pixels){
         onFrame?.({pixels,width:job.width,height:job.height,quality,meta:request.meta});
       }
       if(current){
@@ -44,7 +44,7 @@ export function createPreviewPipeline({renderer,resize,onFrame,onState,now=()=>p
       if(!unchanged){
         // Abandon expensive final frames and frames for a different photo/crop.
         // Keep the bounded quick worker alive throughout the same gesture.
-        if(running&&(running.quality==='full'||running.request.context!==context))stop();
+        if(running&&(running.quality==='full'||running.request.context!==context||running.request.job.pixels!==job.pixels))stop();
         latest={id:++sequence,key,context,meta,job,quality:interactive?'quick':'full',done:null};
         onState?.(interactive?'quick':'refining',meta);pump();
       }else if(!interactive)finish();

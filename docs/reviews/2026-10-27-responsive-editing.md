@@ -4,14 +4,14 @@ Continuous range input previously cancelled each unfinished full preview, termin
 
 ## Changes
 
-- A dedicated preview scheduler admits one render and retains only the newest waiting request. A continuous gesture uses a transient, adaptive small preview; release or 180 ms without input requests the complete preview. Full results and different photo/crop contexts are cancelled when obsolete. Completed quick frames can trail the same gesture but cannot unlock export.
+- A dedicated preview scheduler admits one render and retains only the newest waiting request. A continuous gesture uses a transient, adaptive small preview; release or 180 ms without input requests the complete preview. Full results, different photo/crop contexts and replaced source pixels are cancelled when obsolete. Completed quick frames can trail the same gesture but cannot unlock export.
 - Sampling retains original-space crop/rotation metadata and never changes the recipe, source pixels, final rendering algorithm, or acceptance/export checks. Only a latest full frame updates the final-effect signature and histogram. Returning from the browser's page cache resumes rendering instead of reusing a disposed renderer.
 - Project save state covers active edits, failed writes, conflicts and native-editor changes. Notification connection state is separate and cannot erase a failed write.
 - The header names the actual storage state. Browser drafts remain in workspace settings for file projects. The legacy adjustment row explains whether prior adjustments exist. Agent handoff describes saving and copying context for an external Agent; automatic browser-save candidates remain in project history but no longer inflate the Agent comparison list.
 
 ## Evidence
 
-Local Node suite: 826 tests passed before the final sampler test; the additional sampler test and final targeted preview/render suite also passed. Architecture, shared-engine, plugin packaging and shared-retouch UI checks passed. CI runs the complete suite plus browser workflows, including a new quick-preview/export-gate check.
+Local Node suite: 826 tests passed before the final sampler and source-replacement tests; the additional tests and final targeted suite (52 tests) also passed. Architecture, shared-engine, plugin packaging and shared-retouch UI checks passed. CI runs the complete suite plus browser workflows, including a new quick-preview/export-gate check.
 
 Daily Chrome manual checks: a 24-step, 1400 × 1050 landscape preview, slider edit, undo/redo, saved status and export availability; a 390 px embedded viewport with a portrait project. The landscape returns to the original preview dimensions. No application console errors were observed. This is a responsive viewport check, not a physical-phone performance test.
 
