@@ -68,8 +68,21 @@ try{
     assert.equal(visible,true,'Ordered export remains reachable at '+width+'×'+height);
     await browser('screenshot',join(output,name+'.png'));
   }
+  await browser('set','viewport','1280','800');
+  await browser('click','[data-collection-photo="P0001"] [data-collection-edit]');
+  await browser('wait','--fn','!document.querySelector("#shared-collection-dialog").open&&document.querySelector("#project-sync-status").textContent.includes("已保存")');
+  await browser('click','#panel-adjust');
+  await browser('click','#edit-stack-start');
+  await browser('wait','--fn','Boolean(document.querySelector("[data-step-id]"))&&!document.querySelector("#photo-undo").disabled');
+  await browser('click','#photo-undo');
+  await browser('wait','--fn','!document.querySelector("#photo-redo").disabled');
+  await browser('click','#photo-redo');
+  await browser('wait','--fn','!document.querySelector("#photo-undo").disabled');
+  await browser('click','#collection-open');
+  await browser('click',`[data-collection-recent="${c.id}"]`);
+  await browser('wait','--fn','document.querySelector("#shared-collection-dialog").open&&document.querySelectorAll("[data-collection-photo]").length===2');
   assert.equal(await browser('errors'),'');
-  console.log('PASS shared collection: CLI→Web theme/version, Web→CLI order, dirty-input protection, real export/download, old-output labels, desktop/short-screen/390px/320px.');
+  console.log('PASS shared collection: CLI→Web theme/version, Web→CLI order, dirty-input protection, real export/download, old-output labels, collection→photo edit→undo→redo→collection, desktop/short-screen/390px/320px.');
 }finally{
   await browser('close').catch(()=>{});
   if(child&&child.exitCode===null){const exit=new Promise(resolve=>child.once('exit',resolve));child.kill('SIGTERM');const force=setTimeout(()=>child.kill('SIGKILL'),3000);await exit;clearTimeout(force);}

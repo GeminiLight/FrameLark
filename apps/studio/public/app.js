@@ -1,3 +1,4 @@
+import {createProjectEditPersistence} from './project-edit-persistence.js';
 import {compileRetouchPlan,withPreviewTuning} from './edit-stack/planning.js';
 import {createStyleThumbnails,renderPresetTrial} from './style-thumbnails.js';
 import {toolStateFromSnapshot,toolRunCandidate,requestToolRun} from './photo-tool-client.js';
@@ -336,9 +337,7 @@ const projectWorkspace=createProjectWorkspace({
 });
 createCollectionWorkspace({notify:showToast,onEdit:async id=>{
   if(currentPhoto()?.projectId)await projectWorkspace.flush(currentPhoto());
-  const response=await fetch(`/api/projects/${encodeURIComponent(id)}`);
-  if(!response.ok)throw new Error('单图项目无法读取，请检查共享组图目录。');
-  await projectWorkspace.load(await response.json());
+  await projectWorkspace.openProject(id);
 }});
 function syncSharedEditions(photo,data){
   const saved=editionsFromProject(data).map(v=>({...v,signature:snapshotAcceptanceSignature(v.snapshot)}));
@@ -359,13 +358,7 @@ editStack=createEditStackController({root:$('#edit-stack-mount'),getPhoto:curren
   onChange:photo=>{photo.active=new Set();photo.advisorLayers=[];photo.assessment=null;photo.exported=false;if(photo===currentPhoto()){sizePhotoStage();scheduleRender();refreshActions();}},
   onBusy:photo=>{if(photo===currentPhoto())refreshActions();},
   onHistory:(photo,before)=>{if(photo===currentPhoto())saveEdit(before);else{photo.history.past.push(before);photo.history.future=[];}scheduleDraftSave();},
-  persist:async(photo,{proposal,document:recipe,snapshot,signal,retrying})=>{
-    if(!photo.projectId)return recipe;
-    if(retrying){const recovered=await projectWorkspace.recoverDocument(photo,proposal.requestId,documentHash(recipe),{signal});if(recovered)return recovered;}
-    const made=await projectWorkspace.proposeDocument(photo,proposal,{signal});if(documentHash(made.document)!==documentHash(recipe))throw new Error('网页与文件项目的配方结果不一致，请重新预览。');
-    await projectWorkspace.renderDocumentPreview(photo,made.token,{signal});
-    const data=await projectWorkspace.accept(photo,made.token,workspacePatch(snapshot,{intent:photo.creativeIntent,conversation:photo.conversation}),{signal});return data.document;
-  },
+  persist:createProjectEditPersistence(projectWorkspace),
   onError:(message,photo)=>{if(photo===currentPhoto())showToast(message);scheduleDraftSave();},
   onDiscuss:(id,photo)=>{selectTab('agent');$('#agent-input').placeholder='说明想怎么修改选中的步骤…';renderAgent();$('#agent-input').focus();},
   onDraw:(shape,id,operation)=>{stackDrawing={shape,stepId:id,operation,photoId:currentPhotoId};maskTool=shape;localToolCreating=false;setMarkingPhoto(true);showToast(`在照片上拖动绘制${maskTypes[shape]}，只改变选中步骤的范围。`);},
@@ -850,18 +843,20 @@ function restoreEdit(snapshot,{gesture=false}={}) {
 function restorePhotoHistory(photo,history){photo.history=history;if(currentPhoto()===photo){editHistory.past=history.past;editHistory.future=history.future;editHistory.range=null;refreshActions();}scheduleDraftSave();}
 
 function undoEdit() {
+  if(editStack.busy(currentPhoto()))return;
   finishRangeEdit();
   if (!editHistory.past.length) return;
-  if(currentPhoto()?.projectId&&state.editDocument){const photo=currentPhoto(),before=editSnapshot(),target=editHistory.past.at(-1);if(target.projectVersionId){const history=photo.history;photo.editSaving=true;refreshActions();editStack.render();projectWorkspace.restoreEdition(photo,target.projectVersionId).then(()=>{history.future.push(before);history.past.pop();restorePhotoHistory(photo,history);showToast('已撤销步骤修改。');}).catch(error=>showToast(error.message)).finally(()=>{photo.editSaving=false;refreshActions();editStack.render();});return;}}
+  if(currentPhoto()?.projectId&&state.editDocument){const photo=currentPhoto(),before=editSnapshot(),target=editHistory.past.at(-1);if(target.projectVersionId){const history=photo.history;editStack.restore(photo,options=>projectWorkspace.restoreEdition(photo,target.projectVersionId,options),()=>{history.future.push(before);history.past.pop();restorePhotoHistory(photo,history);showToast('已撤销步骤修改。');});return;}}
   editHistory.future.push(editSnapshot());
   restoreEdit(editHistory.past.pop());
   showToast('已撤销上一步调整。');
 }
 
 function redoEdit() {
+  if(editStack.busy(currentPhoto()))return;
   finishRangeEdit();
   if (!editHistory.future.length) return;
-  if(currentPhoto()?.projectId){const photo=currentPhoto(),before=editSnapshot(),target=editHistory.future.at(-1);if(target.projectVersionId){const history=photo.history;photo.editSaving=true;refreshActions();editStack.render();projectWorkspace.restoreEdition(photo,target.projectVersionId).then(()=>{history.past.push(before);history.future.pop();restorePhotoHistory(photo,history);showToast('已重做步骤修改。');}).catch(error=>showToast(error.message)).finally(()=>{photo.editSaving=false;refreshActions();editStack.render();});return;}}
+  if(currentPhoto()?.projectId){const photo=currentPhoto(),before=editSnapshot(),target=editHistory.future.at(-1);if(target.projectVersionId){const history=photo.history;editStack.restore(photo,options=>projectWorkspace.restoreEdition(photo,target.projectVersionId,options),()=>{history.past.push(before);history.future.pop();restorePhotoHistory(photo,history);showToast('已重做步骤修改。');});return;}}
   editHistory.past.push(editSnapshot());
   restoreEdit(editHistory.future.pop());
   showToast('已重做调整。');
@@ -2581,7 +2576,7 @@ async function processImportRows(rows) {
       prepare:(file,signal)=>preparePhotoFile(file,{signal}),
       capacity:()=>({count:photoSessions.length,pixels:photoSessions.reduce((sum,photo)=>sum+photo.image.naturalWidth*photo.image.naturalHeight,0)}),
       commit:async(file,metadata,signal,original)=>{
-        if(file.rawProject){await projectWorkspace.load(file.rawProject.id);const photo=currentPhoto();newPhotos.push(photo);return {id:photo.id,width:photo.image.naturalWidth,height:photo.image.naturalHeight};}
+        if(file.rawProject){await projectWorkspace.openProject(file.rawProject.id);const photo=currentPhoto();newPhotos.push(photo);return {id:photo.id,width:photo.image.naturalWidth,height:photo.image.naturalHeight};}
         // Keep original bytes separately when a HEIC working copy was converted.
         const blob=file.slice(0,file.size,metadata.mime),url=URL.createObjectURL(blob);
         const photo=await addPhotoSource(url,file.name.replace(/\.[^.]+$/,''),false,false,blob,{metadata,signal,strict:true});
@@ -3523,7 +3518,7 @@ async function initialize() {
   document.querySelector('[data-workspace-tool="projects"]').hidden=!capabilities.local;
   const userStartedWork=()=>photoSessions.length>0||importingFiles||state.loading||draftTransition;
   const linkedProject=new URL(location.href).searchParams.get('project');
-  if(linkedProject&&!userStartedWork()){try{const loaded=await projectWorkspace.load(linkedProject);if(!loaded)showEmptyWorkspace();return;}catch(error){showToast(error.message);}}
+  if(linkedProject&&!userStartedWork()){try{const loaded=await projectWorkspace.openProject(linkedProject);if(!loaded)showEmptyWorkspace();return;}catch(error){showToast(error.message);}}
   await refreshDraftList();
   // Startup discovery can finish after the first upload or draft restore. It
   // must not replace an active editor with the initial empty-workspace state.

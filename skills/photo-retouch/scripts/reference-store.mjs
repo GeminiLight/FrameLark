@@ -1,6 +1,5 @@
 import {readFile, stat, mkdir, writeFile} from 'node:fs/promises';
 import path from 'node:path';
-import sharp from 'sharp';
 import {hash, pipelineVersion,versionPipeline,versionStateHash} from './engine/edit-identity.js';
 import {guardsOf, geometryOf, validateGuards} from './engine/edit-guards.js';
 import {equal, fail} from './engine/edit-values.js';
@@ -41,6 +40,7 @@ export async function readReferenceSnapshot(folder, snapshot) {
     if (info.size>80*1024*1024) fail('REFERENCE_CORRUPT','参考快照过大。');
     const bytes=await readFile(filename);
     if (hash(bytes)!==snapshot.fileHash) fail('REFERENCE_CORRUPT','保护参考快照已损坏。请恢复备份；不会忽略保护继续输出。');
+    const {default:sharp}=await import('sharp');
     const {data,info:decoded}=await sharp(bytes,{limitInputPixels:16_000_000}).ensureAlpha().raw().toBuffer({resolveWithObject:true});
     if (decoded.width!==snapshot.width || decoded.height!==snapshot.height || hash(data)!==snapshot.pixelHash) fail('REFERENCE_CORRUPT','保护参考快照像素不匹配。');
     return new Uint8ClampedArray(data);

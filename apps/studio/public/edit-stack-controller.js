@@ -28,11 +28,29 @@ export function createEditStackController({root,getPhoto,prepareDocument,getSnap
   }
   async function save(photo,beforeSnapshot,beforeDocument,commands,next,requestId='edit-'+crypto.randomUUID(),retrying=false){
     const proposal={baseRevision:beforeDocument.revision,baseHash:documentHash(beforeDocument),requestId,items:[{id:'edit',title:'修改编辑步骤',commands}]};
+    return ownSave(photo,async signal=>{
+      try{let authoritative=next;if(persist)authoritative=await persist(photo,{proposal,beforeDocument,document:next,snapshot:getSnapshot(photo),signal,retrying});if(signal.aborted||released.has(photo))return false;write(photo,authoritative||next);onHistory?.(photo,beforeSnapshot);return true;}
+      catch(error){if(signal.aborted||released.has(photo))return false;photo.editStackError=error.message;photo.editRetry={beforeSnapshot,beforeDocument,commands,next,requestId};onError?.(error.message,photo);return false;}
+    });
+  }
+  async function ownSave(photo,operation){
     const controller=new AbortController();saves.set(photo,controller);
     photo.editSaving=true;photo.editStackError='';onBusy?.(photo);render();
-    try{let authoritative=next;if(persist)authoritative=await persist(photo,{proposal,beforeDocument,document:next,snapshot:getSnapshot(photo),signal:controller.signal,retrying});if(controller.signal.aborted||released.has(photo))return;write(photo,authoritative||next);onHistory?.(photo,beforeSnapshot);return true;}
-    catch(error){if(controller.signal.aborted||released.has(photo))return;photo.editStackError=error.message;photo.editRetry={beforeSnapshot,beforeDocument,commands,next,requestId};onError?.(error.message,photo);return false;}
-    finally{if(saves.get(photo)===controller)saves.delete(photo);photo.editSaving=false;onBusy?.(photo);render();}
+    try{return await operation(controller.signal);}
+    finally{if(saves.get(photo)===controller){saves.delete(photo);photo.editSaving=false;}onBusy?.(photo);render();}
+  }
+  // History restoration and edits share one owner. No history is moved until
+  // persistence succeeds, and releasing a photo aborts either kind of operation.
+  function restore(photo,operation,onRestored){
+    if(!photo||released.has(photo)||pending.has(photo)||photo.editPreparing||photo.editSaving||photo.editRetry)return Promise.resolve(false);
+    if(photo===getPhoto())cancel();
+    return enqueue(photo,async()=>{
+      if(released.has(photo))return false;
+      return ownSave(photo,async signal=>{
+        try{const result=await operation({signal});if(signal.aborted||released.has(photo))return false;onRestored?.(result);return true;}
+        catch(error){if(signal.aborted||released.has(photo))return false;photo.editStackError=error.message;onError?.(error.message,photo);return false;}
+      });
+    });
   }
   function command(commands,ownedPhoto){
     const photo=ownedPhoto||getPhoto();if(!photo||photo.editSaving)return Promise.resolve(false);
@@ -55,14 +73,14 @@ export function createEditStackController({root,getPhoto,prepareDocument,getSnap
   function preview(commands){const photo=getPhoto();if(!photo?.editDocument||pending.has(photo)||photo.editPreparing||photo.editSaving||!commands.length)return;if(photo.editRetry){onError?.('请先重试保存当前修改，再继续编辑步骤。',photo);return;}let gesture=gestures.get(photo);if(!gesture){gesture={beforeDocument:structuredClone(photo.editDocument),beforeSnapshot:getSnapshot(photo)};gestures.set(photo,gesture);photo.editGestureBefore=gesture.beforeSnapshot;}
     try{const result=applyCommands(gesture.beforeDocument,commands);gesture.commands=structuredClone(commands);gesture.next=result.next;gesture.invalid=false;photo.editStackError='';write(photo,result.next);}catch(error){gesture.invalid=true;photo.editStackError=error.message;view.setMessage(error.message);}
   }
-  async function commit(commands){const photo=getPhoto(),gesture=photo&&gestures.get(photo);if(!gesture){if(commands.length)await command(commands);return;}gestures.delete(photo);delete photo.editGestureBefore;if(gesture.invalid){setSnapshot(photo,gesture.beforeSnapshot);onChange?.(photo);render();return;}if(!gesture.next)return;await save(photo,gesture.beforeSnapshot,gesture.beforeDocument,gesture.commands,gesture.next);}
+  async function commit(commands){const photo=getPhoto(),gesture=photo&&gestures.get(photo);if(!gesture){if(commands.length)await command(commands);return;}gestures.delete(photo);delete photo.editGestureBefore;if(gesture.invalid){setSnapshot(photo,gesture.beforeSnapshot);onChange?.(photo);render();return;}if(!gesture.next)return;await enqueue(photo,()=>released.has(photo)?false:save(photo,gesture.beforeSnapshot,gesture.beforeDocument,gesture.commands,gesture.next));}
   function cancel(){const photo=getPhoto(),gesture=photo&&gestures.get(photo);if(!gesture)return;gestures.delete(photo);delete photo.editGestureBefore;setSnapshot(photo,gesture.beforeSnapshot);onChange?.(photo);render();}
   function select(id){const photo=getPhoto();if(!photo)return;cancel();currentView(photo).selectedStepId=id;currentView(photo).maskMode='photo';render();onChange?.(photo);}
   view=createView(root,{catalog,onSelect:select,onDuplicate:id=>{const photo=getPhoto();if(photo?.editDocument)command(duplicateCommands(photo.editDocument,id,'step-'+crypto.randomUUID()));},onCommand:command,onPreview:preview,onCommit:commit,onCancel:cancel,
     onView:({stepId,mode})=>{const photo=getPhoto();if(photo){currentView(photo).selectedStepId=stepId;currentView(photo).maskMode=mode;onChange?.(photo);render();}},
     onDiscuss:id=>{const photo=getPhoto();if(photo){currentView(photo).scopeStepId=id;onDiscuss?.(id,photo);}},onDraw:(shape,id,operation)=>onDraw?.(shape,id,operation),onFoldGroup:id=>{const photo=getPhoto(),state=currentView(photo),set=new Set(state.collapsedGroups||[]);set.has(id)?set.delete(id):set.add(id);state.collapsedGroups=[...set];render();},onRetry:retry,onLegacy});
   async function retry(){const photo=getPhoto();if(!photo||photo.editSaving)return;return enqueue(photo,async()=>{const retry=photo.editRetry;if(!retry||released.has(photo))return;delete photo.editRetry;await save(photo,retry.beforeSnapshot,retry.beforeDocument,retry.commands,retry.next,retry.requestId,true);});}
-  return {release(photo){released.add(photo);saves.get(photo)?.abort();gestures.delete(photo);delete photo.editGestureBefore;},busy:photo=>Boolean(photo&&(pending.has(photo)||photo.editPreparing||photo.editSaving||photo.editRetry)),render,command,preview,commit,cancel,select,ensure,viewState:photo=>currentView(photo),
+  return {release(photo){released.add(photo);saves.get(photo)?.abort();gestures.delete(photo);delete photo.editGestureBefore;},busy:photo=>Boolean(photo&&(pending.has(photo)||photo.editPreparing||photo.editSaving||photo.editRetry)),render,command,preview,commit,cancel,select,ensure,restore,viewState:photo=>currentView(photo),
     retry,
     async proposal(input){const photo=getPhoto(),base=await ensure(photo);return compileDocumentProposal(base,input);},
     update(photo,document){if(document)validateDocument(document);photo.editDocument=document?structuredClone(document):null;if(getPhoto()===photo)render();},

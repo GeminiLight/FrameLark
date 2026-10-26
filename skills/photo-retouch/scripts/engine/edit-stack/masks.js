@@ -21,8 +21,8 @@ export function validateExpression(expression,depth=0){
   }
   return expression;
 }
-export function validateMasks(masks,source){
-  if(!Array.isArray(masks)||masks.length>256)fail('MASK_LIMIT','蒙版版本超过保存上限。');const records=new Map();
+export function validateMasks(masks,source,{maxRecords=256}={}){
+  if(!Array.isArray(masks)||masks.length>maxRecords)fail('MASK_LIMIT','蒙版版本超过保存上限。');const records=new Map();
   for(const mask of masks){object(mask,['id','version','expression','reference','provenance'],['id','version','expression','reference']);validateMaskRef({id:mask.id,version:mask.version});validateExpression(mask.expression);object(mask.reference,['kind','sourceHash'],mask.reference.kind==='frozen-source'?['kind','sourceHash']:['kind']);if(!['live-input','frozen-source'].includes(mask.reference.kind))fail('MASK_REFERENCE_MISSING','尚不支持这个冻结参考。');if(mask.reference.kind==='frozen-source'){hashValue(mask.reference.sourceHash);if(mask.reference.sourceHash!==source.contentHash)fail('SOURCE_CHANGED','冻结蒙版的原片身份不一致。');}if(mask.provenance!==undefined){object(mask.provenance,['name','source','confidence','annotationId'],[]);if(JSON.stringify(mask.provenance).length>600)fail('INVALID_DOCUMENT','蒙版来源说明过长。');}if(records.has(key(mask)))fail('INVALID_DOCUMENT','蒙版编号和版本重复。');records.set(key(mask),mask);}
   function walk(expr,seen=[],depth=0){if(depth>=8)fail('MASK_DEPTH_EXCEEDED','蒙版引用嵌套过深。');if(expr.kind==='reference'){const id=key(expr),record=records.get(id);if(!record)fail('MASK_REFERENCE_MISSING','引用的蒙版版本已丢失。');if(seen.includes(id))fail('DEPENDENCY_CYCLE','蒙版引用形成循环。');walk(record.expression,[...seen,id],depth+1);}else if(expr.kind==='invert')walk(expr.input,seen,depth+1);else if(expr.a){walk(expr.a,seen,depth+1);walk(expr.b,seen,depth+1);}}
   masks.forEach(mask=>walk(mask.expression,[key(mask)]));return records;
@@ -46,4 +46,14 @@ export function maskSampler(document,ref,input,original,{width,height,frame,crop
     return expression(record.expression);
   }
   return build(root);
+}
+
+// Old documents and undo snapshots retain their own immutable resource versions.
+// Only a newly produced document drops resources unreachable from its steps.
+export function reachableMasks(document){
+  const records=new Map(document.masks.map(mask=>[key(mask),mask])),used=new Set();
+  function visit(ref){const id=key(ref);if(used.has(id))return;const record=records.get(id);if(!record)fail('MASK_REFERENCE_MISSING','步骤引用的蒙版版本不存在。');used.add(id);expression(record.expression);}
+  function expression(value){if(value.kind==='reference')visit(value);else if(value.kind==='invert')expression(value.input);else if(value.a){expression(value.a);expression(value.b);}}
+  for(const step of document.steps)if(step.maskRef)visit(step.maskRef);
+  return document.masks.filter(mask=>used.has(key(mask)));
 }

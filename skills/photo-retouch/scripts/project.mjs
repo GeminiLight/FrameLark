@@ -1,14 +1,13 @@
+import {readProjectRecord,writeProjectRecord} from './project-repository.mjs';
 import {normalizeAuditContent} from './engine/edit-stack/review-protocol.js';
 import {retouchCapabilities,negotiateWorkspace} from './engine/edit-stack/capabilities.js';
 import {verifyPolicyProvenance} from './retouch-policy.mjs';
 import {rawExtensions,rawLimits} from './raw/contract.mjs';
-import {createRawAssets} from './raw/source.mjs';
 import {createDocument} from './engine/edit-stack/document.js';
 import {cleanToolRuns,versionToolRuns} from './engine/photo-tools/history.js';
-import {readFile,writeFile,mkdir,rename,rm,stat,open} from 'node:fs/promises';
+import {readFile,writeFile,mkdir,rm} from 'node:fs/promises';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
-import sharp from 'sharp';
 import {adjustmentKeys,neutralSettings} from './engine/editor-engine.js';
 import {presets,presetById} from './engine/presets.js';
 import {validCrop} from './engine/crop-utils.js';
@@ -46,8 +45,8 @@ export function findVersion(p,key='current') {
   if(!value)fail('VERSION_NOT_FOUND','找不到这份版本。请读取最新项目后再试。');return value;
 }
 export async function loadProject(folder) {
-  const file=path.join(path.resolve(folder),'project.json');let p;
-  try{const info=await stat(file);if(info.size>4*1024*1024)fail('PROJECT_TOO_LARGE','项目记录过大，无法安全读取。');p=JSON.parse(await readFile(file,'utf8'));}
+  let p;
+  try{p=await readProjectRecord(folder);}
   catch(error){if(error instanceof PhotoError)throw error;fail('PROJECT_UNAVAILABLE','项目无法读取。请使用含 project.json 的工作目录；已有源图与记录未改动。');}
   if(![1,2,3].includes(p.schema) || !Number.isInteger(p.revision)||!Array.isArray(p.versions)||!p.versions.length || !Array.isArray(p.notes)||!Array.isArray(p.candidates)||!currentVersion(p)||!Number.isInteger(p.source?.width)||!Number.isInteger(p.source?.height)||p.source.width<1||p.source.height<1||p.source.width*p.source.height>(p.source.raw?rawLimits.pixels:50_000_000))fail('INVALID_PROJECT','项目记录不完整。请保留目录，使用备份恢复。');
   if(p.schema===1) migrateLegacy(p);
@@ -84,19 +83,7 @@ function migrateLegacy(p) {
   }
   p.schema=2;
 }
-async function atomicWrite(folder,p) {
-  const serialized=JSON.stringify(p,null,2);
-  if(Buffer.byteLength(serialized,'utf8')>4*1024*1024)fail('PROJECT_TOO_LARGE','项目记录接近上限，请另存为新项目后继续。');
-  const temp=path.join(folder,`.project-${id()}.tmp`),file=path.join(folder,'project.json');
-  const previous=await readFile(file).catch(error=>{if(error.code==='ENOENT')return null;throw error;});
-  if(previous&&JSON.parse(previous).schema===1)await writeFile(path.join(folder,'project.schema-1.backup.json'),previous,{flag:'wx',mode:0o600}).catch(error=>{if(error.code!=='EEXIST')throw error;});
-  if(previous&&p.schema===3&&[1,2].includes(JSON.parse(previous).schema)){
-    const oldSchema=JSON.parse(previous).schema,file=path.join(folder,`project.schema-${oldSchema}.backup.json`);
-    try{await writeFile(file,previous,{flag:'wx',mode:0o600});}catch(error){if(error.code!=='EEXIST')throw error;if(hash(await readFile(file))!==hash(previous))await writeFile(path.join(folder,`project.schema-${oldSchema}-${hash(previous).slice(0,16)}.backup.json`),previous,{flag:'wx',mode:0o600}).catch(error=>{if(error.code!=='EEXIST')throw error;});}
-  }
-  const handle=await open(temp,'wx',0o600);try{await handle.writeFile(serialized);await handle.sync();}finally{await handle.close();}
-  try{await rename(temp,file);}catch(error){await rm(temp,{force:true});throw error;}
-}
+const atomicWrite=writeProjectRecord;
 async function locked(folder,fn) {
   folder=path.resolve(folder);return withFileLock(path.join(folder,'.edit-lock'),()=>fn(folder),{busyCode:'PROJECT_BUSY',busyMessage:'另一项编辑正在保存，请稍后再试。'});
 }
@@ -104,14 +91,29 @@ const expect=(p,revision)=>{if(revision!==undefined && revision!==p.revision)fai
 export async function mutateProject(folder,revision,fn) {
   return locked(folder,async root=>{const p=await loadProject(root);expect(p,revision);const result=await fn(p,root);p.revision++;p.updatedAt=now();await atomicWrite(root,p);return {project:p,...result};});
 }
+// Expensive preparation runs without the write lock. A commit must still own
+// the complete observed record, including edits made outside our revision API.
+export async function prepareProjectMutation(folder,revision,prepare) {
+  const root=path.resolve(folder),project=await loadProject(root);expect(project,revision);
+  const identity=hash(project),value=await prepare(project,root);
+  return {identity,value};
+}
+export function commitProjectMutation(folder,revision,prepared,commit) {
+  return mutateProject(folder,revision,(project,root)=>{
+    if(hash(project)!==prepared.identity)fail('STALE_REVISION','准备期间项目已更新。请重新读取当前版本后再提交。');
+    return commit(project,root,prepared.value);
+  });
+}
 export async function initProject(image,folder,{intent='',signal,rawBackend='auto'}={}) {
   if(rawExtensions.test(image)){
+    const {createRawAssets}=await import('./raw/source.mjs');
     folder=path.resolve(folder);const cleanIntent=text(intent);signal?.throwIfAborted();const source=await createRawAssets(path.resolve(image),folder,{signal,backend:rawBackend});try{const state={settings:neutralSettings(),style:null,crop:null,locals:[],textOverlays:[],guards:emptyGuards()},projectId=id(),original={id:id(),name:'原片',parentId:null,createdAt:now(),state};
     original.recipe=createDocument({documentId:'doc-'+projectId,source:{assetId:projectId,contentHash:source.checksum,normalizedHash:source.normalizedChecksum,width:source.width,height:source.height},base:state});
     const project={schema:3,id:projectId,revision:1,createdAt:now(),updatedAt:now(),source,intent:cleanIntent,notes:[],versions:[original],currentId:original.id,acceptedId:null,candidates:[],reviews:[],exports:[],choices:[]};signal?.throwIfAborted();await atomicWrite(folder,project);return {folder,project};}catch(error){await rm(folder,{recursive:true,force:true});throw error;}
   }
   folder=path.resolve(folder);const bytes=await readFile(path.resolve(image));
   if(bytes.length>30*1024*1024 || !bytes.length)fail('IMAGE_SIZE','照片为空或超过 30 MB，请转换成较小的 JPEG/PNG 后重新加入。');
+  const {default:sharp}=await import('sharp');
   let metadata,normalized,info;
   const heic=heicKind(bytes),input=heic?await convertHeic(bytes):bytes;
   try{metadata=await sharp(input,{limitInputPixels:50_000_000}).metadata();
@@ -400,11 +402,23 @@ export const renameWorkspaceVersion=(folder,value)=>mutateProject(folder,value.r
   const version=p.versions.find(v=>v.id===value.id);if(!version)fail('VERSION_NOT_FOUND','找不到这份已保存版本。');
   version.name=versionName(value.name);return {version};
 });
-export async function acceptCandidate(folder,value) {
+export async function acceptCandidate(folder,value,{signal,renderPreview}={}) {
   const acceptedBy=value.acceptedBy===undefined?'user':value.acceptedBy;
   if(!['user','agent'].includes(acceptedBy))fail('ACCEPT_SOURCE','接受来源应为 user 或 agent。');
   if(value.requireAudit!==undefined&&typeof value.requireAudit!=='boolean')fail('AUDIT_INVALID','requireAudit 应为布尔值。');
-  return mutateProject(folder,value.revision,async(p,root)=>{
+  const prepared=await prepareProjectMutation(folder,value.revision,async(p,root)=>{
+    const c=p.candidates.find(candidate=>candidate.id===value.id);
+    if(!c)fail('CANDIDATE_NOT_FOUND','候选已接受或取消，请读取最新版本。');
+    signal?.throwIfAborted();
+    if(!value.requireAudit&&!(acceptedBy==='agent'&&p.workflow?.mode==='reviewed'&&c.mode!=='guards'))return null;
+    assertWorkflowDelivery(p,c,acceptedBy);
+    const audit=latestAudit(p,c);
+    if(!audit||audit.decision!=='ready')fail('RESULT_AUDIT_REQUIRED','这份组合尚未通过成片审核。');
+    const renderer=renderPreview||(await import('./render.mjs')).previewPhoto;
+    const preview=await renderer(root,c.id,{maxSide:audit.maxSide,revision:p.revision,selectionHash:c.selectionHash});
+    signal?.throwIfAborted();return preview;
+  });
+  return commitProjectMutation(folder,value.revision,prepared,async(p,root,preparedPreview)=>{
     const existing=p.candidates.find(n=>n.id===value.id);
     if(!existing)fail('CANDIDATE_NOT_FOUND','候选已接受或取消，请读取最新版本。');
     if(!existing.legacy&&(!Number.isInteger(value.revision)||value.selectionHash!==existing.selectionHash))fail('STALE_SELECTION','请使用已查看组合预览的 revision 和 selectionHash。');
@@ -416,11 +430,10 @@ export async function acceptCandidate(folder,value) {
     if(value.requireAudit||acceptedBy==='agent'&&p.workflow?.mode==='reviewed'&&c.mode!=='guards'){
       const audit=latestAudit(p,c);
       if(!audit||audit.decision!=='ready'||audit.stateHash!==versionStateHash(c)||audit.selectionHash!==c.selectionHash||audit.pipeline!==versionPipeline(c)||audit.sourceChecksum!==p.source.checksum)fail('RESULT_AUDIT_REQUIRED','这份组合尚未通过成片审核。请查看实际预览、记录问题与修正，再提交 ready 审核。');
-      const {previewPhoto}=await import('./render.mjs');
-      const preview=await previewPhoto(root,c.id,{maxSide:audit.maxSide});
+      const preview=preparedPreview;
       if(preview.pixelHash!==audit.pixelHash||preview.frameSpecHash!==audit.frameSpecHash)fail('AUDIT_PREVIEW_MISMATCH','当前画面不能复现已审核预览，请重新查看并审核。');
     }
-    await verifyReferences(root,p,c.state);
+    await verifyReferences(root,p,c.state);signal?.throwIfAborted();
     const version={...c,baseFingerprint:undefined,planHash:undefined,baseDocument:undefined,documentProposal:undefined,acceptedAt:now(),acceptedBy};
     p.versions.push(version);p.currentId=c.id;p.acceptedId=c.id;p.candidates=p.candidates.filter(x=>x.id!==c.id);
     if(c.mode!=='guards'&&acceptedBy==='user')p.choices.push({versionId:c.id,name:c.name,mode:c.mode||'retouch',intent:p.intent,acceptedAt:now(),selectedItemIds:[...c.selectedItemIds],items:c.items.filter(i=>c.selectedItemIds.includes(i.id)),state:structuredClone(c.state),...(c.recipe?{recipe:structuredClone(c.recipe)}:{})});
@@ -447,12 +460,17 @@ export async function saveResultAudit(folder,value,{signal,renderPreview}={}){
   if(!Number.isInteger(value.revision)||!nonempty(value.versionId,80)||!Number.isInteger(value.maxSide)||value.maxSide<512||value.maxSide>8192)fail('AUDIT_INVALID','审核需真实版本与查看尺寸。');
   const content=normalizeAuditContent(Object.fromEntries(['decision','summary','checked','strengths','issues','resolutions'].filter(k=>value[k]!==undefined).map(k=>[k,value[k]])));
   const policy=value.policy?await verifyPolicyProvenance(value.policy):null;
-  return mutateProject(folder,value.revision,async(p,root)=>{
+  const prepared=await prepareProjectMutation(folder,value.revision,async(p,root)=>{
     const version=findVersion(p,value.versionId);
     if(p.candidates.some(c=>c.id===version.id)&&version.baseFingerprint!==fingerprint(p))fail('STALE_CANDIDATE','审核目标已过期，请重新试片。');
+    signal?.throwIfAborted();
     const {previewPhoto}=await import('./render.mjs');
-    const preview=await (renderPreview||previewPhoto)(root,version.id,{maxSide:value.maxSide});
+    const preview=await (renderPreview||previewPhoto)(root,version.id,{maxSide:value.maxSide,revision:p.revision,selectionHash:version.selectionHash});
     if(value.pixelHash!==preview.pixelHash||value.frameSpecHash!==preview.frameSpecHash||value.selectionHash!==preview.selectionHash)fail('AUDIT_PREVIEW_MISMATCH','审核的画面与当前组合不一致，请读取并实际查看最新预览。');
+    signal?.throwIfAborted();return preview;
+  });
+  return commitProjectMutation(folder,value.revision,prepared,(p,root,preview)=>{
+    const version=findVersion(p,value.versionId);
     const diagnosis=targetDiagnosis(p,version);
     let reviewer=null;
     if(value.reviewer){

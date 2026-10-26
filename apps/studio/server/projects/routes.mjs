@@ -1,3 +1,4 @@
+import {projectLimits} from '../../public/project-contract.js';
 const json=(response,status,value)=>{if(response.destroyed)return;response.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});response.end(JSON.stringify(value));};
 export async function handleProjectRoutes(request,response,url,{bridge,readBody,allowed,cloud,review}) {
   if(url.pathname==='/api/local-capabilities'&&request.method==='GET'){
@@ -8,7 +9,10 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
   if(!url.pathname.startsWith('/api/projects')&&url.pathname!=='/api/photos/convert')return false;
   if(cloud||!allowed(request,request.method!=='GET')){json(response,403,{error:{code:'FORBIDDEN_ORIGIN',message:'文件项目和 HEIC 转换仅在本机工作台可用。'}});return true;}
   const controller=new AbortController();response.once('close',()=>{if(!response.writableEnded)controller.abort();});
-  const body=async(limit=200000)=>JSON.parse((await readBody(request,limit)).toString('utf8'));
+  const body=async(limit=projectLimits.metadataBytes)=>{
+    try{return JSON.parse((await readBody(request,limit)).toString('utf8'));}
+    catch(error){if(error.status===413)throw Object.assign(new Error('项目内容超过本次操作的保存容量，已有编辑仍保留。'),{code:'PROJECT_REQUEST_TOO_LARGE',status:413});throw error;}
+  };
   try {
     if(url.pathname==='/api/photos/convert'&&request.method==='POST') {
       if(process.platform!=='darwin')throw Object.assign(new Error('当前系统不支持 HEIC 转换，请先转为 JPEG/PNG。'),{code:'HEIC_UNAVAILABLE'});
@@ -45,15 +49,15 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
       return true;
     }
     if(['diagnosis','audit'].includes(operation)&&request.method==='POST'){if(!review)throw Object.assign(new Error('当前入口没有视觉审核服务。'),{code:'REVIEW_UNAVAILABLE'});json(response,200,await review(id,operation,await body(),{signal:controller.signal}));return true;}
-    if(operation==='save'&&request.method==='POST'){json(response,200,await bridge.save(id,await body(4*1024*1024)));return true;}
+    if(operation==='save'&&request.method==='POST'){json(response,200,await bridge.save(id,await body(projectLimits.snapshotRequestBytes)));return true;}
     if(operation==='handoff'&&request.method==='POST'){
       const value=await body();if(!['request','cancel'].includes(value.action))throw Object.assign(new Error('请由 Agent 工具接手或报告进度。'),{code:'HANDOFF_INVALID'});
       json(response,200,await bridge.handoff(id,value));return true;
     }
-    if(operation==='versions'&&request.method==='POST'){json(response,200,await bridge.edition(id,await body()));return true;}
+    if(operation==='versions'&&request.method==='POST'){json(response,200,await bridge.edition(id,await body(projectLimits.snapshotRequestBytes)));return true;}
     if(operation==='versions/rename'&&request.method==='POST'){json(response,200,await bridge.renameVersion(id,await body()));return true;}
     if(operation==='tools'&&request.method==='POST'){
-      const value=await body(2*1024*1024),stream=request.headers.accept?.includes('application/x-ndjson');
+      const value=await body(projectLimits.documentRequestBytes),stream=request.headers.accept?.includes('application/x-ndjson');
       const emit=event=>{if(!response.destroyed&&!response.writableEnded)response.write(JSON.stringify(event)+'\n');};
       if(stream)response.writeHead(200,{'Content-Type':'application/x-ndjson; charset=utf-8','Cache-Control':'no-store'});
       try{const result=await bridge.proposeTools(id,value,{signal:controller.signal,onEvent:stream?event=>emit({...event,preview:event.preview?{width:event.preview.width,height:event.preview.height,pixelHash:event.preview.pixelHash}:undefined}):undefined});if(stream){emit({type:'result',value:result});response.end();}else json(response,200,result);}
@@ -61,7 +65,7 @@ export async function handleProjectRoutes(request,response,url,{bridge,readBody,
       return true;
     }
     if(operation==='candidate'&&request.method==='POST'){json(response,200,await bridge.propose(id,await body()));return true;}
-    if(operation==='document'&&request.method==='POST'){json(response,200,await bridge.proposeDocument(id,await body(2*1024*1024),{signal:controller.signal}));return true;}
+    if(operation==='document'&&request.method==='POST'){json(response,200,await bridge.proposeDocument(id,await body(projectLimits.documentRequestBytes),{signal:controller.signal}));return true;}
     if(['select','accept','discard','restore'].includes(operation)&&request.method==='POST'){json(response,200,await bridge.candidate(id,operation,await body()));return true;}
     if(operation==='preview'&&request.method==='GET'){
       const packet=await bridge.previewPacket(id,url.searchParams.get('version')||'current',Number(url.searchParams.get('revision')),controller.signal);
