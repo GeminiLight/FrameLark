@@ -79,6 +79,7 @@ try{
   await browser('click','#photo-redo');
   await browser('wait','--fn','!document.querySelector("#photo-undo").disabled');
   await browser('click','#collection-open');
+  await browser('wait',`[data-collection-recent="${c.id}"]`);
   await browser('click',`[data-collection-recent="${c.id}"]`);
   await browser('wait','--fn','document.querySelector("#shared-collection-dialog").open&&document.querySelectorAll("[data-collection-photo]").length===2');
   assert.equal(await browser('errors'),'');

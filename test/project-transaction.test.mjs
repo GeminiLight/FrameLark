@@ -44,6 +44,8 @@ test('cancelled render preparation never commits and metadata remains usable wit
  const original=Module._load;Module._load=function(name,...args){if(name==='sharp'||name==='@napi-rs/canvas')throw Error('native load blocked');return original.call(this,name,...args);};
  const {loadProject,setIntent}=await import(${JSON.stringify(new URL('../skills/photo-retouch/scripts/project.mjs',import.meta.url).href)});
  const {configureWorkflow}=await import(${JSON.stringify(new URL('../skills/photo-retouch/scripts/workflow.mjs',import.meta.url).href)});
+ const {ProjectBridge}=await import(${JSON.stringify(new URL('../apps/studio/server/projects/bridge.mjs',import.meta.url).href)});
+ const bridge=new ProjectBridge({root:process.argv[1]});try{if((await bridge.capabilities()).projects)throw Error('image capability advertised without native runtime');}finally{await bridge.close();}
  const folder=process.argv[1],p=await loadProject(folder);await setIntent(folder,{revision:p.revision,intent:'metadata without native'});const current=await loadProject(folder);await configureWorkflow(folder,{revision:current.revision,mode:'manual'});`;
  await promisify(execFile)(process.execPath,['--input-type=module','-e',script,folder]);assert.equal((await loadProject(folder)).intent,'metadata without native');
 });
